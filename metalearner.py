@@ -560,11 +560,10 @@ class MetaLearner:
                 self.logger.add('return_std_per_frame_{}/episode_{}'.format(policy_type, k + 1), returns_std[k], self.frames)
 
             # print FPS only once
-            if policy_type == 'exploration':
-                print(f"Updates {self.iter_idx}, "
-                      f"Frames {self.frames}, "
-                      f"FPS {int(self.frames / (time.time() - start_time))}, "
-                      f"\n Mean return (train): {returns_avg[-1].item()} \n")
+            print(f"Updates {self.iter_idx}, "
+                  f"Frames {self.frames}, "
+                  f"FPS {int(self.frames / (time.time() - start_time))}, "
+                  f"\n Mean return {policy_type}(train): {returns_avg[-1].item()} \n")
 
         # --- save models ---
 

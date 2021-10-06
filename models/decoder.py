@@ -6,7 +6,7 @@ from utils import helpers as utl
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-import time
+
 class StateTransitionDecoder(nn.Module):
     def __init__(self,
                  layers,
