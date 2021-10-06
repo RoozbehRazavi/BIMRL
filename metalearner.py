@@ -563,7 +563,7 @@ class MetaLearner:
             print(f"Updates {self.iter_idx}, "
                   f"Frames {self.frames}, "
                   f"FPS {int(self.frames / (time.time() - start_time))}, "
-                  f"\n Mean return {policy_type}(train): {returns_avg[-1].item()} \n")
+                  f"\n Mean return {policy_type} (train): {returns_avg[-1].item()} \n")
 
         # --- save models ---
 
