@@ -701,11 +701,6 @@ class Base2Final:
                                        vae_rewards, vae_tasks, trajectory_lens)
         rew_reconstruction_loss, state_reconstruction_loss, task_reconstruction_loss, kl_loss = losses
 
-        print(rew_reconstruction_loss.device)
-        print(state_reconstruction_loss.device)
-        print(task_reconstruction_loss.device)
-        print(kl_loss.device)
-
         # VAE loss = KL loss + reward reconstruction + state transition reconstruction
         # take average (this is the expectation over p(M))
         loss = (self.args.rew_loss_coeff * rew_reconstruction_loss +
