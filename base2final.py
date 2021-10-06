@@ -465,7 +465,7 @@ class Base2Final:
             state_reconstruction_loss = self.compute_state_reconstruction_loss(dec_embedding, dec_prev_obs,
                                                                                dec_next_obs, dec_actions, dec_n_step_actions, dec_n_step_next_obs)
             if n_step_state_prediction:
-                losses = torch.zeros(size=(self.args.n_prediction+1, 1))
+                losses = torch.zeros(size=(self.args.n_prediction+1, 1)).to(device)
                 for i in range(self.args.n_prediction+1):
                     losses[i] = avg_state_loss(state_reconstruction_loss[i], self.args.vae_avg_elbo_terms, self.args.vae_avg_reconstruction_terms)
                 if self.args.vae_avg_n_step_prediction:
