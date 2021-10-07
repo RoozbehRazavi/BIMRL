@@ -197,7 +197,7 @@ class RewardDecoder(nn.Module):
                     else:
                         hps = self.n_step_prev_state_encoder(n_step_next_obs[i-1])
                 else:
-                    hps = torch.zeros(size=(0,))
+                    hps = torch.zeros(size=(0,), device=device)
 
                 hr = torch.cat((nhs, ha, hps), dim=-1)
 
