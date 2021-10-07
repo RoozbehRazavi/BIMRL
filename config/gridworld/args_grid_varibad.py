@@ -181,6 +181,8 @@ def get_args(rest_args):
                         help='backprop rl loss through encoder')
     parser.add_argument('--n_step_state_prediction', type=boolean_argument, default=True,
                         help='state prediction for n step forward not just next state')
+    parser.add_argument('--n_step_reward_prediction', type=boolean_argument, default=True,
+                        help='reward prediction for n step forward not just next reward')
     parser.add_argument('--n_prediction', type=int, default=2,
                         help='for how many future step state prediction should does (exclude one step prediction; for til t+3 set to 2)')
 
@@ -192,7 +194,10 @@ def get_args(rest_args):
                         help='Average n step prediction terms (instead of sum)')
     parser.add_argument('--action_embedding_size', type=int, default=8)
     parser.add_argument('--reward_embedding_size', type=int, default=16)
-    parser.add_argument('--action_simulator_hidden_size', type=int, default=16)
+    parser.add_argument('--action_simulator_hidden_size', type=int, default=16,
+                        help='hidden size of GRU used in n step state prediction')
+    parser.add_argument('--reward_simulator_hidden_size', type=int, default=16,
+                        help='hidden size of GRU used in n step reward prediction')
     parser.add_argument('--input_action', type=boolean_argument, default=True, help='use prev action for rew pred')
 
 

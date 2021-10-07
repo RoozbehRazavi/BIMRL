@@ -25,7 +25,24 @@ def compute_loss_state(state_pred, next_obs, state_pred_type):
     return loss_state
 
 
-def avg_state_loss(state_reconstruction_loss, vae_avg_elbo_terms, vae_avg_reconstruction_terms):
+def compute_loss_reward(rew_pred, reward, rew_pred_type):
+    if rew_pred_type == 'categorical':
+        rew_pred = F.softmax(rew_pred, dim=-1)
+    elif rew_pred_type == 'bernoulli':
+        rew_pred = torch.sigmoid(rew_pred)
+
+    rew_target = (reward == 1).float()
+    if rew_pred_type == 'deterministic':  # TODO: untested!
+        loss_rew = (rew_pred - reward).pow(2).mean(dim=-1)
+    elif rew_pred_type in ['categorical', 'bernoulli']:
+        loss_rew = F.binary_cross_entropy(rew_pred, rew_target, reduction='none').mean(dim=-1)
+    else:
+        raise NotImplementedError
+    return loss_rew
+
+
+
+def avg_loss(state_reconstruction_loss, vae_avg_elbo_terms, vae_avg_reconstruction_terms):
     # avg/sum across individual ELBO terms
     if vae_avg_elbo_terms:
         state_reconstruction_loss = state_reconstruction_loss.mean(dim=0)
@@ -151,11 +168,14 @@ class Base2Final:
                 state_embed_dim=self.args.state_embedding_size,
                 action_dim=self.args.action_dim,
                 action_embed_dim=self.args.action_embedding_size,
+                reward_simulator_hidden_size=self.args.reward_simulator_hidden_size,
                 num_states=self.args.num_states,
                 multi_head=self.args.multihead_for_reward,
                 pred_type=self.args.rew_pred_type,
                 input_prev_state=self.args.input_prev_state,
                 input_action=self.args.input_action,
+                n_step_reward_prediction=self.args.n_step_reward_prediction,
+                n_prediction=self.args.n_prediction
             ).to(device)
         else:
             reward_decoder = None
@@ -202,49 +222,56 @@ class Base2Final:
             else:
                 return losses
 
-    def compute_rew_reconstruction_loss(self, latent, prev_obs, next_obs, action, reward, return_predictions=False):
+    def compute_rew_reconstruction_loss(self, latent, prev_obs, next_obs, action, reward, n_step_next_obs, n_step_actions, n_step_rewards, return_predictions=False):
         """ Compute reward reconstruction loss.
         (No reduction of loss along batch dimension is done here; sum/avg has to be done outside) """
 
-        if self.args.multihead_for_reward:
-
-            rew_pred = self.reward_decoder(latent, None)
-            if self.args.rew_pred_type == 'categorical':
-                rew_pred = F.softmax(rew_pred, dim=-1)
-            elif self.args.rew_pred_type == 'bernoulli':
-                rew_pred = torch.sigmoid(rew_pred)
-
-            env = gym.make(self.args.env_name)
-            state_indices = env.task_to_id(next_obs).to(device)
-            if state_indices.dim() < rew_pred.dim():
-                state_indices = state_indices.unsqueeze(-1)
-            rew_pred = rew_pred.gather(dim=-1, index=state_indices)
-            rew_target = (reward == 1).float()
-            if self.args.rew_pred_type == 'deterministic':  # TODO: untested!
-                loss_rew = (rew_pred - reward).pow(2).mean(dim=-1)
-            elif self.args.rew_pred_type in ['categorical', 'bernoulli']:
-                loss_rew = F.binary_cross_entropy(rew_pred, rew_target, reduction='none').mean(dim=-1)
+        # if self.args.multihead_for_reward:
+        #
+        #     rew_pred = self.reward_decoder(latent, None)
+        #     if self.args.rew_pred_type == 'categorical':
+        #         rew_pred = F.softmax(rew_pred, dim=-1)
+        #     elif self.args.rew_pred_type == 'bernoulli':
+        #         rew_pred = torch.sigmoid(rew_pred)
+        #
+        #     env = gym.make(self.args.env_name)
+        #     state_indices = env.task_to_id(next_obs).to(device)
+        #     if state_indices.dim() < rew_pred.dim():
+        #         state_indices = state_indices.unsqueeze(-1)
+        #     rew_pred = rew_pred.gather(dim=-1, index=state_indices)
+        #     rew_target = (reward == 1).float()
+        #     if self.args.rew_pred_type == 'deterministic':  # TODO: untested!
+        #         loss_rew = (rew_pred - reward).pow(2).mean(dim=-1)
+        #     elif self.args.rew_pred_type in ['categorical', 'bernoulli']:
+        #         loss_rew = F.binary_cross_entropy(rew_pred, rew_target, reduction='none').mean(dim=-1)
+        #     else:
+        #         raise NotImplementedError
+        #else:
+        rew_pred = self.reward_decoder(latent,
+                                       next_obs,
+                                       prev_obs,
+                                       action.float(),
+                                       n_step_next_obs,
+                                       n_step_actions)
+        if not self.args.n_step_reward_prediction:
+            rew_pred = rew_pred[0]
+            loss_rew = compute_loss_reward(rew_pred, reward, self.args.rew_pred_type)
+            if return_predictions:
+                return loss_rew, rew_pred
             else:
-                raise NotImplementedError
+                return loss_rew
         else:
-            rew_pred = self.reward_decoder(latent, next_obs, prev_obs, action.float())
-            if self.args.rew_pred_type == 'categorical':
-                rew_pred = F.softmax(rew_pred, dim=-1)
-            elif self.args.rew_pred_type == 'bernoulli':
-                rew_pred = torch.sigmoid(rew_pred)
-
-            rew_target = (reward == 1).float()
-            if self.args.rew_pred_type == 'deterministic':  # TODO: untested!
-                loss_rew = (rew_pred - reward).pow(2).mean(dim=-1)
-            elif self.args.rew_pred_type in ['categorical', 'bernoulli']:
-                loss_rew = F.binary_cross_entropy(rew_pred, rew_target, reduction='none').mean(dim=-1)
+            losses = list()
+            for i in range(self.args.n_prediction + 1):
+                if i == 0:
+                    losses.append(compute_loss_reward(rew_pred[i], reward, self.args.rew_pred_type))
+                else:
+                    losses.append(compute_loss_reward(rew_pred[i], n_step_rewards[i-1], self.args.rew_pred_type))
+            if return_predictions:
+                # just return prediction of next step
+                losses, rew_pred[0]
             else:
-                raise NotImplementedError
-
-        if return_predictions:
-            return loss_rew, rew_pred
-        else:
-            return loss_rew
+                return losses
 
     def compute_task_reconstruction_loss(self, latent, task, return_predictions=False):
         """ Compute task reconstruction loss.
@@ -333,13 +360,17 @@ class Base2Final:
         # prepare data for state n step prediction
         n_step_actions = None
         n_step_next_obs = None
+        n_step_rewards = None
         n_step_state_prediction = self.args.n_step_state_prediction and self.args.decode_state
-        if n_step_state_prediction:
-            # if vae_sub_sample >> n_prediction is better
+        n_step_reward_prediction = self.args.n_step_reward_prediction and self.args.decode_reward
+        if n_step_state_prediction or n_step_reward_prediction:
+            # if vae_sub_sample >> n_prediction get better result
             n_step_actions = list()
             n_step_next_obs = list()
+            n_step_rewards = list()
             vae_actions_len = vae_actions.shape[0]
             vae_next_obs_len = vae_next_obs.shape[0]
+            vae_rewards_len = vae_rewards.shape[0]
             for i in range(self.args.n_prediction):
                 # for n last step of trajectory some n_step actions fill with not correct data -
                 # if vas_subsample big enough this issue not effective
@@ -354,6 +385,12 @@ class Base2Final:
                         size=((max_traj_len + i + 1) - vae_next_obs_len, *vae_next_obs.shape[1:]), device=device))))
                 else:
                     n_step_next_obs.append(vae_next_obs[i + 1:max_traj_len + i + 1])
+
+                if max_traj_len + i + 1 >= vae_rewards_len:
+                    n_step_rewards.append(torch.cat((vae_rewards[i + 1:vae_rewards_len], torch.zeros(
+                        size=((max_traj_len + i + 1) - vae_rewards_len, *vae_rewards.shape[1:]), device=device))))
+                else:
+                    n_step_rewards.append(vae_rewards[i + 1:max_traj_len + i + 1])
 
         # cut down the batch to the longest trajectory length
         # this way we can preserve the structure
@@ -406,7 +443,8 @@ class Base2Final:
         dec_rewards = vae_rewards.unsqueeze(0).expand((num_elbos, *vae_rewards.shape))
         dec_n_step_actions = None
         dec_n_step_next_obs = None
-        if n_step_state_prediction:
+        dec_n_step_rewards = None
+        if n_step_state_prediction or n_step_reward_prediction:
             dec_n_step_actions = list()
             for i in range(self.args.n_prediction):
                 dec_n_step_actions.append(n_step_actions[i].unsqueeze(0).expand((num_elbos, *n_step_actions[i].shape)))
@@ -414,6 +452,10 @@ class Base2Final:
             dec_n_step_next_obs = list()
             for i in range(self.args.n_prediction):
                 dec_n_step_next_obs.append(n_step_next_obs[i].unsqueeze(0).expand((num_elbos, *n_step_next_obs[i].shape)))
+
+            dec_n_step_rewards =list()
+            for i in range(self.args.n_prediction):
+                dec_n_step_rewards.append(n_step_rewards[i].unsqueeze(0).expand((num_elbos, *n_step_rewards[i].shape)))
 
         # subsample reconstruction terms
         if self.args.vae_subsample_decodes is not None:
@@ -431,10 +473,11 @@ class Base2Final:
             dec_next_obs = dec_next_obs[indices0, indices1, indices2, :].reshape((num_elbos, self.args.vae_subsample_decodes, batchsize, -1))
             dec_actions = dec_actions[indices0, indices1, indices2, :].reshape((num_elbos, self.args.vae_subsample_decodes, batchsize, -1))
             dec_rewards = dec_rewards[indices0, indices1, indices2, :].reshape((num_elbos, self.args.vae_subsample_decodes, batchsize, -1))
-            if n_step_state_prediction:
+            if n_step_state_prediction or n_step_reward_prediction:
                 for i in range(self.args.n_prediction):
                     dec_n_step_actions[i] = dec_n_step_actions[i][indices0, indices1, indices2, :].reshape((num_elbos, self.args.vae_subsample_decodes, batchsize, -1))
                     dec_n_step_next_obs[i] = dec_n_step_next_obs[i][indices0, indices1, indices2, :].reshape((num_elbos, self.args.vae_subsample_decodes, batchsize, -1))
+                    dec_n_step_rewards[i] = dec_n_step_rewards[i][indices0, indices1, indices2, :].reshape((num_elbos, self.args.vae_subsample_decodes, batchsize, -1))
             num_decodes = dec_prev_obs.shape[1]
 
         # expand the latent (to match the number of state/rew/action inputs to the decoder)
@@ -445,19 +488,18 @@ class Base2Final:
             # compute reconstruction loss for this trajectory (for each timestep that was encoded, decode everything and sum it up)
             # shape: [num_elbo_terms] x [num_reconstruction_terms] x [num_trajectories]
             rew_reconstruction_loss = self.compute_rew_reconstruction_loss(dec_embedding, dec_prev_obs, dec_next_obs,
-                                                                           dec_actions, dec_rewards)
-            # avg/sum across individual ELBO terms
-            if self.args.vae_avg_elbo_terms:
-                rew_reconstruction_loss = rew_reconstruction_loss.mean(dim=0)
+                                                                           dec_actions, dec_rewards, dec_n_step_next_obs, dec_n_step_actions, dec_n_step_rewards)
+
+            if self.args.n_step_reward_prediction:
+                losses = torch.zeros(size=(self.args.n_prediction + 1, 1)).to(device)
+                for i in range(self.args.n_prediction + 1):
+                    losses[i] = avg_loss(rew_reconstruction_loss[i], self.args.vae_avg_elbo_terms, self.args.vae_avg_reconstruction_terms)
+                if self.args.vae_avg_n_step_prediction:
+                    rew_reconstruction_loss = losses.mean(dim=0)
+                else:
+                    rew_reconstruction_loss = losses.sum(dim=0)
             else:
-                rew_reconstruction_loss = rew_reconstruction_loss.sum(dim=0)
-            # avg/sum across individual reconstruction terms
-            if self.args.vae_avg_reconstruction_terms:
-                rew_reconstruction_loss = rew_reconstruction_loss.mean(dim=0)
-            else:
-                rew_reconstruction_loss = rew_reconstruction_loss.sum(dim=0)
-            # average across tasks
-            rew_reconstruction_loss = rew_reconstruction_loss.mean()
+                rew_reconstruction_loss = avg_loss(rew_reconstruction_loss, self.args.vae_avg_elbo_terms, self.args.vae_avg_reconstruction_terms)
         else:
             rew_reconstruction_loss = 0
 
@@ -467,13 +509,13 @@ class Base2Final:
             if n_step_state_prediction:
                 losses = torch.zeros(size=(self.args.n_prediction+1, 1)).to(device)
                 for i in range(self.args.n_prediction+1):
-                    losses[i] = avg_state_loss(state_reconstruction_loss[i], self.args.vae_avg_elbo_terms, self.args.vae_avg_reconstruction_terms)
+                    losses[i] = avg_loss(state_reconstruction_loss[i], self.args.vae_avg_elbo_terms, self.args.vae_avg_reconstruction_terms)
                 if self.args.vae_avg_n_step_prediction:
                     state_reconstruction_loss = losses.mean(dim=0)
                 else:
                     state_reconstruction_loss = losses.sum(dim=0)
             else:
-                state_reconstruction_loss = avg_state_loss(state_reconstruction_loss, self.args.vae_avg_elbo_terms, self.args.vae_avg_reconstruction_terms)
+                state_reconstruction_loss = avg_loss(state_reconstruction_loss, self.args.vae_avg_elbo_terms, self.args.vae_avg_reconstruction_terms)
         else:
             state_reconstruction_loss = 0
 

@@ -55,8 +55,8 @@ class StateTransitionDecoder(nn.Module):
         else:
             self.one_step_fc_out = nn.Linear(curr_input_dim, state_dim)
 
-    def forward(self, latent_state, state, action, dec_n_step_action):
-        assert dec_n_step_action is not None or not self.n_step_state_prediction
+    def forward(self, latent_state, state, action, n_step_action):
+        assert n_step_action is not None or not self.n_step_state_prediction
         state_prediction = []
 
         ha = self.action_encoder(action)
@@ -70,7 +70,7 @@ class StateTransitionDecoder(nn.Module):
         if self.n_step_state_prediction:
             h = self.h_to_hidden_state(h)
             for i in range(self.n_prediction):
-                ha = self.n_step_action_encoder(dec_n_step_action[i])
+                ha = self.n_step_action_encoder(n_step_action[i])
                 ha = ha.reshape((-1, ha.shape[-1]))
                 h_size = h.shape
                 h = h.reshape((-1, h.shape[-1]))
@@ -88,64 +88,126 @@ class RewardDecoder(nn.Module):
                  action_embed_dim,
                  state_dim,
                  state_embed_dim,
+                 reward_simulator_hidden_size,
                  num_states,
                  multi_head=False,
                  pred_type='deterministic',
                  input_prev_state=True,
                  input_action=True,
+                 n_step_reward_prediction=True,
+                 n_prediction=3
                  ):
         super(RewardDecoder, self).__init__()
 
+        self.n_step_reward_prediction = n_step_reward_prediction
+        self.n_prediction = n_prediction
+        reward_simulator_hidden_size
         self.pred_type = pred_type
         self.multi_head = multi_head
         self.input_prev_state = input_prev_state
         self.input_action = input_action
 
-        if self.multi_head:
-            # one output head per state to predict rewards
-            curr_input_dim = latent_dim
-            self.fc_layers = nn.ModuleList([])
-            for i in range(len(layers)):
-                self.fc_layers.append(nn.Linear(curr_input_dim, layers[i]))
-                curr_input_dim = layers[i]
-            self.fc_out = nn.Linear(curr_input_dim, num_states)
+        # if self.multi_head:
+        #     # one output head per state to predict rewards
+        #     curr_input_dim = latent_dim
+        #     self.fc_layers = nn.ModuleList([])
+        #     for i in range(len(layers)):
+        #         self.fc_layers.append(nn.Linear(curr_input_dim, layers[i]))
+        #         curr_input_dim = layers[i]
+        #     self.fc_out = nn.Linear(curr_input_dim, num_states)
+        # else:
+
+        # get state as input and predict reward prob
+        self.state_encoder = utl.FeatureExtractor(state_dim, state_embed_dim, F.relu)
+        self.action_encoder = utl.FeatureExtractor(action_dim, action_embed_dim, F.relu)
+        curr_input_dim = latent_dim + state_embed_dim
+        if input_prev_state:
+            curr_input_dim += state_embed_dim
+        if input_action:
+            curr_input_dim += action_embed_dim
+        self.fc_layers = nn.ModuleList([])
+        for i in range(len(layers)):
+            self.fc_layers.append(nn.Linear(curr_input_dim, layers[i]))
+            curr_input_dim = layers[i]
+
+        if pred_type == 'gaussian':
+            self.one_step_fc_out = nn.Linear(curr_input_dim, 2)
         else:
-            # get state as input and predict reward prob
-            self.state_encoder = utl.FeatureExtractor(state_dim, state_embed_dim, F.relu)
-            self.action_encoder = utl.FeatureExtractor(action_dim, action_embed_dim, F.relu)
-            curr_input_dim = latent_dim + state_embed_dim
+            self.one_step_fc_out = nn.Linear(curr_input_dim, 1)
+
+        if self.n_step_reward_prediction:
+            self.h_to_hidden_state = nn.Sequential(
+                nn.Linear(curr_input_dim, reward_simulator_hidden_size * 2),
+                nn.ReLU(),
+                nn.Linear(reward_simulator_hidden_size * 2, reward_simulator_hidden_size)
+            )
+
+            curr_input_dim = state_embed_dim
             if input_prev_state:
                 curr_input_dim += state_embed_dim
             if input_action:
                 curr_input_dim += action_embed_dim
-            self.fc_layers = nn.ModuleList([])
-            for i in range(len(layers)):
-                self.fc_layers.append(nn.Linear(curr_input_dim, layers[i]))
-                curr_input_dim = layers[i]
+            self.reward_simulator = nn.GRUCell(curr_input_dim, reward_simulator_hidden_size)
 
-            if pred_type == 'gaussian':
-                self.fc_out = nn.Linear(curr_input_dim, 2)
-            else:
-                self.fc_out = nn.Linear(curr_input_dim, 1)
+            self.n_step_fc_out = nn.ModuleList([])
+            for i in range(self.n_prediction):
+                if pred_type == 'gaussian':
+                    self.n_step_fc_out.append(nn.Linear(reward_simulator_hidden_size, 2))
+                else:
+                    self.n_step_fc_out.append(nn.Linear(reward_simulator_hidden_size, 1))
+            self.n_step_next_state_encoder = utl.FeatureExtractor(state_dim, state_embed_dim, F.relu)
+            if input_action:
+                self.n_step_action_encoder = utl.FeatureExtractor(action_dim, action_embed_dim, F.relu)
+            if input_prev_state:
+                self.n_step_prev_state_encoder = utl.FeatureExtractor(state_dim, state_embed_dim, F.relu)
 
-    def forward(self, latent_state, next_state, prev_state=None, action=None):
+    def forward(self, latent_state, next_state, prev_state=None, action=None, n_step_next_obs=None, n_step_actions=None):
+        assert (n_step_next_obs is not None and  n_step_actions is not None) or not self.n_step_reward_prediction
 
-        if self.multi_head:
-            h = latent_state.clone()
-        else:
-            hns = self.state_encoder(next_state)
-            h = torch.cat((latent_state, hns), dim=-1)
-            if self.input_action:
-                ha = self.action_encoder(action)
-                h = torch.cat((h, ha), dim=-1)
-            if self.input_prev_state:
-                hps = self.state_encoder(prev_state)
-                h = torch.cat((h, hps), dim=-1)
+        reward_prediction = []
+        # if self.multi_head:
+        #     h = latent_state.clone()
+        # else:
+
+        hns = self.state_encoder(next_state)
+        h = torch.cat((latent_state, hns), dim=-1)
+        if self.input_action:
+            ha = self.action_encoder(action)
+            h = torch.cat((h, ha), dim=-1)
+        if self.input_prev_state:
+            hps = self.state_encoder(prev_state)
+            h = torch.cat((h, hps), dim=-1)
 
         for i in range(len(self.fc_layers)):
             h = F.relu(self.fc_layers[i](h))
 
-        return self.fc_out(h)
+        reward_prediction.append(self.one_step_fc_out(h))
+
+        if self.n_step_reward_prediction:
+            h = self.h_to_hidden_state(h)
+            for i in range(self.n_prediction):
+                nhs = self.n_step_next_state_encoder(n_step_next_obs[i])
+                if self.input_action:
+                    ha = self.n_step_action_encoder(n_step_actions[i])
+                else:
+                    ha = torch.zeros(size=(0, ))
+                if self.input_prev_state:
+                    if i == 0:
+                        hps = self.n_step_prev_state_encoder(prev_state)
+                    else:
+                        hps = self.n_step_prev_state_encoder(n_step_next_obs[i-1])
+                else:
+                    hps = torch.zeros(size=(0,))
+
+                hr = torch.cat((nhs, ha, hps), dim=-1)
+
+                hr = hr.reshape((-1, hr.shape[-1]))
+                h_size = h.shape
+                h = h.reshape((-1, h.shape[-1]))
+                h = self.reward_simulator(hr, h)
+                h = h.reshape((*h_size[:-1], h.shape[-1]))
+                reward_prediction.append(self.n_step_fc_out[i](h))
+        return reward_prediction
 
 
 class TaskDecoder(nn.Module):
