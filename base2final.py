@@ -5,7 +5,7 @@ import torch
 from torch.nn import functional as F
 
 from models.decoder import StateTransitionDecoder, RewardDecoder, TaskDecoder
-from models.encoder import VAERNNEncoder
+from brim_core.brim_core import BRIMCore
 from utils.storage_vae import RolloutStorageVAE
 from utils.helpers import get_task_dim, get_num_tasks
 
@@ -114,18 +114,46 @@ class Base2Final:
 
     def initialise_brim_core(self):
         """ Initialises and returns an Brim Core """
-        brim_core = VAERNNEncoder(
-            layers_before_gru=self.args.encoder_layers_before_gru,
-            hidden_size=self.args.encoder_gru_hidden_size,
-            layers_after_gru=self.args.encoder_layers_after_gru,
+        brim_core = BRIMCore(
+            use_memory=self.args.use_memory,
+            use_hebb=self.args.use_hebb,
+            use_gen=self.args.use_gen,
+            use_stateless_vision_core=self.args.use_stateless_vision_core,
+            use_rim_level1=self.args.use_rim_level1,
+            use_rim_level2=self.args.use_rim_level2,
+            use_rim_level3=self.args.use_rim_level3,
+            # brim
+            use_gru_or_rim=self.args.use_gru_or_rim,
+            rim_level1_hidden_size=self.args.rim_level1_hidden_size,
+            rim_level2_hidden_size=self.args.rim_level2_hidden_size,
+            rim_level3_hidden_size=self.args.rim_level3_hidden_size,
+            rim_level1_output_dim=self.args.rim_level1_output_dim,
+            rim_level2_output_dim=self.args.rim_level2_output_dim,
+            rim_level3_output_dim=self.args.rim_level3_output_dim,
+            rim_level1_num_modules=self.args.rim_level1_num_modules,
+            rim_level2_num_modules=self.args.rim_level2_num_modules,
+            rim_level3_num_modules=self.args.rim_level3_num_modules,
+            rim_level1_topk=self.args.rim_level1_topk,
+            rim_level2_topk=self.args.rim_level2_topk,
+            rim_level3_topk=self.args.rim_level3_topk,
+            brim_layers_before_rim_level1=self.args.brim_layers_before_rim_level1,
+            brim_layers_before_rim_level2=self.args.brim_layers_before_rim_level2,
+            brim_layers_before_rim_level3=self.args.brim_layers_before_rim_level3,
+            brim_layers_after_rim_level1=self.args.brim_layers_after_rim_level1,
+            brim_layers_after_rim_level2=self.args.brim_layers_after_rim_level2,
+            brim_layers_after_rim_level3=self.args.brim_layers_after_rim_level3,
+            # vae encoder
+            vae_encoder_layers_before_gru=self.args.vae_encoder_layers_before_gru,
+            vae_encoder_hidden_size=self.args.vae_encoder_hidden_size,
+            vae_encoder_layers_after_gru=self.args.vae_encoder_layers_after_gru,
             task_inference_latent_dim=self.args.task_inference_latent_dim,
             action_dim=self.args.action_dim,
-            action_embed_dim=self.args.action_embedding_size,
+            action_embed_dim=self.args.action_embed_dim,
             state_dim=self.args.state_dim,
-            state_embed_dim=self.args.state_embedding_size,
-            reward_size=1,
-            reward_embed_size=self.args.reward_embedding_size,
-        ).to(device)
+            state_embed_dim=self.args.state_embed_dim,
+            reward_size=self.args.reward_size,
+            reward_embed_size=self.args.reward_embed_size,
+        )
         return brim_core
 
     def initialise_decoder(self):
@@ -135,7 +163,7 @@ class Base2Final:
             return None, None, None
 
         if self.args.use_rim_level3:
-            latent_dim = self.args.rim_level3_hidden_size
+            latent_dim = self.args.rim_level3_output_dim
         else:
             latent_dim = self.args.task_inference_latent_dim
             # double latent dimension (input size to decoder) if we use a deterministic latents (for easier comparison)
@@ -344,7 +372,7 @@ class Base2Final:
             losses = torch.stack(partial_reconstruction_loss)
         return losses
 
-    def compute_loss(self, latent_mean, latent_logvar, vae_prev_obs, vae_next_obs, vae_actions,
+    def compute_loss(self, brim_output5, latent_mean, latent_logvar, vae_prev_obs, vae_next_obs, vae_actions,
                      vae_rewards, vae_tasks, trajectory_lens):
         """
         Computes the VAE loss for the given data.
@@ -397,6 +425,7 @@ class Base2Final:
         # but we will waste some computation on zero-padded trajectories that are shorter than max_traj_len
         latent_mean = latent_mean[:max_traj_len+1]
         latent_logvar = latent_logvar[:max_traj_len+1]
+        brim_output5 = brim_output5[:max_traj_len+1]
         vae_prev_obs = vae_prev_obs[:max_traj_len]
         vae_next_obs = vae_next_obs[:max_traj_len]
         vae_actions = vae_actions[:max_traj_len]
@@ -431,6 +460,7 @@ class Base2Final:
                                   'To avoid this use --split_batches_by_elbo or --split_batches_by_task.')
             task_indices = torch.arange(batchsize).repeat(self.args.vae_subsample_elbos)  # for selection mask
             latent_samples = latent_samples[elbo_indices, task_indices, :].reshape((self.args.vae_subsample_elbos, batchsize, -1))
+            brim_output5 = brim_output5[elbo_indices, task_indices, :].reshape((self.args.vae_subsample_elbos, batchsize, -1))
             num_elbos = latent_samples.shape[0]
         else:
             elbo_indices = None
@@ -483,6 +513,10 @@ class Base2Final:
         # expand the latent (to match the number of state/rew/action inputs to the decoder)
         # shape will be: [num tasks in batch] x [num elbos] x [len trajectory (reconstrution loss)] x [dimension]
         dec_embedding = latent_samples.unsqueeze(0).expand((num_decodes, *latent_samples.shape)).transpose(1, 0)
+        dec_brim_output5 = brim_output5.unsqueeze(0).expand((num_decodes, *latent_samples.shape)).transpose(1, 0)
+        # if use rim in VAE decoder use output of rim level 3 instead of VAE encoder output
+        if self.args.use_rim_level3:
+            dec_embedding = dec_brim_output5
 
         if self.args.decode_reward:
             # compute reconstruction loss for this trajectory (for each timestep that was encoded, decode everything and sum it up)
@@ -546,125 +580,6 @@ class Base2Final:
 
         return rew_reconstruction_loss, state_reconstruction_loss, task_reconstruction_loss, kl_loss
 
-    def compute_loss_split_batches_by_elbo(self, latent_mean, latent_logvar, vae_prev_obs, vae_next_obs, vae_actions,
-                                           vae_rewards, vae_tasks, trajectory_lens):
-
-        """
-        Loop over the elvo_t terms to compute losses per t.
-        Saves some memory if batch sizes are very large,
-        or if trajectory lengths are different, or if we decode only the past.
-        """
-
-        rew_reconstruction_loss = []
-        state_reconstruction_loss = []
-        task_reconstruction_loss = []
-
-        assert len(np.unique(trajectory_lens)) == 1
-        n_horizon = np.unique(trajectory_lens)[0]
-        n_elbos = latent_mean.shape[0]  # includes the prior
-
-        # for each elbo term (including one for the prior)...
-        for idx_elbo in range(n_elbos):
-
-            # get the embedding values (size: traj_length+1 * latent_dim; the +1 is for the prior)
-            curr_means = latent_mean[idx_elbo]
-            curr_logvars = latent_logvar[idx_elbo]
-
-            # take one sample for each task
-            if not self.args.disable_stochasticity_in_latent:
-                curr_samples = self.brim_core._sample_gaussian(curr_means, curr_logvars)
-            else:
-                curr_samples = torch.cat((latent_mean, latent_logvar))
-
-            # if the size of what we decode is always the same, we can speed up creating the batches
-            if not self.args.decode_only_past:
-
-                # expand the latent to match the (x, y) pairs of the decoder
-                dec_embedding = curr_samples.unsqueeze(0).expand((n_horizon, *curr_samples.shape))
-                dec_embedding_task = curr_samples
-
-                dec_prev_obs = vae_prev_obs
-                dec_next_obs = vae_next_obs
-                dec_actions = vae_actions
-                dec_rewards = vae_rewards
-
-            # otherwise, we unfortunately have to loop!
-            # loop through the lengths we are feeding into the encoder for that trajectory (starting with prior)
-            # (these are the different ELBO_t terms)
-            else:
-
-                # get the index until which we want to decode
-                # (i.e. eithe runtil curr timestep or entire trajectory including future)
-                if self.args.decode_only_past:
-                    dec_from = 0
-                    dec_until = idx_elbo
-                else:
-                    dec_from = 0
-                    dec_until = n_horizon
-
-                if dec_from == dec_until:
-                    continue
-
-                # (1) ... get the latent sample after feeding in some data (determined by len_encoder) & expand (to number of outputs)
-                # num latent samples x embedding size
-                dec_embedding = curr_samples.unsqueeze(0).expand(dec_until - dec_from, *curr_samples.shape)
-                dec_embedding_task = curr_samples
-                # (2) ... get the predictions for the trajectory until the timestep we're interested in
-                dec_prev_obs = vae_prev_obs[dec_from:dec_until]
-                dec_next_obs = vae_next_obs[dec_from:dec_until]
-                dec_actions = vae_actions[dec_from:dec_until]
-                dec_rewards = vae_rewards[dec_from:dec_until]
-
-            if self.args.decode_reward:
-                # compute reconstruction loss for this trajectory (for each timestep that was encoded, decode everything and sum it up)
-                # size: if all trajectories are of same length [num_elbo_terms x num_reconstruction_terms], otherwise it's flattened into one
-                rrc = self.compute_rew_reconstruction_loss(dec_embedding, dec_prev_obs, dec_next_obs, dec_actions,
-                                                           dec_rewards)
-                # sum up the reconstruction terms; average over tasks
-                rrc = rrc.sum(dim=0).mean()
-                rew_reconstruction_loss.append(rrc)
-
-            if self.args.decode_state:
-                src = self.compute_state_reconstruction_loss(dec_embedding, dec_prev_obs, dec_next_obs, dec_actions)
-                # sum up the reconstruction terms; average over tasks
-                src = src.sum(dim=0).mean()
-                state_reconstruction_loss.append(src)
-
-            if self.args.decode_task:
-                trc = self.compute_task_reconstruction_loss(dec_embedding_task, vae_tasks)
-                # average across tasks
-                trc = trc.mean()
-                task_reconstruction_loss.append(trc)
-
-        # sum the ELBO_t terms
-        if self.args.decode_reward:
-            rew_reconstruction_loss = torch.stack(rew_reconstruction_loss)
-            rew_reconstruction_loss = rew_reconstruction_loss.sum()
-        else:
-            rew_reconstruction_loss = 0
-
-        if self.args.decode_state:
-            state_reconstruction_loss = torch.stack(state_reconstruction_loss)
-            state_reconstruction_loss = state_reconstruction_loss.sum()
-        else:
-            state_reconstruction_loss = 0
-
-        if self.args.decode_task:
-            task_reconstruction_loss = torch.stack(task_reconstruction_loss)
-            task_reconstruction_loss = task_reconstruction_loss.sum()
-        else:
-            task_reconstruction_loss = 0
-
-        if not self.args.disable_stochasticity_in_latent:
-            # compute the KL term for each ELBO term of the current trajectory
-            kl_loss = self.compute_kl_loss(latent_mean, latent_logvar, None)
-            # sum the elbos, average across tasks
-            kl_loss = kl_loss.sum(dim=0).mean()
-        else:
-            kl_loss = 0
-
-        return rew_reconstruction_loss, state_reconstruction_loss, task_reconstruction_loss, kl_loss
-
     def compute_vae_loss(self, update=False):
         """
         Returns the VAE loss
@@ -684,6 +599,8 @@ class Base2Final:
 
         use_exploitation_data = exploitation_rollout_storage_read and not self.args.vae_fill_with_exploration_experience
         use_exploration_data = exploration_rollout_storage_read
+
+        assert use_exploration_data or use_exploitation_data
 
         # get a mini-batch
         if use_exploration_data:
@@ -716,31 +633,28 @@ class Base2Final:
             vae_rewards = exploitation_vae_rewards
             vae_tasks = exploitation_vae_tasks
             trajectory_lens = exploitation_trajectory_lens
+        else:
+            raise Exception('both of use_exploration_data and use_exploitation_data')
+            vae_prev_obs = None
+            vae_next_obs = None
+            vae_actions = None
+            vae_rewards = None
+            vae_tasks = None
+            trajectory_lens = None
 
         # vae_prev_obs will be of size: max trajectory len x num trajectories x dimension of observations
+        # pass through brim_core (outputs will be: (max_traj_len+1) x number of rollouts x latent_dim -- includes the prior!)
+        brim_output5, latent_mean, latent_logvar = self.brim_core.forward_level3(actions=vae_actions,
+                                                                                 states=vae_next_obs,
+                                                                                 rewards=vae_rewards,
+                                                                                 brim_hidden_state=None,
+                                                                                 task_inference_hidden_state=None,
+                                                                                 return_prior=True,
+                                                                                 sample=True,
+                                                                                 detach_every=self.args.tbptt_stepsize if hasattr(self.args, 'tbptt_stepsize') else None)
 
-
-        # pass through encoder (outputs will be: (max_traj_len+1) x number of rollouts x latent_dim -- includes the prior!)
-        _, latent_mean, latent_logvar, _ = self.brim_core(actions=vae_actions,
-                                                        states=vae_next_obs,
-                                                        rewards=vae_rewards,
-                                                        hidden_state=None,
-                                                        return_prior=True,
-                                                        detach_every=self.args.tbptt_stepsize if hasattr(self.args, 'tbptt_stepsize') else None,
-                                                        )
-
-        if self.args.split_batches_by_task:
-            raise NotImplementedError
-            losses = self.compute_loss_split_batches_by_task(latent_mean, latent_logvar, vae_prev_obs, vae_next_obs,
-                                                             vae_actions, vae_rewards, vae_tasks,
-                                                             trajectory_lens, len_encoder)
-        elif self.args.split_batches_by_elbo:
-            losses = self.compute_loss_split_batches_by_elbo(latent_mean, latent_logvar, vae_prev_obs, vae_next_obs,
-                                                             vae_actions, vae_rewards, vae_tasks,
-                                                             trajectory_lens)
-        else:
-            losses = self.compute_loss(latent_mean, latent_logvar, vae_prev_obs, vae_next_obs, vae_actions,
-                                       vae_rewards, vae_tasks, trajectory_lens)
+        losses = self.compute_loss(brim_output5, latent_mean, latent_logvar, vae_prev_obs, vae_next_obs, vae_actions,
+                                   vae_rewards, vae_tasks, trajectory_lens)
         rew_reconstruction_loss, state_reconstruction_loss, task_reconstruction_loss, kl_loss = losses
 
         # VAE loss = KL loss + reward reconstruction + state transition reconstruction

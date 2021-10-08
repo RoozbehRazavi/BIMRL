@@ -208,22 +208,63 @@ def get_args(rest_args):
     parser.add_argument('--use_rim_level1', type=boolean_argument, default=False,
                         help='whatever create rim level1 (use for policy) or not')
 
-    parser.add_argument('--use_rim_level3', type=boolean_argument, default=False,
+    parser.add_argument('--use_rim_level2', type=boolean_argument, default=False,
+                        help='whatever create rim level2 (use for n step value prediction) or not')
+
+    parser.add_argument('--use_rim_level3', type=boolean_argument, default=True,
                         help='whatever create rim level3 (use for decode VAE terms) or not')
 
-    parser.add_argument('--rim_level1_hidden_size', type=int, default=None,
+    parser.add_argument('--rim_level1_hidden_size', type=int, default=32,
                         help='hidden size of level 1 rim (output of this level use for policy head)')
-    parser.add_argument('--rim_level3_hidden_size', type=int, default=None,
+    parser.add_argument('--rim_level2_hidden_size', type=int, default=32,
+                        help='hidden size of level 1 rim (output of this level use for n step value prediction head)')
+    parser.add_argument('--rim_level3_hidden_size', type=int, default=32,
                         help='hidden size of level 3 rim (output of this level use decode VAE term)')
 
-    # rim_level1_output_dim shouldn't huge (set some thing like 5)
-    parser.add_argument('--rim_level1_output_dim', type=int, default=0,
-                        help='output size of rim level1 (same meaning of pass rim level 1 output to policy)')
-    parser.add_argument('--rim_level3_output_dim', type=int, default=0,
-                        help='output size of rim level3 (same meaning of pass rim level 3 output to VAE decoder of task inference latent to VAE decoder)')
+    parser.add_argument('rim_level1_num_modules', type=int, default=1,
+                        help='number of module in rim level 1')
+    parser.add_argument('rim_level2_num_modules', type=int, default=1,
+                        help='number of module in rim level 2')
+    parser.add_argument('rim_level3_num_modules', type=int, default=1,
+                        help='number of module in rim level 3')
+
+    parser.add_argument('--rim_level1_topk', type=int, default=1,
+                        help='number of module in rim level 1 that can active in each time step')
+    parser.add_argument('--rim_level2_topk', type=int, default=1,
+                        help='number of module in rim level 2 that can active in each time step')
+    parser.add_argument('--rim_level3_topk', type=int, default=1,
+                        help='number of module in rim level 3 that can active in each time step')
+
+    parser.add_argument('--brim_layers_before_rim_level1', nargs='+', type=int, default=[16])
+    parser.add_argument('--brim_layers_before_rim_level2', nargs='+', type=int, default=[16])
+    parser.add_argument('--brim_layers_before_rim_level3', nargs='+', type=int, default=[16])
+
+    parser.add_argument('--brim_layers_after_rim_level1', nargs='+', type=int, default=[8])
+    parser.add_argument('--brim_layers_after_rim_level2', nargs='+', type=int, default=[8])
+    parser.add_argument('--brim_layers_after_rim_level3', nargs='+', type=int, default=[8])
+    # rim_levels_output_dim shouldn't huge (set some thing like 5)
+    parser.add_argument('--rim_level1_output_dim', type=int, default=8,
+                        help='output size of rim level1')
+    parser.add_argument('--rim_level2_output_dim', type=int, default=8,
+                        help='output size of rim level2')
+    parser.add_argument('--rim_level3_output_dim', type=int, default=8,
+                        help='output size of rim level3')
 
     parser.add_argument('--norm_rim_level1_output', type=boolean_argument, default=False, help='normalise rim level 1 output')
 
     parser.add_argument('--policy_rim_level1_output_embedding_dim', type=int, default=None)
+
+    # memory
+    parser.add_argument('--use_memory', type=boolean_argument, default=False,
+                        help='whatever or not use memory in model')
+    parser.add_argument('--use_hebb', type=boolean_argument, default=False,
+                        help='whatever or not use hebbian memory in memory module')
+    parser.add_argument('--use_gen', type=boolean_argument, default=False,
+                        help='whatever or not use generative memory in memory module')
+
+    # visoin core
+    parser.add_argument('--use_stateless_vision_core', type=boolean_argument, default=False,
+                        help='use attentional visual process unit')
+
 
     return parser.parse_args(rest_args)

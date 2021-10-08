@@ -86,8 +86,9 @@ class PPO:
             for sample in data_generator:
 
                 state_batch, belief_batch, task_batch, \
-                actions_batch, latent_sample_batch, latent_mean_batch, latent_logvar_batch, value_preds_batch, \
-                return_batch, old_action_log_probs_batch, adv_targ = sample
+                actions_batch, latent_sample_batch, latent_mean_batch, latent_logvar_batch,\
+                brim_output_level1_batch, brim_output_level2_batch, brim_output_level3_batch,\
+                value_preds_batch, return_batch, old_action_log_probs_batch, adv_targ = sample
 
                 if not rlloss_through_encoder:
                     state_batch = state_batch.detach()
@@ -96,14 +97,16 @@ class PPO:
                         latent_mean_batch = latent_mean_batch.detach()
                         latent_logvar_batch = latent_logvar_batch.detach()
 
-                latent_batch = utl.get_latent_for_policy(args=self.args, latent_sample=latent_sample_batch,
+                latent_batch = utl.get_latent_for_policy(sample_embeddings=self.args.sample_embeddings,
+                                                         add_nonlinearity_to_latent=self.args.add_nonlinearity_to_latent,
+                                                         latent_sample=latent_sample_batch,
                                                          latent_mean=latent_mean_batch,
                                                          latent_logvar=latent_logvar_batch
                                                          )
 
                 # Reshape to do in a single forward pass for all steps
                 values, action_log_probs, dist_entropy, action_mean, action_logstd = \
-                    self.actor_critic.evaluate_actions(state=state_batch, latent=latent_batch,
+                    self.actor_critic.evaluate_actions(state=state_batch, latent=latent_batch, brim_output_level1=brim_output_level1_batch,
                                                        belief=belief_batch, task=task_batch,
                                                        action=actions_batch, return_action_mean=True
                                                        )
@@ -182,5 +185,5 @@ class PPO:
 
         return value_loss_epoch, action_loss_epoch, dist_entropy_epoch, loss_epoch
 
-    def act(self, state, latent, belief, task, deterministic=False):
-        return self.actor_critic.act(state=state, latent=latent, belief=belief, task=task, deterministic=deterministic)
+    def act(self, state, latent, brim_output_level1, belief, task, deterministic=False):
+        return self.actor_critic.act(state=state, latent=latent, brim_output_level1=brim_output_level1, belief=belief, task=task, deterministic=deterministic)

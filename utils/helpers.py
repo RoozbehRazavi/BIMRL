@@ -87,10 +87,11 @@ def select_action(args,
                   state=None,
                   belief=None,
                   task=None,
-                  latent_sample=None, latent_mean=None, latent_logvar=None):
+                  latent_sample=None, latent_mean=None, latent_logvar=None,
+                  brim_output_level1=None):
     """ Select action using the policy. """
-    latent = get_latent_for_policy(args=args, latent_sample=latent_sample, latent_mean=latent_mean, latent_logvar=latent_logvar)
-    action = policy.act(state=state, latent=latent, belief=belief, task=task, deterministic=deterministic)
+    latent = get_latent_for_policy(sample_embeddings=args.sample_embeddings, add_nonlinearity_to_latent=args.add_nonlinearity_to_latent, latent_sample=latent_sample, latent_mean=latent_mean, latent_logvar=latent_logvar)
+    action = policy.act(state=state, latent=latent, brim_output_level1=brim_output_level1, belief=belief, task=task, deterministic=deterministic)
     if isinstance(action, list) or isinstance(action, tuple):
         value, action, action_log_prob = action
     else:
@@ -100,17 +101,17 @@ def select_action(args,
     return value, action, action_log_prob
 
 
-def get_latent_for_policy(args, latent_sample=None, latent_mean=None, latent_logvar=None):
+def get_latent_for_policy(sample_embeddings, add_nonlinearity_to_latent, latent_sample=None, latent_mean=None, latent_logvar=None):
 
     if (latent_sample is None) and (latent_mean is None) and (latent_logvar is None):
         return None
 
-    if args.add_nonlinearity_to_latent:
+    if add_nonlinearity_to_latent:
         latent_sample = F.relu(latent_sample)
         latent_mean = F.relu(latent_mean)
         latent_logvar = F.relu(latent_logvar)
 
-    if args.sample_embeddings:
+    if sample_embeddings:
         latent = latent_sample
     else:
         latent = torch.cat((latent_mean, latent_logvar), dim=-1)
@@ -121,21 +122,33 @@ def get_latent_for_policy(args, latent_sample=None, latent_mean=None, latent_log
     return latent
 
 
-def update_encoding(brim_core, next_obs, action, reward, done, hidden_state):
+def update_encoding(brim_core, next_obs, action, reward, done, task_inference_hidden_state, brim_hidden_state, activated_branch):
     # reset hidden state of the recurrent net when we reset the task
     if done is not None:
-        hidden_state = brim_core.reset_hidden(hidden_state, done)
+        task_inference_hidden_state, brim_hidden_state = brim_core.reset_hidden(task_inference_hidden_state, brim_hidden_state, done_task=done, done_episode=None)
 
     with torch.no_grad():
-        latent_sample, latent_mean, latent_logvar, hidden_state = brim_core(actions=action.float(),
-                                                                          states=next_obs,
-                                                                          rewards=reward,
-                                                                          hidden_state=hidden_state,
-                                                                          return_prior=False)
-
-    # TODO: move the sampling out of the encoder!
-
-    return latent_sample, latent_mean, latent_logvar, hidden_state
+        if activated_branch == 'exploration':
+            brim_output1, brim_output3, brim_output5, brim_hidden_states,\
+            latent_sample, latent_mean, latent_logvar, hidden_state = brim_core.forward_exploration_branch(actions=action.float(),
+                                                                                                           states=next_obs,
+                                                                                                           rewards=reward,
+                                                                                                           task_inference_hidden_state=task_inference_hidden_state,
+                                                                                                           brim_hidden_state=brim_hidden_state,
+                                                                                                           sample=True,
+                                                                                                           return_prior=False)
+            return brim_output1, brim_hidden_states, latent_mean, latent_logvar, hidden_state
+        if activated_branch == 'exploitation':
+            brim_output2, brim_output4, brim_output5, brim_hidden_states, \
+            latent_sample, latent_mean, latent_logvar, hidden_state = brim_core.forward_exploitation_branch(
+                actions=action.float(),
+                states=next_obs,
+                rewards=reward,
+                task_inference_hidden_state=task_inference_hidden_state,
+                brim_hidden_state=brim_hidden_state,
+                sample=True,
+                return_prior=False)
+            return brim_output2, brim_hidden_states, latent_mean, latent_logvar, hidden_state
 
 
 def compute_intrinsic_reward(rew_raw, rew_normalised):

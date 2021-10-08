@@ -45,10 +45,8 @@ class VAERNNEncoder(nn.Module):
 
         # recurrent unit
         # TODO: TEST RNN vs GRU vs LSTM
-        self.gru = nn.GRU(input_size=curr_input_dim,
-                          hidden_size=hidden_size,
-                          num_layers=1,
-                          )
+        self.gru = nn.GRUCell(input_size=curr_input_dim,
+                              hidden_size=hidden_size)
 
         for name, param in self.gru.named_parameters():
             if 'bias' in name:
@@ -67,19 +65,8 @@ class VAERNNEncoder(nn.Module):
         self.fc_mu = nn.Linear(curr_input_dim, task_inference_latent_dim)
         self.fc_logvar = nn.Linear(curr_input_dim, task_inference_latent_dim)
 
-    def _sample_gaussian(self, mu, logvar, num=None):
-        if num is None:
-            std = torch.exp(0.5 * logvar)
-            eps = torch.randn_like(std)
-            return eps.mul(std).add_(mu)
-        else:
-            raise NotImplementedError  # TODO: double check this code, maybe we should use .unsqueeze(0).expand((num, *logvar.shape))
-            std = torch.exp(0.5 * logvar).repeat(num, 1)
-            eps = torch.randn_like(std)
-            mu = mu.repeat(num, 1)
-            return eps.mul(std).add_(mu)
-
-    def reset_hidden(self, hidden_state, done):
+    @staticmethod
+    def reset_hidden(hidden_state, done):
         """ Reset the hidden state where the BAMDP was done (i.e., we get a new task) """
         if hidden_state.dim() != done.dim():
             if done.dim() == 2:
@@ -111,26 +98,13 @@ class VAERNNEncoder(nn.Module):
 
         return latent_sample, latent_mean, latent_logvar, hidden_state
 
-    def forward(self, actions, states, rewards, hidden_state, return_prior, sample=True, detach_every=None):
+    def forward(self, actions, states, rewards, hidden_state, return_prior, sample=True):
         """
         Actions, states, rewards should be given in form [sequence_len * batch_size * dim].
         For one-step predictions, sequence_len=1 and hidden_state!=None.
         For feeding in entire trajectories, sequence_len>1 and hidden_state=None.
         In the latter case, we return embeddings of length sequence_len+1 since they include the prior.
         """
-
-        # shape should be: sequence_len x batch_size x hidden_size
-        actions = actions.reshape((-1, *actions.shape[-2:]))
-        states = states.reshape((-1, *states.shape[-2:]))
-        rewards = rewards.reshape((-1, *rewards.shape[-2:]))
-        if hidden_state is not None:
-            # if the sequence_len is one, this will add a dimension at dim 0 (otherwise will be the same)
-            hidden_state = hidden_state.reshape((-1, *hidden_state.shape[-2:]))
-
-        if return_prior:
-            # if hidden state is none, start with the prior
-            prior_sample, prior_mean, prior_logvar, prior_hidden_state = self.prior(actions.shape[1])
-            hidden_state = prior_hidden_state.clone()
 
         # extract features for states, actions, rewards
         ha = self.action_encoder(actions)
@@ -154,18 +128,7 @@ class VAERNNEncoder(nn.Module):
         for i in range(len(self.fc_before_gru)):
             h = F.relu(self.fc_before_gru[i](h))
 
-        if detach_every is None:
-            # GRU cell (output is outputs for each time step, hidden_state is last output)
-            output, _ = self.gru(h, hidden_state)
-        else:
-            output = []
-            for i in range(int(np.ceil(h.shape[0] / detach_every))):
-                curr_input = h[i*detach_every:i*detach_every+detach_every]  # pytorch caps if we overflow, nice
-                curr_output, hidden_state = self.gru(curr_input, hidden_state)
-                output.append(curr_output)
-                # detach hidden state; useful for BPTT when sequences are very long
-                hidden_state = hidden_state.detach()
-            output = torch.cat(output, dim=0)
+        output = self.gru(h, hidden_state)
         gru_h = output.clone()
 
         # forward through fully connected layers after GRU
@@ -179,14 +142,5 @@ class VAERNNEncoder(nn.Module):
             latent_sample = self.reparameterise(latent_mean, latent_logvar)
         else:
             latent_sample = latent_mean
-
-        if return_prior:
-            latent_sample = torch.cat((prior_sample, latent_sample))
-            latent_mean = torch.cat((prior_mean, latent_mean))
-            latent_logvar = torch.cat((prior_logvar, latent_logvar))
-            output = torch.cat((prior_hidden_state, output))
-
-        if latent_mean.shape[0] == 1:
-            latent_sample, latent_mean, latent_logvar = latent_sample[0], latent_mean[0], latent_logvar[0]
 
         return latent_sample, latent_mean, latent_logvar, output

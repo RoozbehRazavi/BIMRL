@@ -18,7 +18,7 @@ class Policy(nn.Module):
                  pass_task_inference_latent_to_policy,
                  pass_belief_to_policy,
                  pass_task_to_policy,
-                 pass_rim_level1_output,
+                 pass_rim_level1_output_to_policy,
                  dim_state,
                  task_inference_latent_dim,
                  rim_level1_output_dim,
@@ -66,12 +66,12 @@ class Policy(nn.Module):
         self.pass_task_inference_latent_to_policy = pass_task_inference_latent_to_policy
         self.pass_task_to_policy = pass_task_to_policy
         self.pass_belief_to_policy = pass_belief_to_policy
-        self.pass_rim_level1_output = pass_rim_level1_output
+        self.pass_rim_level1_output_to_policy = pass_rim_level1_output_to_policy
 
         # set normalisation parameters for the inputs
         # (will be updated from outside using the RL batches)
         self.norm_rim_level1_output = self.args.norm_rim_level1_output and (task_inference_latent_dim is not None)
-        if self.pass_rim_level1_output and self.norm_rim_level1_output:
+        if self.pass_rim_level1_output_to_policy and self.norm_rim_level1_output:
             self.rim_level1_output_rms = utl.RunningMeanStd(shape=(rim_level1_output_dim))
 
         self.norm_state = self.args.norm_state_for_policy and (dim_state is not None)
@@ -94,7 +94,7 @@ class Policy(nn.Module):
                          task_inference_latent_dim * int(self.pass_task_inference_latent_to_policy) + \
                          dim_belief * int(self.pass_belief_to_policy) + \
                          dim_task * int(self.pass_task_to_policy) +\
-                         rim_level1_output_dim * int(self.pass_rim_level1_output)
+                         rim_level1_output_dim * int(self.pass_rim_level1_output_to_policy)
 
         # initialise encoders for separate inputs
         self.use_state_encoder = self.args.policy_state_embedding_dim is not None
@@ -118,7 +118,7 @@ class Policy(nn.Module):
             curr_input_dim = curr_input_dim - dim_task + self.args.policy_task_embedding_dim
 
         self.use_rim_level1_output_encoder = self.args.policy_rim_level1_output_embedding_dim is not None
-        if self.pass_rim_level1_output and self.use_rim_level1_output_encoder:
+        if self.pass_rim_level1_output_to_policy and self.use_rim_level1_output_encoder:
             self.rim_level1_output_encoder = utl.FeatureExtractor(task_inference_latent_dim, self.args.policy_latent_embedding_dim,
                                                        self.activation_function)
             curr_input_dim = curr_input_dim - rim_level1_output_dim + self.args.policy_rim_level1_output_embedding_dim
@@ -167,7 +167,7 @@ class Policy(nn.Module):
             h = self.activation_function(h)
         return h
 
-    def forward(self, state, latent, belief, task):
+    def forward(self, state, task_inference_latent, brim_output_level1, belief, task):
 
         # handle inputs (normalise + embed)
 
@@ -190,13 +190,24 @@ class Policy(nn.Module):
             state = torch.zeros(0, ).to(device)
         if self.pass_task_inference_latent_to_policy:
             if self.norm_task_inference_latent:
-                latent = (latent - self.task_inference_latent_rms.mean) / torch.sqrt(self.task_inference_latent_rms.var + 1e-8)
+                task_inference_latent = (task_inference_latent - self.task_inference_latent_rms.mean) / torch.sqrt(self.task_inference_latent_rms.var + 1e-8)
             if self.use_task_inference_latent_encoder:
-                latent = self.task_inference_latent_encoder(latent)
-            if len(latent.shape) == 1 and len(state.shape) == 2:
-                latent = latent.unsqueeze(0)
+                task_inference_latent = self.task_inference_latent_encoder(task_inference_latent)
+            if len(task_inference_latent.shape) == 1 and len(state.shape) == 2:
+                task_inference_latent = task_inference_latent.unsqueeze(0)
         else:
             task_inference_latent = torch.zeros(0, ).to(device)
+
+        if self.pass_rim_level1_output_to_policy:
+            if self.norm_rim_level1_output:
+                brim_output_level1 = (brim_output_level1 - self.rim_level1_output_rms.mean) / torch.sqrt(self.rim_level1_output_rms.var + 1e-8)
+            if self.use_rim_level1_output_encoder:
+                brim_output_level1 = self.rim_level1_output_encoder(brim_output_level1)
+            if len(brim_output_level1.shape) == 1 and len(state.shape) == 2:
+                brim_output_level1 = brim_output_level1.unsqueeze(0)
+        else:
+            brim_output_level1 = torch.zeros(0, ).to(device)
+
         if self.pass_belief_to_policy:
             if self.norm_belief:
                 belief = (belief - self.belief_rms.mean) / torch.sqrt(self.belief_rms.var + 1e-8)
@@ -207,6 +218,7 @@ class Policy(nn.Module):
                 belief = belief.unsqueeze(0)
         else:
             belief = torch.zeros(0, ).to(device)
+
         if self.pass_task_to_policy:
             if self.norm_task:
                 task = (task - self.task_rms.mean) / torch.sqrt(self.task_rms.var + 1e-8)
@@ -218,15 +230,15 @@ class Policy(nn.Module):
             task = torch.zeros(0, ).to(device)
 
         # concatenate inputs
-        inputs = torch.cat((state, latent, belief, task), dim=-1)
+        inputs = torch.cat((state, task_inference_latent, brim_output_level1, belief, task), dim=-1)
 
         # forward through critic/actor part
         hidden_critic = self.forward_critic(inputs)
         hidden_actor = self.forward_actor(inputs)
         return self.critic_linear(hidden_critic), hidden_actor
 
-    def act(self, state, latent, belief, task, deterministic=False):
-        value, actor_features = self.forward(state=state, latent=latent, belief=belief, task=task)
+    def act(self, state, latent, brim_output_level1, belief, task, deterministic=False):
+        value, actor_features = self.forward(state=state, task_inference_latent=latent, brim_output_level1=brim_output_level1, belief=belief, task=task)
         dist = self.dist(actor_features)
         if deterministic:
             action = dist.mode()
@@ -236,8 +248,8 @@ class Policy(nn.Module):
 
         return value, action, action_log_probs
 
-    def get_value(self, state, latent, belief, task):
-        value, _ = self.forward(state, latent, belief, task)
+    def get_value(self, state, latent, brim_output_level1, belief, task):
+        value, _ = self.forward(state, latent, brim_output_level1, belief, task)
         return value
 
     def update_rms(self, args, policy_storage):
@@ -246,20 +258,20 @@ class Policy(nn.Module):
             state = policy_storage.prev_state[:-1]
             self.state_rms.update(state)
         if self.pass_task_inference_latent_to_policy and self.norm_task_inference_latent:
-            task_inference_latent = utl.get_latent_for_policy(args,
-                                               torch.cat(policy_storage.latent_samples[:-1]),
-                                               torch.cat(policy_storage.latent_mean[:-1]),
-                                               torch.cat(policy_storage.latent_logvar[:-1])
-                                               )
+            task_inference_latent = utl.get_latent_for_policy(args.sample_embeddings,
+                                                              args.add_nonlinearity_to_latent,
+                                                              torch.cat(policy_storage.latent_samples[:-1]),
+                                                              torch.cat(policy_storage.latent_mean[:-1]),
+                                                              torch.cat(policy_storage.latent_logvar[:-1]))
             self.task_inference_latent_rms.update(task_inference_latent.detach().clone())
         if self.pass_belief_to_policy and self.norm_belief:
             self.belief_rms.update(policy_storage.beliefs[:-1])
         if self.pass_task_to_policy and self.norm_task:
             self.task_rms.update(policy_storage.tasks[:-1])
 
-    def evaluate_actions(self, state, latent, belief, task, action, return_action_mean=False):
+    def evaluate_actions(self, state, latent, brim_output_level1, belief, task, action, return_action_mean=False):
 
-        value, actor_features = self.forward(state, latent, belief, task)
+        value, actor_features = self.forward(state, latent, brim_output_level1, belief, task)
         dist = self.dist(actor_features)
 
         action_log_probs = dist.log_probs(action)

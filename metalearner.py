@@ -48,16 +48,14 @@ class MetaLearner:
         self.exploitation_envs = None
         if train_exploration:
             self.exploration_envs = make_vec_envs(env_name=args.env_name, seed=args.seed, num_processes=self.exploration_num_processes,
-                                      gamma=args.policy_gamma, device=device,
-                                      episodes_per_task=self.args.max_rollouts_per_task,
-                                      normalise_rew=args.norm_rew_for_policy, ret_rms=None,
-                                      )
+                                                  gamma=args.policy_gamma, device=device,
+                                                  episodes_per_task=self.args.max_rollouts_per_task,
+                                                  normalise_rew=args.norm_rew_for_policy, ret_rms=None)
         if train_exploitation:
             self.exploitation_envs = make_vec_envs(env_name=args.env_name, seed=args.seed, num_processes=self.exploitation_num_processes,
-                                      gamma=args.policy_gamma, device=device,
-                                      episodes_per_task=self.args.max_rollouts_per_task,
-                                      normalise_rew=args.norm_rew_for_policy, ret_rms=None,
-                                      )
+                                                   gamma=args.policy_gamma, device=device,
+                                                   episodes_per_task=self.args.max_rollouts_per_task,
+                                                   normalise_rew=args.norm_rew_for_policy, ret_rms=None)
 
         envs = self.exploration_envs if self.exploration_envs is not None else self.exploitation_envs
         # calculate what the maximum length of the trajectories is
@@ -86,7 +84,6 @@ class MetaLearner:
             self.exploitation_policy = self.initialise_policy(policy_type='exploitation')
         self.train_sub_policy = True
 
-
         if self.args.load_model:
             save_path = os.path.join(self.logger.full_output_folder, 'models')
 
@@ -110,7 +107,8 @@ class MetaLearner:
                              belief_dim=self.args.belief_dim,
                              task_dim=self.args.task_dim,
                              action_space=self.args.action_space,
-                             hidden_size=self.args.encoder_gru_hidden_size,
+                             task_inference_hidden_size=self.args.encoder_gru_hidden_size,
+                             brim_hidden_size=max(self.args.rim_level1_hidden_size, self.args.rim_level2_hidden_size, self.args.rim_level3_hidden_size),
                              normalise_rewards=self.args.norm_rew_for_policy,
                              )
 
@@ -223,25 +221,35 @@ class MetaLearner:
             # First, re-compute the hidden states given the current rollouts (since the VAE might've changed)
             with torch.no_grad():
                 if train_exploration:
-                    exploration_latent_sample, exploration_latent_mean, exploration_latent_logvar, exploration_task_inference_hidden_state = self.encode_running_trajectory(self.base2final.exploration_rollout_storage)
+                    brim_output1, brim_output3, exploration_brim_output5, exploration_brim_hidden_state, exploration_latent_sample, exploration_latent_mean, exploration_latent_logvar, exploration_task_inference_hidden_state = self.encode_running_trajectory(self.base2final.exploration_rollout_storage, activated_branch='exploration')
 
                 if train_exploitation:
-                    exploitation_latent_sample, exploitation_latent_mean, exploitation_latent_logvar, exploitation_task_inference_hidden_state = self.encode_running_trajectory(self.base2final.exploitation_rollout_storage)
+                    brim_output2, brim_output4, exploitation_brim_output5, exploitation_brim_hidden_state, exploitation_latent_sample, exploitation_latent_mean, exploitation_latent_logvar, exploitation_task_inference_hidden_state = self.encode_running_trajectory(self.base2final.exploitation_rollout_storage, activated_branch='exploration')
 
             # add this initial hidden state to the policy storage
             if train_exploration:
                 assert len(self.exploration_policy_storage.latent_mean) == 0  # make sure we emptied buffers
-                self.exploration_policy_storage.hidden_states[0].copy_(exploration_task_inference_hidden_state)
+                self.exploration_policy_storage.task_inference_hidden_states[0].copy_(exploration_task_inference_hidden_state)
                 self.exploration_policy_storage.latent_samples.append(exploration_latent_sample.clone())
                 self.exploration_policy_storage.latent_mean.append(exploration_latent_mean.clone())
                 self.exploration_policy_storage.latent_logvar.append(exploration_latent_logvar.clone())
 
+                self.exploration_policy_storage.brim_hidden_states[0].copy_(exploration_brim_hidden_state)
+                self.exploration_policy_storage.brim_output_level1.append(brim_output1)
+                self.exploration_policy_storage.brim_output_level2.append(brim_output3)
+                self.exploration_policy_storage.brim_output_level3.append(exploration_brim_output5)
+
             if train_exploitation:
                 assert len(self.exploitation_policy_storage.latent_mean) == 0  # make sure we emptied buffers
-                self.exploitation_policy_storage.hidden_states[0].copy_(exploitation_task_inference_hidden_state)
+                self.exploitation_policy_storage.task_inference_hidden_states[0].copy_(exploitation_task_inference_hidden_state)
                 self.exploitation_policy_storage.latent_samples.append(exploitation_latent_sample.clone())
                 self.exploitation_policy_storage.latent_mean.append(exploitation_latent_mean.clone())
                 self.exploitation_policy_storage.latent_logvar.append(exploitation_latent_logvar.clone())
+
+                self.exploitation_policy_storage.brim_hidden_states[0].copy_(exploitation_brim_hidden_state)
+                self.exploitation_policy_storage.brim_output_level1.append(brim_output2)
+                self.exploitation_policy_storage.brim_output_level2.append(brim_output4)
+                self.exploitation_policy_storage.brim_output_level3.append(exploitation_brim_output5)
 
             # rollout policies for a few steps
             for step in range(self.args.policy_num_steps):
@@ -259,6 +267,7 @@ class MetaLearner:
                             latent_sample=exploration_latent_sample,
                             latent_mean=exploration_latent_mean,
                             latent_logvar=exploration_latent_logvar,
+                            brim_output_level1=brim_output1
                         )
                     if train_exploitation:
                         exploitation_value, exploitation_action, exploitation_action_log_prob = utl.select_action(
@@ -271,6 +280,7 @@ class MetaLearner:
                             latent_sample=exploitation_latent_sample,
                             latent_mean=exploitation_latent_mean,
                             latent_logvar=exploitation_latent_logvar,
+                            brim_output_level1=brim_output2
                         )
 
                 # take step in the environment
@@ -310,21 +320,25 @@ class MetaLearner:
                 with torch.no_grad():
                     # compute next embedding (for next loop and/or value prediction bootstrap)
                     if train_exploration:
-                        exploration_latent_sample, exploration_latent_mean, exploration_latent_logvar,\
+                        brim_output1, brim_hidden_states, exploration_latent_sample, exploration_latent_mean, exploration_latent_logvar,\
                         exploration_task_inference_hidden_state = utl.update_encoding(brim_core=self.base2final.brim_core,
                                                                                       next_obs=exploration_next_state,
                                                                                       action=exploration_action,
                                                                                       reward=exploration_intrinsic_rew_raw,
                                                                                       done=exploration_done,
-                                                                                      hidden_state=exploration_task_inference_hidden_state)
+                                                                                      task_inference_hidden_state=exploration_task_inference_hidden_state,
+                                                                                      brim_hidden_state=exploration_brim_hidden_state,
+                                                                                      activated_branch='exploration')
                     if train_exploitation:
-                        exploitation_latent_sample, exploitation_latent_mean, exploitation_latent_logvar, \
+                        brim_output2, brim_hidden_states, exploitation_latent_sample, exploitation_latent_mean, exploitation_latent_logvar, \
                         exploitation_task_inference_hidden_state = utl.update_encoding(brim_core=self.base2final.brim_core,
-                                                                                      next_obs=exploitation_next_state,
-                                                                                      action=exploitation_action,
-                                                                                      reward=exploitation_rew_raw,
-                                                                                      done=exploitation_done,
-                                                                                      hidden_state=exploitation_task_inference_hidden_state)
+                                                                                       next_obs=exploitation_next_state,
+                                                                                       action=exploitation_action,
+                                                                                       reward=exploitation_rew_raw,
+                                                                                       done=exploitation_done,
+                                                                                       task_inference_hidden_state=exploitation_task_inference_hidden_state,
+                                                                                       brim_hidden_state=exploitation_brim_hidden_state,
+                                                                                       activated_branch='exploitation')
 
                 # before resetting, update the embedding and add to vae buffer
                 # (last state might include useful task info)
@@ -338,11 +352,11 @@ class MetaLearner:
                                                                            exploration_task.clone() if exploration_task is not None else None)
                     if train_exploitation:
                         self.base2final.exploitation_rollout_storage.insert(exploitation_prev_state.clone(),
-                                                                           exploitation_action.detach().clone(),
-                                                                           exploitation_next_state.clone(),
-                                                                           exploitation_rew_raw.clone(),
-                                                                           exploitation_done.clone(),
-                                                                           exploitation_task.clone() if exploitation_task is not None else None)
+                                                                            exploitation_action.detach().clone(),
+                                                                            exploitation_next_state.clone(),
+                                                                            exploitation_rew_raw.clone(),
+                                                                            exploitation_done.clone(),
+                                                                            exploitation_task.clone() if exploitation_task is not None else None)
 
                 if self.args.rlloss_through_encoder:
                     # add the obs before reset to the policy storage
@@ -387,10 +401,13 @@ class MetaLearner:
                         masks=exploration_masks_done,
                         bad_masks=exploration_bad_masks,
                         done=exploration_done,
-                        hidden_states=exploration_task_inference_hidden_state.squeeze(0),
+                        task_inference_hidden_states=exploration_task_inference_hidden_state.squeeze(0),
                         latent_sample=exploration_latent_sample,
                         latent_mean=exploration_latent_mean,
                         latent_logvar=exploration_latent_logvar,
+                        brim_output_level1=brim_output1,
+                        brim_output_level2=brim_output3,
+                        brim_output_level3=exploration_brim_output5
                     )
                     exploration_prev_state = exploration_next_state
                 if train_exploitation:
@@ -406,10 +423,13 @@ class MetaLearner:
                         masks=exploitation_masks_done,
                         bad_masks=exploitation_bad_masks,
                         done=exploitation_done,
-                        hidden_states=exploitation_task_inference_hidden_state.squeeze(0),
+                        task_inference_hidden_states=exploitation_task_inference_hidden_state.squeeze(0),
                         latent_sample=exploitation_latent_sample,
                         latent_mean=exploitation_latent_mean,
                         latent_logvar=exploitation_latent_logvar,
+                        brim_output_level1=brim_output2,
+                        brim_output_level2=brim_output4,
+                        brim_output_level3=exploitation_brim_output5
                     )
                     exploitation_prev_state = exploitation_next_state
 
@@ -434,18 +454,19 @@ class MetaLearner:
                                                               latent_sample=exploration_latent_sample,
                                                               latent_mean=exploration_latent_mean,
                                                               latent_logvar=exploration_latent_logvar,
+                                                              brim_output_level1=brim_output1,
                                                               policy=self.exploration_policy,
                                                               policy_storage=self.exploration_policy_storage)
                     if train_exploitation:
-                        #with torch.autograd.set_detect_anomaly(True):
                         exploitation_train_stats = self.update(state=exploitation_prev_state,
-                                                              belief=exploitation_belief,
-                                                              task=exploitation_task,
-                                                              latent_sample=exploitation_latent_sample,
-                                                              latent_mean=exploitation_latent_mean,
-                                                              latent_logvar=exploitation_latent_logvar,
-                                                              policy=self.exploitation_policy,
-                                                              policy_storage=self.exploitation_policy_storage)
+                                                               belief=exploitation_belief,
+                                                               task=exploitation_task,
+                                                               latent_sample=exploitation_latent_sample,
+                                                               latent_mean=exploitation_latent_mean,
+                                                               latent_logvar=exploitation_latent_logvar,
+                                                               brim_output_level1=brim_output3,
+                                                               policy=self.exploitation_policy,
+                                                               policy_storage=self.exploitation_policy_storage)
 
                     # log
                     with torch.no_grad():
@@ -476,7 +497,7 @@ class MetaLearner:
             if train_exploitation:
                 self.exploitation_policy_storage.after_update()
 
-    def encode_running_trajectory(self, rollout_storage):
+    def encode_running_trajectory(self, rollout_storage, activated_branch):
         """
         (Re-)Encodes (for each process) the entire current trajectory.
         Returns sample/mean/logvar and hidden state (if applicable) for the current timestep.
@@ -487,25 +508,53 @@ class MetaLearner:
         prev_obs, next_obs, act, rew, lens = rollout_storage.get_running_batch()
 
         # get embedding - will return (1+sequence_len) * batch * input_size -- includes the prior!
-        all_latent_samples, all_latent_means, all_latent_logvars, all_hidden_states = self.base2final.brim_core(actions=act,
-                                                                                                       states=next_obs,
-                                                                                                       rewards=rew,
-                                                                                                       hidden_state=None,
-                                                                                                       return_prior=True)
+        if activated_branch == 'exploration':
+            all_brim_output1, all_brim_output3, all_brim_output5, all_brim_hidden_states,\
+            all_latent_samples, all_latent_means, all_latent_logvars, all_hidden_states = self.base2final.brim_core.forward_exploration_branch(
+                actions=act,
+                states=next_obs,
+                rewards=rew,
+                brim_hidden_state=None,
+                task_inference_hidden_state=None,
+                return_prior=True,
+                sample=True)
+            # get the embedding / hidden state of the current time step (need to do this since we zero-padded)
+            latent_sample = (torch.stack([all_latent_samples[lens[i]][i] for i in range(len(lens))])).to(device)
+            latent_mean = (torch.stack([all_latent_means[lens[i]][i] for i in range(len(lens))])).to(device)
+            latent_logvar = (torch.stack([all_latent_logvars[lens[i]][i] for i in range(len(lens))])).to(device)
+            task_inference_hidden_state = (torch.stack([all_hidden_states[lens[i]][i] for i in range(len(lens))])).to(device)
+            brim_output1 = (torch.stack([all_brim_output1[lens[i]][i] for i in range(len(lens))])).to(device)
+            brim_output3 = (torch.stack([all_brim_output3[lens[i]][i] for i in range(len(lens))])).to(device)
+            brim_output5 = (torch.stack([all_brim_output5[lens[i]][i] for i in range(len(lens))])).to(device)
+            brim_hidden_state = (torch.stack([all_brim_hidden_states[lens[i]][i] for i in range(len(lens))])).to(device)
+            return brim_output1, brim_output3, brim_output5, brim_hidden_state, latent_sample, latent_mean, latent_logvar, task_inference_hidden_state
+        elif activated_branch == 'exploitation':
+            all_brim_output2, all_brim_output4, all_brim_output5, all_brim_hidden_states,\
+            all_latent_samples, all_latent_means, all_latent_logvars, all_hidden_states = self.base2final.brim_core.forward_exploitation_branch(
+                actions=act,
+                states=next_obs,
+                rewards=rew,
+                brim_hidden_state=None,
+                task_inference_hidden_state=None,
+                return_prior=True,
+                sample=True)
+            latent_sample = (torch.stack([all_latent_samples[lens[i]][i] for i in range(len(lens))])).to(device)
+            latent_mean = (torch.stack([all_latent_means[lens[i]][i] for i in range(len(lens))])).to(device)
+            latent_logvar = (torch.stack([all_latent_logvars[lens[i]][i] for i in range(len(lens))])).to(device)
+            task_inference_hidden_state = (torch.stack([all_hidden_states[lens[i]][i] for i in range(len(lens))])).to(device)
+            brim_output2 = (torch.stack([all_brim_output2[lens[i]][i] for i in range(len(lens))])).to(device)
+            brim_output4 = (torch.stack([all_brim_output4[lens[i]][i] for i in range(len(lens))])).to(device)
+            brim_output5 = (torch.stack([all_brim_output5[lens[i]][i] for i in range(len(lens))])).to(device)
+            brim_hidden_state = (torch.stack([all_brim_hidden_states[lens[i]][i] for i in range(len(lens))])).to(device)
+            return brim_output2, brim_output4, brim_output5, brim_hidden_state, latent_sample, latent_mean, latent_logvar, task_inference_hidden_state
+        else:
+            raise NotImplementedError
 
-        # get the embedding / hidden state of the current time step (need to do this since we zero-padded)
-        latent_sample = (torch.stack([all_latent_samples[lens[i]][i] for i in range(len(lens))])).to(device)
-        latent_mean = (torch.stack([all_latent_means[lens[i]][i] for i in range(len(lens))])).to(device)
-        latent_logvar = (torch.stack([all_latent_logvars[lens[i]][i] for i in range(len(lens))])).to(device)
-        hidden_state = (torch.stack([all_hidden_states[lens[i]][i] for i in range(len(lens))])).to(device)
+    def get_value(self, state, belief, task, latent_sample, latent_mean, latent_logvar, brim_output_level1, policy):
+        latent = utl.get_latent_for_policy(sample_embeddings=self.args.sample_embeddings, add_nonlinearity_to_latent=self.args.add_nonlinearity_to_latent, latent_sample=latent_sample, latent_mean=latent_mean, latent_logvar=latent_logvar)
+        return policy.actor_critic.get_value(state=state, belief=belief, task=task, latent=latent, brim_output_level1=brim_output_level1).detach()
 
-        return latent_sample, latent_mean, latent_logvar, hidden_state
-
-    def get_value(self, state, belief, task, latent_sample, latent_mean, latent_logvar, policy):
-        latent = utl.get_latent_for_policy(self.args, latent_sample=latent_sample, latent_mean=latent_mean, latent_logvar=latent_logvar)
-        return policy.actor_critic.get_value(state=state, belief=belief, task=task, latent=latent).detach()
-
-    def update(self, state, belief, task, latent_sample, latent_mean, latent_logvar, policy, policy_storage):
+    def update(self, state, belief, task, latent_sample, latent_mean, latent_logvar, brim_output_level1, policy, policy_storage):
         """
         Meta-update.
         Here the policy is updated for good average performance across tasks.
@@ -519,6 +568,7 @@ class MetaLearner:
                                         latent_sample=latent_sample,
                                         latent_mean=latent_mean,
                                         latent_logvar=latent_logvar,
+                                        brim_output_level1=brim_output_level1,
                                         policy=policy)
 
         # compute returns for current rollouts
