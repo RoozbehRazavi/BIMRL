@@ -162,7 +162,7 @@ class Base2Final:
             state_embed_dim=self.args.state_embedding_size,
             reward_size=1,
             reward_embed_size=self.args.reward_embedding_size,
-        )
+        ).to(device)
         return brim_core
 
     def initialise_decoder(self):
