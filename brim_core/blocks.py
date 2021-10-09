@@ -243,7 +243,8 @@ class Blocks(nn.Module):
                                            num_modules_read_input=2,
                                            use_higher=False,
                                            higher_separate_att=True)
-        return blocks_level1, blocks_level2, blocks_level3
+            blocks_level3 = blocks_level3.to(device)
+        return blocks_level1.to(device), blocks_level2.to(device), blocks_level3
 
     @staticmethod
     def initialise_input_embedding_layers(brim_input_dim,
@@ -301,7 +302,7 @@ class Blocks(nn.Module):
                     level3.append(nn.Linear(curr_input_dim, brim_layers_before_rim_level3[i]))
                     curr_input_dim = brim_layers_before_rim_level3[i]
             level3 = nn.Sequential(*level3)
-        return level1, level2, level3
+        return level1.to(device), level2.to(device), level3.to(device)
 
     @staticmethod
     def initialise_output_layers(rim_level1_hidden_size,
@@ -372,7 +373,7 @@ class Blocks(nn.Module):
             level3.append(nn.Linear(curr_output_dim, rim_level3_output_dim))
             level3 = nn.Sequential(*level3)
 
-        return level1, level2, level3
+        return level1.to(device), level2.to(device), level3.to(device)
 
     def prior(self, batch_size):
         brim_hidden_state = []
