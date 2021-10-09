@@ -529,6 +529,8 @@ class Blocks(nn.Module):
                 if self.use_gru_or_rim == 'RIM':
                     brim_hidden_state5 = self.bc_list[2](level3_input, brim_hidden_state5, brim_hidden_state5, idx_layer=2)
                 else:
+                    print(level3_input.device)
+                    print(brim_hidden_state5.device)
                     brim_hidden_state5 = self.bc_list[2](level3_input, brim_hidden_state5)
                 brim_output5 = self.output_layer_level3(brim_hidden_state5)
             else:
