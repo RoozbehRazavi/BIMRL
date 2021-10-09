@@ -230,6 +230,8 @@ class Policy(nn.Module):
             task = torch.zeros(0, ).to(device)
 
         # concatenate inputs
+        if brim_output_level1.dim() == 3:
+            brim_output_level1 = brim_output_level1.squeeze(0)
         inputs = torch.cat((state, task_inference_latent, brim_output_level1, belief, task), dim=-1)
 
         # forward through critic/actor part

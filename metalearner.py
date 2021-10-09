@@ -682,11 +682,19 @@ class MetaLearner:
 
             for [model, name] in model_params:
                 if model is not None:
-                    param_list = list(model.parameters())
-                    param_mean = np.mean([param_list[i].data.cpu().numpy().mean() for i in range(len(param_list))])
+                    param_list = list(model.named_parameters())
+                    param_mean = np.mean([param_list[i][1].data.cpu().numpy().mean() for i in range(len(param_list))])
                     self.logger.add('weights/{}'.format(name), param_mean, self.iter_idx)
                     if name == 'policy':
-                        self.logger.add('weights/policy_std', param_list[0].data.mean(), self.iter_idx)
-                    if param_list[0].grad is not None:
-                        param_grad_mean = np.mean([param_list[i].grad.cpu().numpy().mean() for i in range(len(param_list))])
+                        self.logger.add('weights/policy_std', param_list[0][1].data.mean(), self.iter_idx)
+                    if param_list[0][1].grad is not None:
+                        param_grad_mean = []
+                        for i in range(len(param_list)):
+                            if param_list[i][1].grad is not None:
+                                param_grad_mean.append(param_list[i][1].grad.cpu().numpy().mean())
+                            else:
+                                pass
+                                #print(param_list[i][0])
+
+                        param_grad_mean = np.mean(param_grad_mean)
                         self.logger.add('gradients/{}'.format(name), param_grad_mean, self.iter_idx)
