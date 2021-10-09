@@ -192,8 +192,11 @@ def get_args(rest_args):
 
     parser.add_argument('--vae_avg_n_step_prediction', type=boolean_argument, default=False,
                         help='Average n step prediction terms (instead of sum)')
+
     parser.add_argument('--action_embedding_size', type=int, default=8)
+
     parser.add_argument('--reward_embedding_size', type=int, default=16)
+
     parser.add_argument('--action_simulator_hidden_size', type=int, default=16,
                         help='hidden size of GRU used in n step state prediction')
     parser.add_argument('--reward_simulator_hidden_size', type=int, default=16,
@@ -202,7 +205,7 @@ def get_args(rest_args):
 
 
     # RIM configuration
-    parser.add_argument('--use_gru_or_rim', type=str, default='GRU',
+    parser.add_argument('--use_gru_or_rim', type=str, default='RIM',
                         help='as a RNN model use RIM or GRU')
 
     parser.add_argument('--use_rim_level1', type=boolean_argument, default=False,
@@ -225,14 +228,14 @@ def get_args(rest_args):
                         help='number of module in rim level 1')
     parser.add_argument('--rim_level2_num_modules', type=int, default=1,
                         help='number of module in rim level 2')
-    parser.add_argument('--rim_level3_num_modules', type=int, default=1,
+    parser.add_argument('--rim_level3_num_modules', type=int, default=4,
                         help='number of module in rim level 3')
 
     parser.add_argument('--rim_level1_topk', type=int, default=1,
                         help='number of module in rim level 1 that can active in each time step')
     parser.add_argument('--rim_level2_topk', type=int, default=1,
                         help='number of module in rim level 2 that can active in each time step')
-    parser.add_argument('--rim_level3_topk', type=int, default=1,
+    parser.add_argument('--rim_level3_topk', type=int, default=3,
                         help='number of module in rim level 3 that can active in each time step')
 
     parser.add_argument('--brim_layers_before_rim_level1', nargs='+', type=int, default=[16])
