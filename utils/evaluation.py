@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
@@ -54,9 +53,21 @@ def evaluate(args,
 
     if brim_core is not None:
         # reset latent state to prior
-        latent_sample, latent_mean, latent_logvar, hidden_state = brim_core.prior(num_processes)
+        (brim_output1, brim_output2, brim_output3, brim_output4, brim_output5, brim_hidden_state),\
+        (latent_sample, latent_mean, latent_logvar, task_inference_hidden_state), = brim_core.prior(num_processes, sample=True)
+
+        if policy_type == 'exploration':
+            brim_output_level1 = brim_output1
+            brim_output_level2 = brim_output3
+        elif policy_type == 'exploitation':
+            brim_output_level1 = brim_output2
+            brim_output_level2 = brim_output4
+        else:
+            raise NotImplementedError
+        brim_output_level3 = brim_output5
     else:
-        latent_sample = latent_mean = latent_logvar = hidden_state = None
+        latent_sample = latent_mean = latent_logvar = task_inference_hidden_state = None
+        brim_output_level1 = brim_hidden_state = None
 
     for episode_idx in range(num_episodes):
 
@@ -71,6 +82,7 @@ def evaluate(args,
                                                  latent_sample=latent_sample,
                                                  latent_mean=latent_mean,
                                                  latent_logvar=latent_logvar,
+                                                 brim_output_level1=brim_output_level1,
                                                  deterministic=True)
 
             # observe reward and next obs
@@ -84,12 +96,15 @@ def evaluate(args,
 
             if brim_core is not None:
                 # update the hidden state
-                latent_sample, latent_mean, latent_logvar, hidden_state = utl.update_encoding(brim_core=brim_core,
-                                                                                              next_obs=state,
-                                                                                              action=action,
-                                                                                              reward=rew_raw,
-                                                                                              done=None,
-                                                                                              hidden_state=hidden_state)
+                brim_output_level1, brim_output_level2, brim_output_level3, brim_hidden_state,\
+                latent_sample, latent_mean, latent_logvar, task_inference_hidden_state = utl.update_encoding(brim_core=brim_core,
+                                                                                                             next_obs=state,
+                                                                                                             action=action,
+                                                                                                             reward=rew_raw,
+                                                                                                             done=None,
+                                                                                                             task_inference_hidden_state=task_inference_hidden_state,
+                                                                                                             brim_hidden_state=brim_hidden_state,
+                                                                                                             activated_branch=policy_type)
 
             # add rewards
             returns_per_episode[range(num_processes), task_count] += rew_raw.view(-1)

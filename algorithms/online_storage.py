@@ -47,7 +47,7 @@ class OnlineStorage(object):
             # hidden states of RNN (necessary if we want to re-compute embeddings)
             self.task_inference_hidden_size = task_inference_hidden_size
             self.task_inference_hidden_states = torch.zeros(num_steps + 1, num_processes, task_inference_hidden_size)
-            self.brim_hidden_states = torch.zeros(num_steps + 1, num_processes, brim_hidden_size)
+            self.brim_hidden_states = torch.zeros(num_steps + 1, num_processes, 5, brim_hidden_size)
             # next_state will include s_N when state was reset, skipping s_0
             # (only used if we need to re-compute embeddings after backpropagating RL loss through encoder)
             self.next_state = torch.zeros(num_steps, num_processes, state_dim)

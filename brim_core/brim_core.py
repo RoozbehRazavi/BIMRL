@@ -2,6 +2,7 @@ import torch.nn as nn
 import torch
 from brim_core.brim import BRIM
 import numpy as np
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
@@ -11,10 +12,17 @@ class BRIMCore(nn.Module):
                  use_memory,
                  use_hebb,
                  use_gen,
+                 memory_controller_hidden_size,
+                 memory_controller_rim_or_gru,
+                 memory_key_dim,
+                 memory_value_dim,
+                 memory_query_dim,
                  use_stateless_vision_core,
                  use_rim_level1,
                  use_rim_level2,
                  use_rim_level3,
+                 rim_top_down_level2_level1,
+                 rim_top_down_level3_level2,
                  # brim
                  use_gru_or_rim,
                  rim_level1_hidden_size,
@@ -35,6 +43,8 @@ class BRIMCore(nn.Module):
                  brim_layers_after_rim_level1,
                  brim_layers_after_rim_level2,
                  brim_layers_after_rim_level3,
+                 rim_level1_condition_on_task_inference_latent,
+                 rim_level2_condition_on_task_inference_latent,
                  # vae encoder
                  vae_encoder_layers_before_gru,
                  vae_encoder_hidden_size,
@@ -56,7 +66,53 @@ class BRIMCore(nn.Module):
         self.use_rim_level2 = use_rim_level2
         self.use_rim_level3 = use_rim_level3
 
-        self.brim = self.initialise_brim()
+        self.brim = self.initialise_brim(use_memory,
+                                         use_hebb,
+                                         use_gen,
+                                         memory_controller_hidden_size,
+                                         memory_controller_rim_or_gru,
+                                         memory_key_dim,
+                                         memory_value_dim,
+                                         memory_query_dim,
+                                         use_stateless_vision_core,
+                                         use_rim_level1,
+                                         use_rim_level2,
+                                         use_rim_level3,
+                                         rim_top_down_level2_level1,
+                                         rim_top_down_level3_level2,
+                                         # brim
+                                         use_gru_or_rim,
+                                         rim_level1_hidden_size,
+                                         rim_level2_hidden_size,
+                                         rim_level3_hidden_size,
+                                         rim_level1_output_dim,
+                                         rim_level2_output_dim,
+                                         rim_level3_output_dim,
+                                         rim_level1_num_modules,
+                                         rim_level2_num_modules,
+                                         rim_level3_num_modules,
+                                         rim_level1_topk,
+                                         rim_level2_topk,
+                                         rim_level3_topk,
+                                         brim_layers_before_rim_level1,
+                                         brim_layers_before_rim_level2,
+                                         brim_layers_before_rim_level3,
+                                         brim_layers_after_rim_level1,
+                                         brim_layers_after_rim_level2,
+                                         brim_layers_after_rim_level3,
+                                         rim_level1_condition_on_task_inference_latent,
+                                         rim_level2_condition_on_task_inference_latent,
+                                         # vae encoder
+                                         vae_encoder_layers_before_gru,
+                                         vae_encoder_hidden_size,
+                                         vae_encoder_layers_after_gru,
+                                         task_inference_latent_dim,
+                                         action_dim,
+                                         action_embed_dim,
+                                         state_dim,
+                                         state_embed_dim,
+                                         reward_size,
+                                         reward_embed_size)
 
     @staticmethod
     def initialise_brim(use_memory,
@@ -71,6 +127,8 @@ class BRIMCore(nn.Module):
                         use_rim_level1,
                         use_rim_level2,
                         use_rim_level3,
+                        rim_top_down_level2_level1,
+                        rim_top_down_level3_level2,
                         # brim
                         use_gru_or_rim,
                         rim_level1_hidden_size,
@@ -93,7 +151,6 @@ class BRIMCore(nn.Module):
                         brim_layers_after_rim_level3,
                         rim_level1_condition_on_task_inference_latent,
                         rim_level2_condition_on_task_inference_latent,
-                        rim_level3_condition_on_task_inference_latent,
                         # vae encoder
                         vae_encoder_layers_before_gru,
                         vae_encoder_hidden_size,
@@ -104,10 +161,7 @@ class BRIMCore(nn.Module):
                         state_dim,
                         state_embed_dim,
                         reward_size,
-                        reward_embed_size,
-                        # general
-                        logger,
-                        iter_idx):
+                        reward_embed_size):
         brim = BRIM(use_memory=use_memory,
                     use_hebb=use_hebb,
                     use_gen=use_gen,
@@ -120,6 +174,8 @@ class BRIMCore(nn.Module):
                     use_rim_level1=use_rim_level1,
                     use_rim_level2=use_rim_level2,
                     use_rim_level3=use_rim_level3,
+                    rim_top_down_level2_level1=rim_top_down_level2_level1,
+                    rim_top_down_level3_level2=rim_top_down_level3_level2,
                     # brim
                     use_gru_or_rim=use_gru_or_rim,
                     rim_level1_hidden_size=rim_level1_hidden_size,
@@ -152,8 +208,7 @@ class BRIMCore(nn.Module):
                     state_dim=state_dim,
                     state_embed_dim=state_embed_dim,
                     reward_size=reward_size,
-                    reward_embed_size=reward_embed_size)\
-            .to(device)
+                    reward_embed_size=reward_embed_size).to(device)
         return brim
 
     def _sample_gaussian(self, mu, logvar, num=None):
@@ -201,43 +256,43 @@ class BRIMCore(nn.Module):
             # brim hidden state shape : (length, batch_size, num_layers, hidden_state_size)
             brim_hidden_state = brim_hidden_state.reshape((-1, *brim_hidden_state.shape[-2:]))
 
-        if task_inference_hidden_state is not None:
-            # if the sequence_len is one, this will add a dimension at dim 0 (otherwise will be the same)
-            task_inference_hidden_state = task_inference_hidden_state.reshape((-1, *task_inference_hidden_state.shape[-2:]))
-
         if return_prior:
             # if hidden state is none, start with the prior
-            (prior_brim_output1, prior_brim_output2, prior_brim_output3, prior_brim_output4, prior_brim_output5), prior_brim_hidden_state, \
-            (prior_sample, prior_mean, prior_logvar), prior_task_inference_hidden_state = self.prior(batch_size=actions.shape[1],
-                                                                                                     sample=sample)
+            (prior_brim_output1, prior_brim_output2, prior_brim_output3, prior_brim_output4,
+             prior_brim_output5, prior_brim_hidden_state), \
+            (prior_sample, prior_mean, prior_logvar, prior_task_inference_hidden_state) = self.prior(
+                batch_size=actions.shape[1],
+                sample=sample)
 
             brim_hidden_state = prior_brim_hidden_state.clone()
             task_inference_hidden_state = prior_task_inference_hidden_state.clone()
 
         if detach_every is None:
-            output1, output2, output3, output4, output5, _, \
-            latent_sample, latent_mean, latent_logvar, task_inf_output, _ = self.gru(actions,
-                                                                                     states,
-                                                                                     rewards,
-                                                                                     brim_hidden_state,
-                                                                                     task_inference_hidden_state,
-                                                                                     activated_branch,
-                                                                                     sample)
+            (brim_output1, brim_output2, brim_output3, brim_output4, brim_output5, brim_hidden_states),  _, \
+            (latent_sample, latent_mean, latent_logvar, task_inference_hidden_states), _ = self.brim(actions,
+                                                                                                     states,
+                                                                                                     rewards,
+                                                                                                     brim_hidden_state,
+                                                                                                     task_inference_hidden_state,
+                                                                                                     activated_branch,
+                                                                                                     sample)
         else:
-            brim_output1, brim_output2, brim_output3, brim_output4, brim_output5,  brim_hidden_states = [], [], [], [], [], []
+            brim_output1, brim_output2, brim_output3, brim_output4, brim_output5, brim_hidden_states = [], [], [], [], [], []
             latent_sample, latent_mean, latent_logvar, task_inference_hidden_states = [], [], [], []
             for i in range(int(np.ceil(states.shape[0] / detach_every))):
                 curr_actions = actions[i * detach_every:i * detach_every + detach_every]
                 curr_states = states[i * detach_every:i * detach_every + detach_every]
                 curr_rewards = rewards[i * detach_every:i * detach_every + detach_every]
 
-                (curr_output1, curr_output2, curr_output3, curr_output4, curr_output5, curr_brim_hidden_states), brim_hidden_state, \
-                (curr_latent_sample, curr_latent_mean, curr_latent_logvar, curr_task_inference_hidden_states), task_inference_hidden_state = self.gru(curr_actions,
-                                                                                                                                                       curr_states,
-                                                                                                                                                       curr_rewards,
-                                                                                                                                                       brim_hidden_state,
-                                                                                                                                                       task_inference_hidden_state,
-                                                                                                                                                       sample)
+                (curr_output1, curr_output2, curr_output3, curr_output4, curr_output5,
+                 curr_brim_hidden_states), brim_hidden_state, \
+                (curr_latent_sample, curr_latent_mean, curr_latent_logvar,
+                 curr_task_inference_hidden_states), task_inference_hidden_state = self.brim(curr_actions,
+                                                                                            curr_states,
+                                                                                            curr_rewards,
+                                                                                            brim_hidden_state,
+                                                                                            task_inference_hidden_state,
+                                                                                            sample)
                 brim_output1.append(curr_output1)
                 brim_output2.append(curr_output2)
                 brim_output3.append(curr_output3)
@@ -267,39 +322,39 @@ class BRIMCore(nn.Module):
             latent_logvar = torch.cat(latent_logvar, dim=0)
             task_inference_hidden_states = torch.cat(task_inference_hidden_states, dim=0)
 
-            if return_prior:
-                latent_sample = torch.cat((prior_sample, latent_sample))
-                latent_mean = torch.cat((prior_mean, latent_mean))
-                latent_logvar = torch.cat((prior_logvar, latent_logvar))
-                task_inference_hidden_states = torch.cat((prior_task_inference_hidden_state, task_inference_hidden_states))
+        if return_prior:
+            latent_sample = torch.cat((prior_sample, latent_sample))
+            latent_mean = torch.cat((prior_mean, latent_mean))
+            latent_logvar = torch.cat((prior_logvar, latent_logvar))
+            task_inference_hidden_states = torch.cat((prior_task_inference_hidden_state, task_inference_hidden_states))
 
-                brim_output1 = torch.cat((prior_brim_output1, brim_output1))
-                brim_output2 = torch.cat((prior_brim_output2, brim_output2))
-                brim_output3 = torch.cat((prior_brim_output3, brim_output3))
-                brim_output4 = torch.cat((prior_brim_output4, brim_output4))
-                brim_output5 = torch.cat((prior_brim_output5, brim_output5))
-                brim_hidden_states = torch.cat((prior_brim_hidden_state, brim_hidden_states))
+            brim_output1 = torch.cat((prior_brim_output1, brim_output1))
+            brim_output2 = torch.cat((prior_brim_output2, brim_output2))
+            brim_output3 = torch.cat((prior_brim_output3, brim_output3))
+            brim_output4 = torch.cat((prior_brim_output4, brim_output4))
+            brim_output5 = torch.cat((prior_brim_output5, brim_output5))
+            brim_hidden_states = torch.cat((prior_brim_hidden_state, brim_hidden_states))
 
-            if latent_mean.shape[0] == 1:
-                latent_sample, latent_mean, latent_logvar = latent_sample[0], latent_mean[0], latent_logvar[0]
+        if latent_mean.shape[0] == 1:
+            latent_sample, latent_mean, latent_logvar = latent_sample[0], latent_mean[0], latent_logvar[0]
 
-            if brim_output1.shape[0] == 1:
-                brim_output1 = brim_output1[0]
+        if brim_output1.shape[0] == 1:
+            brim_output1 = brim_output1[0]
 
-            if brim_output2.shape[0] == 1:
-                brim_output2 = brim_output2[0]
+        if brim_output2.shape[0] == 1:
+            brim_output2 = brim_output2[0]
 
-            if brim_output3.shape[0] == 1:
-                brim_output3 = brim_output3[0]
+        if brim_output3.shape[0] == 1:
+            brim_output3 = brim_output3[0]
 
-            if brim_output4.shape[0] == 1:
-                brim_output4 = brim_output4[0]
+        if brim_output4.shape[0] == 1:
+            brim_output4 = brim_output4[0]
 
-            if brim_output5.shape[0] == 1:
-                brim_output5 = brim_output5[0]
+        if brim_output5.shape[0] == 1:
+            brim_output5 = brim_output5[0]
 
-            return brim_output1, brim_output2, brim_output3, brim_output4, brim_output5, brim_hidden_states, \
-                   latent_sample, latent_mean, latent_logvar, task_inference_hidden_states
+        return brim_output1, brim_output2, brim_output3, brim_output4, brim_output5, brim_hidden_states, \
+               latent_sample, latent_mean, latent_logvar, task_inference_hidden_states
 
     def forward_exploration_branch(self,
                                    actions,

@@ -23,6 +23,8 @@ class BRIM(nn.Module):
                  use_rim_level1,
                  use_rim_level2,
                  use_rim_level3,
+                 rim_top_down_level2_level1,
+                 rim_top_down_level3_level2,
                  use_gru_or_rim,
                  rim_level1_hidden_size,
                  rim_level2_hidden_size,
@@ -64,6 +66,8 @@ class BRIM(nn.Module):
                                             use_rim_level1=use_rim_level1,
                                             use_rim_level2=use_rim_level2,
                                             use_rim_level3=use_rim_level3,
+                                            rim_top_down_level2_level1=rim_top_down_level2_level1,
+                                            rim_top_down_level3_level2=rim_top_down_level3_level2,
                                             use_gru_or_rim=use_gru_or_rim,
                                             rim_level1_hidden_size=rim_level1_hidden_size,
                                             rim_level2_hidden_size=rim_level2_hidden_size,
@@ -110,6 +114,8 @@ class BRIM(nn.Module):
     def initialise_blocks(use_rim_level1,
                           use_rim_level2,
                           use_rim_level3,
+                          rim_top_down_level2_level1,
+                          rim_top_down_level3_level2,
                           use_gru_or_rim,
                           rim_level1_hidden_size,
                           rim_level2_hidden_size,
@@ -142,6 +148,8 @@ class BRIM(nn.Module):
         blocks = Blocks(use_rim_level1=use_rim_level1,
                         use_rim_level2=use_rim_level2,
                         use_rim_level3=use_rim_level3,
+                        rim_top_down_level2_level1=rim_top_down_level2_level1,
+                        rim_top_down_level3_level2=rim_top_down_level3_level2,
                         use_gru_or_rim=use_gru_or_rim,
                         rim_level1_hidden_size=rim_level1_hidden_size,
                         rim_level2_hidden_size=rim_level2_hidden_size,
@@ -203,12 +211,12 @@ class BRIM(nn.Module):
         latent_sample, latent_mean, latent_logvar, task_inference_hidden_state = self.vae_encoder.prior(batch_size, sample)
         brim_output1, brim_output2, brim_output3, brim_output4, brim_output5, brim_hidden_state = self.model.prior(batch_size)
 
-        return (latent_sample, latent_mean, latent_logvar, task_inference_hidden_state),\
-               (brim_output1, brim_output2, brim_output3, brim_output4, brim_output5, brim_hidden_state)
+        return (brim_output1, brim_output2, brim_output3, brim_output4, brim_output5, brim_hidden_state),\
+               (latent_sample, latent_mean, latent_logvar, task_inference_hidden_state)
 
     def reset(self, task_inference_hidden_state, brim_hidden_state, done_task, done_episode):
         task_inference_hidden_state = self.vae_encoder.reset_hidden(task_inference_hidden_state, done_task)
-        brim_hidden_state = self.model.reset_hidden(brim_hidden_state, done_episode)
+        brim_hidden_state = self.model.reset_hidden(brim_hidden_state, done_task)
         return task_inference_hidden_state, brim_hidden_state
 
     def forward(self,
@@ -231,6 +239,9 @@ class BRIM(nn.Module):
         latent_mean_output = []
         latent_logvar_output = []
         task_inference_hidden_state_output = []
+
+        if task_inference_hidden_state.dim() == 3:
+            task_inference_hidden_state = task_inference_hidden_state.squeeze(0)
 
         for idx_step in range(states.shape[0]):
             latent_sample, latent_mean, latent_logvar, task_inference_hidden_state = self.vae_encoder(actions[idx_step],
@@ -279,17 +290,17 @@ class BRIM(nn.Module):
 
             brim_hidden_state = torch.unsqueeze(brim_hidden_state, 0)
 
-        brim_outputs1 = torch.squeeze(torch.stack(brim_outputs1), 1)
-        brim_outputs2 = torch.squeeze(torch.stack(brim_outputs2), 1)
-        brim_outputs3 = torch.squeeze(torch.stack(brim_outputs3), 1)
-        brim_outputs4 = torch.squeeze(torch.stack(brim_outputs4), 1)
-        brim_outputs5 = torch.squeeze(torch.stack(brim_outputs5), 1)
-        brim_hidden_state_output = torch.squeeze(torch.stack(brim_hidden_state_output), 1)
+        brim_outputs1 = torch.stack(brim_outputs1)
+        brim_outputs2 = torch.stack(brim_outputs2)
+        brim_outputs3 = torch.stack(brim_outputs3)
+        brim_outputs4 = torch.stack(brim_outputs4)
+        brim_outputs5 = torch.stack(brim_outputs5)
+        brim_hidden_state_output = torch.stack(brim_hidden_state_output)
 
-        latent_sample_output = torch.squeeze(torch.stack(latent_sample_output), 1)
-        latent_mean_output = torch.squeeze(torch.stack(latent_mean_output), 1)
-        latent_logvar_output = torch.squeeze(torch.stack(latent_logvar_output), 1)
-        task_inference_hidden_state_output = torch.squeeze(torch.stack(task_inference_hidden_state_output), 1)
+        latent_sample_output = torch.stack(latent_sample_output)
+        latent_mean_output = torch.stack(latent_mean_output)
+        latent_logvar_output = torch.stack(latent_logvar_output)
+        task_inference_hidden_state_output = torch.stack(task_inference_hidden_state_output)
 
         return (brim_outputs1, brim_outputs2, brim_outputs3, brim_outputs4, brim_outputs5, brim_hidden_state_output), brim_hidden_state, \
                (latent_sample_output, latent_mean_output, latent_logvar_output, task_inference_hidden_state_output), task_inference_hidden_state

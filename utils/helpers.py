@@ -116,7 +116,7 @@ def get_latent_for_policy(sample_embeddings, add_nonlinearity_to_latent, latent_
     else:
         latent = torch.cat((latent_mean, latent_logvar), dim=-1)
 
-    if latent.shape[0] == 1:
+    if latent.shape[0] == 1 and latent.dim() == 3:
         latent = latent.squeeze(0)
 
     return latent
@@ -129,26 +129,27 @@ def update_encoding(brim_core, next_obs, action, reward, done, task_inference_hi
 
     with torch.no_grad():
         if activated_branch == 'exploration':
-            brim_output1, brim_output3, brim_output5, brim_hidden_states,\
-            latent_sample, latent_mean, latent_logvar, hidden_state = brim_core.forward_exploration_branch(actions=action.float(),
+            brim_output1, brim_output3, brim_output5, brim_hidden_state,\
+            latent_sample, latent_mean, latent_logvar, task_inference_hidden_state = brim_core.forward_exploration_branch(actions=action.float(),
                                                                                                            states=next_obs,
                                                                                                            rewards=reward,
                                                                                                            task_inference_hidden_state=task_inference_hidden_state,
                                                                                                            brim_hidden_state=brim_hidden_state,
                                                                                                            sample=True,
                                                                                                            return_prior=False)
-            return brim_output1, brim_hidden_states, latent_mean, latent_logvar, hidden_state
+            return brim_output1, brim_output3, brim_output5, brim_hidden_state, latent_sample, latent_mean, latent_logvar, task_inference_hidden_state
         if activated_branch == 'exploitation':
-            brim_output2, brim_output4, brim_output5, brim_hidden_states, \
-            latent_sample, latent_mean, latent_logvar, hidden_state = brim_core.forward_exploitation_branch(
+            brim_output2, brim_output4, brim_output5, brim_hidden_state, \
+            latent_sample, latent_mean, latent_logvar, task_inference_hidden_state = brim_core.forward_exploitation_branch(
                 actions=action.float(),
                 states=next_obs,
                 rewards=reward,
                 task_inference_hidden_state=task_inference_hidden_state,
                 brim_hidden_state=brim_hidden_state,
                 sample=True,
-                return_prior=False)
-            return brim_output2, brim_hidden_states, latent_mean, latent_logvar, hidden_state
+                return_prior=False,
+                detach_every=None)
+            return brim_output2, brim_output4, brim_output5, brim_hidden_state, latent_sample, latent_mean, latent_logvar, task_inference_hidden_state
 
 
 def compute_intrinsic_reward(rew_raw, rew_normalised):
@@ -183,7 +184,8 @@ def recompute_embeddings(
         brim_core,
         sample,
         update_idx,
-        detach_every
+        detach_every,
+        activated_branch,
 ):
     # get the prior
     latent_sample = [policy_storage.latent_samples[0].detach().clone()]
@@ -194,30 +196,60 @@ def recompute_embeddings(
     latent_mean[0].requires_grad = True
     latent_logvar[0].requires_grad = True
 
+    brim_output_level1 = [policy_storage.brim_output_level1[0].detach().clone()]
+    brim_output_level2 = [policy_storage.brim_output_level2[0].detach().clone()]
+    brim_output_level3 = [policy_storage.brim_output_level3[0].detach().clone()]
+
+    brim_output_level1[0].requires_grad = True
+    brim_output_level2[0].requires_grad = True
+    brim_output_level3[0].requires_grad = True
+
+
     # loop through experience and update hidden state
     # (we need to loop because we sometimes need to reset the hidden state)
-    h = policy_storage.hidden_states[0].detach()
+    task_inference_hidden_state = policy_storage.task_inference_hidden_states[0].detach()
+    brim_hidden_state = policy_storage.brim_hidden_states[0].detach()
     for i in range(policy_storage.actions.shape[0]):
         # reset hidden state of the GRU when we reset the task
-        h = brim_core.reset_hidden(h, policy_storage.done[i + 1])
+        task_inference_hidden_state, brim_hidden_state = brim_core.reset_hidden(task_inference_hidden_state, brim_hidden_state, policy_storage.done[i + 1], None)
 
-        ts, tm, tl, h = brim_core(policy_storage.actions.float()[i:i + 1],
-                                policy_storage.next_state[i:i + 1],
-                                policy_storage.rewards_raw[i:i + 1],
-                                h,
-                                sample=sample,
-                                return_prior=False,
-                                detach_every=detach_every
-                                )
+        if activated_branch == 'exploration':
+            brim_output1, brim_output3, brim_output5, brim_hidden_state, \
+            latent_sample_, latent_mean_, latent_logvar_, task_inference_hidden_state = brim_core.forward_exploration_branch(
+                actions=policy_storage.actions.float()[i:i + 1],
+                states=policy_storage.next_state[i:i + 1],
+                rewards=policy_storage.rewards_raw[i:i + 1],
+                task_inference_hidden_state=task_inference_hidden_state,
+                brim_hidden_state=brim_hidden_state,
+                sample=sample,
+                return_prior=False,
+                detach_every=detach_every)
+            latent_sample.append(latent_sample_)
+            latent_mean.append(latent_mean_)
+            latent_logvar.append(latent_logvar_)
 
-        # print(i, reset_task.sum())
-        # print(i, (policy_storage.latent_mean[i + 1] - tm).sum())
-        # print(i, (policy_storage.latent_logvar[i + 1] - tl).sum())
-        # print(i, (policy_storage.hidden_states[i + 1] - h).sum())
+            brim_output_level1.append(brim_output1)
+            brim_output_level2.append(brim_output3)
+            brim_output_level3.append(brim_output5)
 
-        latent_sample.append(ts)
-        latent_mean.append(tm)
-        latent_logvar.append(tl)
+        if activated_branch == 'exploitation':
+            brim_output2, brim_output4, brim_output5, brim_hidden_state, \
+            latent_sample_, latent_mean_, latent_logvar_, task_inference_hidden_state = brim_core.forward_exploitation_branch(
+                actions=policy_storage.actions.float()[i:i + 1],
+                states=policy_storage.next_state[i:i + 1],
+                rewards=policy_storage.rewards_raw[i:i + 1],
+                task_inference_hidden_state=task_inference_hidden_state,
+                brim_hidden_state=brim_hidden_state,
+                sample=sample,
+                return_prior=False,
+                detach_every=detach_every)
+            latent_sample.append(latent_sample_)
+            latent_mean.append(latent_mean_)
+            latent_logvar.append(latent_logvar_)
+
+            brim_output_level1.append(brim_output2)
+            brim_output_level2.append(brim_output4)
+            brim_output_level3.append(brim_output5)
 
     if update_idx == 0:
         try:
@@ -231,6 +263,10 @@ def recompute_embeddings(
     policy_storage.latent_samples = latent_sample
     policy_storage.latent_mean = latent_mean
     policy_storage.latent_logvar = latent_logvar
+
+    policy_storage.brim_output_level1 = brim_output_level1
+    policy_storage.brim_output_level2 = brim_output_level2
+    policy_storage.brim_output_level3 = brim_output_level3
 
 
 class FeatureExtractor(nn.Module):

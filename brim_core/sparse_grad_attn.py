@@ -8,7 +8,7 @@ import numpy
 import torch
 from torch.autograd import Variable
 
-from BRIM.sparse_attn import Sparse_attention
+from brim_core.sparse_attn import Sparse_attention
 
 
 class blocked_grad(torch.autograd.Function):

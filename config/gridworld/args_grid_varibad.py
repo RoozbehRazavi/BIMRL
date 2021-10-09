@@ -103,9 +103,9 @@ def get_args(rest_args):
 
     # - encoder
     parser.add_argument('--state_embedding_size', type=int, default=32)
-    parser.add_argument('--encoder_layers_before_gru', nargs='+', type=int, default=[])
-    parser.add_argument('--encoder_gru_hidden_size', type=int, default=64, help='dimensionality of RNN hidden state')
-    parser.add_argument('--encoder_layers_after_gru', nargs='+', type=int, default=[])
+    parser.add_argument('--vae_encoder_layers_before_gru', nargs='+', type=int, default=[])
+    parser.add_argument('--vae_encoder_gru_hidden_size', type=int, default=64, help='dimensionality of RNN hidden state')
+    parser.add_argument('--vae_encoder_layers_after_gru', nargs='+', type=int, default=[])
     parser.add_argument('--task_inference_latent_dim', type=int, default=5, help='dimensionality of latent space')
 
     # - decoder: rewards
@@ -202,7 +202,7 @@ def get_args(rest_args):
 
 
     # RIM configuration
-    parser.add_argument('--use_GRU_or_RIM', type=str, default='GRU',
+    parser.add_argument('--use_gru_or_rim', type=str, default='GRU',
                         help='as a RNN model use RIM or GRU')
 
     parser.add_argument('--use_rim_level1', type=boolean_argument, default=False,
@@ -221,11 +221,11 @@ def get_args(rest_args):
     parser.add_argument('--rim_level3_hidden_size', type=int, default=32,
                         help='hidden size of level 3 rim (output of this level use decode VAE term)')
 
-    parser.add_argument('rim_level1_num_modules', type=int, default=1,
+    parser.add_argument('--rim_level1_num_modules', type=int, default=1,
                         help='number of module in rim level 1')
-    parser.add_argument('rim_level2_num_modules', type=int, default=1,
+    parser.add_argument('--rim_level2_num_modules', type=int, default=1,
                         help='number of module in rim level 2')
-    parser.add_argument('rim_level3_num_modules', type=int, default=1,
+    parser.add_argument('--rim_level3_num_modules', type=int, default=1,
                         help='number of module in rim level 3')
 
     parser.add_argument('--rim_level1_topk', type=int, default=1,
@@ -254,6 +254,14 @@ def get_args(rest_args):
 
     parser.add_argument('--policy_rim_level1_output_embedding_dim', type=int, default=None)
 
+    parser.add_argument('--rim_level1_condition_on_task_inference_latent', type=boolean_argument, default=False,
+                        help='rim level 1 get information from task inference output')
+    parser.add_argument('--rim_level2_condition_on_task_inference_latent', type=boolean_argument, default=False,
+                        help='rim level 2 get information from task inference output')
+    parser.add_argument('--rim_top_down_level3_level2', type=boolean_argument, default=False,
+                        help='rim level 2 get information from level 3')
+    parser.add_argument('--rim_top_down_level2_level1', type=boolean_argument, default=False,
+                        help='rim level 1 get information from level 2')
     # memory
     parser.add_argument('--use_memory', type=boolean_argument, default=False,
                         help='whatever or not use memory in model')
@@ -262,6 +270,13 @@ def get_args(rest_args):
     parser.add_argument('--use_gen', type=boolean_argument, default=False,
                         help='whatever or not use generative memory in memory module')
 
+    parser.add_argument('--memory_controller_hidden_size', type=int, default=0,
+                        help='hidden size of memory controller')
+    parser.add_argument('--memory_controller_rim_or_gru', type=str, default='GRU',
+                        help='as RNN network for memory controller use GRU of RIM')
+    parser.add_argument('--memory_key_dim', type=int, default=0)
+    parser.add_argument('--memory_value_dim', type=int, default=0)
+    parser.add_argument('--memory_query_dim', type=int, default=0)
     # visoin core
     parser.add_argument('--use_stateless_vision_core', type=boolean_argument, default=False,
                         help='use attentional visual process unit')

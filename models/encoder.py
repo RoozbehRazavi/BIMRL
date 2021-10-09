@@ -65,6 +65,18 @@ class VAERNNEncoder(nn.Module):
         self.fc_mu = nn.Linear(curr_input_dim, task_inference_latent_dim)
         self.fc_logvar = nn.Linear(curr_input_dim, task_inference_latent_dim)
 
+    def _sample_gaussian(self, mu, logvar, num=None):
+        if num is None:
+            std = torch.exp(0.5 * logvar)
+            eps = torch.randn_like(std)
+            return eps.mul(std).add_(mu)
+        else:
+            raise NotImplementedError  # TODO: double check this code, maybe we should use .unsqueeze(0).expand((num, *logvar.shape))
+            std = torch.exp(0.5 * logvar).repeat(num, 1)
+            eps = torch.randn_like(std)
+            mu = mu.repeat(num, 1)
+            return eps.mul(std).add_(mu)
+
     @staticmethod
     def reset_hidden(hidden_state, done):
         """ Reset the hidden state where the BAMDP was done (i.e., we get a new task) """
@@ -98,7 +110,7 @@ class VAERNNEncoder(nn.Module):
 
         return latent_sample, latent_mean, latent_logvar, hidden_state
 
-    def forward(self, actions, states, rewards, hidden_state, return_prior, sample=True):
+    def forward(self, actions, states, rewards, hidden_state, sample=True):
         """
         Actions, states, rewards should be given in form [sequence_len * batch_size * dim].
         For one-step predictions, sequence_len=1 and hidden_state!=None.
@@ -109,20 +121,18 @@ class VAERNNEncoder(nn.Module):
         # extract features for states, actions, rewards
         ha = self.action_encoder(actions)
 
-        batch_size = states.shape[1]
-        seq_len = states.shape[0]
+        batch_size = states.shape[0]
         tmp_state = states.clone()
         states = states.view(-1, states.shape[-1])
         states = utl.image_obs(states)
-
         hs = self.state_encoder(states)
 
-        tmp1 = hs.view(seq_len, batch_size, self.state_embed_dim - 1)
-        tmp2 = tmp_state[:, :, -2:-1]
+        tmp1 = hs.view(batch_size, self.state_embed_dim - 1)
+        tmp2 = tmp_state[:, -2:-1]
         hs = torch.cat((tmp1, tmp2), dim=-1)
 
         hr = self.reward_encoder(rewards)
-        h = torch.cat((ha, hs, hr), dim=2)
+        h = torch.cat((hs, ha, hr), dim=-1)
 
         # forward through fully connected layers before GRU
         for i in range(len(self.fc_before_gru)):

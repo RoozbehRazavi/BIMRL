@@ -4,10 +4,10 @@ import torch
 import torch.nn as nn
 import numpy as np
 import random
-from BRIM.sparse_attn import Sparse_attention
+from brim_core.sparse_attn import Sparse_attention
 import torch.nn.functional as F
-from BRIM.GroupLinearLayer import GroupLinearLayer
-from BRIM.sparse_grad_attn import Sparse_grad_attention
+from brim_core.GroupLinearLayer import GroupLinearLayer
+from brim_core.sparse_grad_attn import Sparse_grad_attention
 
 # TODO modify to become similar BAM
 class ScaledDotProductAttention(nn.Module):

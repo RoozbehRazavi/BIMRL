@@ -58,7 +58,8 @@ class PPO:
                policy_storage,
                encoder=None,  # variBAD encoder
                rlloss_through_encoder=False,  # whether or not to backprop RL loss through encoder
-               compute_vae_loss=None  # function that can compute the VAE loss
+               compute_vae_loss=None,  # function that can compute the VAE loss
+               activated_branch='exploration'
                ):
 
         # -- get action values --
@@ -70,8 +71,8 @@ class PPO:
         if rlloss_through_encoder:
             # recompute embeddings (to build computation graph)
             utl.recompute_embeddings(policy_storage, encoder, sample=False, update_idx=0,
-                                     detach_every=self.args.tbptt_stepsize if hasattr(self.args,
-                                                                                      'tbptt_stepsize') else None)
+                                     detach_every=self.args.tbptt_stepsize if hasattr(self.args, 'tbptt_stepsize') else None,
+                                     activated_branch=activated_branch)
 
         # update the normalisation parameters of policy inputs before updating
         self.actor_critic.update_rms(args=self.args, policy_storage=policy_storage)
@@ -164,8 +165,8 @@ class PPO:
                 if rlloss_through_encoder:
                     # recompute embeddings (to build computation graph)
                     utl.recompute_embeddings(policy_storage, encoder, sample=False, update_idx=e + 1,
-                                             detach_every=self.args.tbptt_stepsize if hasattr(self.args,
-                                                                                              'tbptt_stepsize') else None)
+                                             detach_every=self.args.tbptt_stepsize if hasattr(self.args, 'tbptt_stepsize') else None,
+                                             activated_branch=activated_branch)
 
         if (not rlloss_through_encoder) and (self.optimiser_vae is not None):
             for _ in range(self.args.num_vae_updates):

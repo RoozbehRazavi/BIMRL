@@ -65,7 +65,7 @@ class Base2Final:
     - can compute the ELBO loss
     - can update the VAE (encoder+decoder)
     """
-    def __init__(self, args, train_exploration, train_exploitation, logger, get_iter_idx):
+    def __init__(self, args, logger, get_iter_idx):
 
         self.args = args
         self.logger = logger
@@ -118,10 +118,17 @@ class Base2Final:
             use_memory=self.args.use_memory,
             use_hebb=self.args.use_hebb,
             use_gen=self.args.use_gen,
+            memory_controller_hidden_size=self.args.memory_controller_hidden_size,
+            memory_controller_rim_or_gru=self.args.memory_controller_rim_or_gru,
+            memory_key_dim=self.args.memory_key_dim,
+            memory_value_dim=self.args.memory_value_dim,
+            memory_query_dim=self.args.memory_query_dim,
             use_stateless_vision_core=self.args.use_stateless_vision_core,
             use_rim_level1=self.args.use_rim_level1,
             use_rim_level2=self.args.use_rim_level2,
             use_rim_level3=self.args.use_rim_level3,
+            rim_top_down_level2_level1=self.args.rim_top_down_level2_level1,
+            rim_top_down_level3_level2=self.args.rim_top_down_level3_level2,
             # brim
             use_gru_or_rim=self.args.use_gru_or_rim,
             rim_level1_hidden_size=self.args.rim_level1_hidden_size,
@@ -142,17 +149,19 @@ class Base2Final:
             brim_layers_after_rim_level1=self.args.brim_layers_after_rim_level1,
             brim_layers_after_rim_level2=self.args.brim_layers_after_rim_level2,
             brim_layers_after_rim_level3=self.args.brim_layers_after_rim_level3,
+            rim_level1_condition_on_task_inference_latent=self.args.rim_level1_condition_on_task_inference_latent,
+            rim_level2_condition_on_task_inference_latent=self.args.rim_level2_condition_on_task_inference_latent,
             # vae encoder
             vae_encoder_layers_before_gru=self.args.vae_encoder_layers_before_gru,
-            vae_encoder_hidden_size=self.args.vae_encoder_hidden_size,
+            vae_encoder_hidden_size=self.args.vae_encoder_gru_hidden_size,
             vae_encoder_layers_after_gru=self.args.vae_encoder_layers_after_gru,
             task_inference_latent_dim=self.args.task_inference_latent_dim,
             action_dim=self.args.action_dim,
-            action_embed_dim=self.args.action_embed_dim,
+            action_embed_dim=self.args.action_embedding_size,
             state_dim=self.args.state_dim,
-            state_embed_dim=self.args.state_embed_dim,
-            reward_size=self.args.reward_size,
-            reward_embed_size=self.args.reward_embed_size,
+            state_embed_dim=self.args.state_embedding_size,
+            reward_size=1,
+            reward_embed_size=self.args.reward_embedding_size,
         )
         return brim_core
 
@@ -513,7 +522,7 @@ class Base2Final:
         # expand the latent (to match the number of state/rew/action inputs to the decoder)
         # shape will be: [num tasks in batch] x [num elbos] x [len trajectory (reconstrution loss)] x [dimension]
         dec_embedding = latent_samples.unsqueeze(0).expand((num_decodes, *latent_samples.shape)).transpose(1, 0)
-        dec_brim_output5 = brim_output5.unsqueeze(0).expand((num_decodes, *latent_samples.shape)).transpose(1, 0)
+        dec_brim_output5 = brim_output5.unsqueeze(0).expand((num_decodes, *brim_output5.shape)).transpose(1, 0)
         # if use rim in VAE decoder use output of rim level 3 instead of VAE encoder output
         if self.args.use_rim_level3:
             dec_embedding = dec_brim_output5
