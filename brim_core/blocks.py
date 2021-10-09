@@ -201,7 +201,7 @@ class Blocks(nn.Module):
                 blocks_level2.append(nn.GRUCell(rim_level2_input_dim, rim_level2_hidden_size))
                 blocks_level2.append(nn.GRUCell(rim_level2_input_dim, rim_level2_hidden_size))
             elif use_gru_or_rim == 'RIM':
-                blocks_level1.append(BlocksCore(ninp=rim_level2_input_dim,
+                blocks_level2.append(BlocksCore(ninp=rim_level2_input_dim,
                                                 nhid=rim_level2_hidden_size,
                                                 num_blocks_in=1,
                                                 num_blocks_out=rim_level2_num_modules,
@@ -210,7 +210,7 @@ class Blocks(nn.Module):
                                                 num_modules_read_input=2,
                                                 use_higher=rim_top_down_level3_level2,
                                                 higher_separate_att=True))
-                blocks_level1.append(BlocksCore(ninp=rim_level2_input_dim,
+                blocks_level2.append(BlocksCore(ninp=rim_level2_input_dim,
                                                 nhid=rim_level2_hidden_size,
                                                 num_blocks_in=1,
                                                 num_blocks_out=rim_level2_num_modules,
@@ -447,7 +447,7 @@ class Blocks(nn.Module):
                 if self.rim_level1_condition_on_task_inference_latent:
                     level1_input = torch.cat((level1_input, brim_level1_task_inference_latent), dim=-1)
                 if self.rim_top_down_level2_level1:
-                    brim_hidden_state1 = [brim_hidden_state1, brim_hidden_state3]
+                    brim_hidden_state1 = [brim_hidden_state1, brim_hidden_state3.detach()]
                 else:
                     brim_hidden_state1 = [brim_hidden_state1]
                 if self.use_gru_or_rim == 'RIM':
@@ -463,7 +463,7 @@ class Blocks(nn.Module):
                 if self.rim_level2_condition_on_task_inference_latent:
                     level2_input = torch.cat((level2_input, brim_level2_task_inference_latent), dim=-1)
                 if self.rim_top_down_level3_level2:
-                    brim_hidden_state3 = [brim_hidden_state3, brim_hidden_state5]
+                    brim_hidden_state3 = [brim_hidden_state3, brim_hidden_state5.detach()]
                 else:
                     brim_hidden_state3 = [brim_hidden_state3]
                 if self.use_gru_or_rim == 'RIM':
@@ -494,7 +494,7 @@ class Blocks(nn.Module):
                 if self.rim_level1_condition_on_task_inference_latent:
                     level1_input = torch.cat((level1_input, brim_level1_task_inference_latent), dim=-1)
                 if self.rim_top_down_level2_level1:
-                    brim_hidden_state2 = [brim_hidden_state2, brim_hidden_state4]
+                    brim_hidden_state2 = [brim_hidden_state2, brim_hidden_state4.detach()]
                 else:
                     brim_hidden_state2 = [brim_hidden_state2]
                 if self.use_gru_or_rim == 'RIM':
@@ -510,7 +510,7 @@ class Blocks(nn.Module):
                 if self.rim_level2_condition_on_task_inference_latent:
                     level2_input = torch.cat((level2_input, brim_level2_task_inference_latent), dim=-1)
                 if self.rim_top_down_level3_level2:
-                    brim_hidden_state4 = [brim_hidden_state4, brim_hidden_state5]
+                    brim_hidden_state4 = [brim_hidden_state4, brim_hidden_state5.detach()]
                 else:
                     brim_hidden_state4 = [brim_hidden_state4]
                 if self.use_gru_or_rim == 'RIM':
