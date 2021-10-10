@@ -265,7 +265,7 @@ class Base2Final:
                 state_embed_dim=self.args.state_embedding_size,
                 value_simulator_hidden_size=self.args.value_simulator_hidden_size,
                 pred_type=self.args.task_pred_type,
-                n_prediction=self.args.n_prediction)
+                n_prediction=self.args.n_prediction).to(device)
         else:
             value_decoder = None
 
