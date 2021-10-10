@@ -38,7 +38,6 @@ class BlocksCore(nn.Module):
         self.use_higher = use_higher
         self.higher_separate_att = higher_separate_att
 
-
         if self.use_higher:
             self.ninp = nhid + ninp
             if self.higher_separate_att:
@@ -60,61 +59,39 @@ class BlocksCore(nn.Module):
         self.block_lstm.blockify_params()
 
     def forward(self, inp, hx, cx, idx_layer):
-
         sz_b = inp.shape[0]
-
-        hxl = []
-        cxl = []
-
         inp_use = inp
         if self.use_higher:
             sz_b, nhid = inp.shape
-
-            #print("using higher!")
-            #print('inp shape', inp.shape)
-            #print('hx-1 shape', hx[-1].shape)
-            #inp_use = torch.cat([inp, hx[-1]], dim=1)
 
             inp_use = inp_use.reshape((sz_b, 1, nhid))
             hx_use = hx[-1].reshape((sz_b, 1, nhid))
 
             if self.higher_separate_att:
-                inp_use = torch.cat([inp_use, hx_use], dim = 1)
+                inp_use = torch.cat([inp_use, hx_use], dim=1)
             else:
-                inp_use = torch.cat([inp_use, hx_use], dim = 2)
-
-            #print('inp use shape', inp_use.shape)
+                inp_use = torch.cat([inp_use, hx_use], dim=2)
 
         hx, cx = hx[idx_layer], cx[idx_layer]
 
-        #use attention here.
-
         inp_use = inp_use.reshape((inp_use.shape[0], self.num_blocks_in, self.ninp))
 
-        #inp_use = inp_use.repeat(1,self.num_modules_read_input-1,1)
-        #print('inp use shape before null block', inp_use.shape)
-        inp_use = torch.cat([torch.zeros_like(inp_use[:,0:1,:]), inp_use], dim=1)
-        #print('inp use shape after null block', inp_use.shape)
-
-        #raise Exception('done')
+        inp_use = torch.cat([torch.zeros_like(inp_use[:, 0:1, :]), inp_use], dim=1)
 
         hx_reshape = hx.reshape((hx.shape[0], self.num_blocks_out, self.block_size_out))
-
 
         inp_use, iatt, _ = self.inp_att(hx_reshape, inp_use, inp_use)
 
         iatt = iatt.reshape((self.inp_heads, sz_b, iatt.shape[1], iatt.shape[2]))
+
         iatt = iatt.mean(0)
 
         inp_use = inp_use.reshape((inp_use.shape[0], self.att_out*self.num_blocks_out))
 
+        null_score = iatt.mean((0, 1))[1]
 
-        null_score = iatt.mean((0,1))[1]
-
-        new_mask = torch.ones_like(iatt[:,:,0])
-        bottomk_indices = torch.topk(iatt[:,:,0], dim=1,
-                                sorted=True, largest=True,
-                                k = self.num_blocks_out - self.topkval)[1]
+        new_mask = torch.ones_like(iatt[:, :, 0])
+        bottomk_indices = torch.topk(iatt[:, :, 0], dim=1, sorted=True, largest=True, k=self.num_blocks_out - self.topkval)[1]
 
         new_mask.index_put_((torch.arange(bottomk_indices.size(0)).unsqueeze(1), bottomk_indices),
                     torch.zeros_like(bottomk_indices[0], dtype=new_mask.dtype))
@@ -123,13 +100,12 @@ class BlocksCore(nn.Module):
 
         assert(torch.mean(torch.sum(mask, dim=1)).item() == self.topkval)
 
-        mask = mask.reshape((inp_use.shape[0],self.num_blocks_out,1)).repeat((1,1,self.block_size_out)).reshape((inp_use.shape[0], self.num_blocks_out*self.block_size_out))
+        mask = mask.reshape((inp_use.shape[0], self.num_blocks_out, 1)).repeat((1, 1, self.block_size_out)).reshape((inp_use.shape[0], self.num_blocks_out*self.block_size_out))
 
         mask = mask.detach()
 
         hx_old = hx*1.0
         cx_old = cx*1.0
-
 
         if self.do_gru:
             hx_new = self.block_lstm(inp_use, hx)
@@ -144,8 +120,8 @@ class BlocksCore(nn.Module):
         hx_new = hx_new.reshape((hx_new.shape[0], self.nhid))
         extra_loss = extra_loss_att
 
-        hx = (mask)*hx_new + (1-mask)*hx_old
-        cx = (mask)*cx_new + (1-mask)*cx_old
+        hx = mask * hx_new + (1-mask) * hx_old
+        cx = mask * cx_new + (1-mask) * cx_old
 
         return hx, cx
 

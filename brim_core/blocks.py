@@ -51,8 +51,8 @@ class Blocks(nn.Module):
         self.use_rim_level3 = use_rim_level3
         self.rim_level1_condition_on_task_inference_latent = rim_level1_condition_on_task_inference_latent
         self.rim_level2_condition_on_task_inference_latent = rim_level2_condition_on_task_inference_latent
-        self.rim_top_down_level2_level1 = rim_top_down_level2_level1,
-        self.rim_top_down_level3_level2 = rim_top_down_level3_level2,
+        self.rim_top_down_level2_level1 = rim_top_down_level2_level1
+        self.rim_top_down_level3_level2 = rim_top_down_level3_level2
         self.rim_level1_output_dim = rim_level1_output_dim
         self.rim_level2_output_dim = rim_level2_output_dim
         self.rim_level3_output_dim = rim_level3_output_dim
@@ -83,7 +83,6 @@ class Blocks(nn.Module):
             rim_level1_input_dim = 0
 
         if use_rim_level2:
-
             if len(brim_layers_before_rim_level2) > 0:
                 rim_level2_input_dim = brim_layers_before_rim_level2[-1]
             else:
@@ -91,7 +90,6 @@ class Blocks(nn.Module):
 
             if rim_level2_condition_on_task_inference_latent:
                 rim_level2_input_dim += task_inference_latent_dim * 2
-
         else:
             rim_level2_input_dim = 0
 
@@ -103,6 +101,19 @@ class Blocks(nn.Module):
             rim_level3_input_dim += task_inference_latent_dim
         else:
             rim_level3_input_dim = 0
+
+        if rim_top_down_level2_level1:
+            self.final_input_embedding_layer_level1_0 = nn.Linear(rim_level1_input_dim, rim_level2_hidden_size)
+            self.final_input_embedding_layer_level1_1 = nn.Linear(rim_level1_input_dim, rim_level2_hidden_size)
+        if rim_top_down_level3_level2:
+            self.final_input_embedding_layer_level2_0 = nn.Linear(rim_level2_input_dim, rim_level3_hidden_size)
+            self.final_input_embedding_layer_level2_1 = nn.Linear(rim_level2_input_dim, rim_level3_hidden_size)
+
+        if rim_top_down_level3_level2:
+            rim_level2_input_dim = rim_level3_hidden_size
+
+        if rim_top_down_level2_level1:
+            rim_level1_input_dim = rim_level2_hidden_size
 
         self.bc_list = self.initialise_rims(use_rim_level1,
                                             use_rim_level2,
@@ -130,7 +141,11 @@ class Blocks(nn.Module):
                                                                                    brim_layers_before_rim_level3,
                                                                                    use_rim_level1,
                                                                                    use_rim_level2,
-                                                                                   use_rim_level3
+                                                                                   use_rim_level3,
+                                                                                   rim_level2_hidden_size,
+                                                                                   rim_level3_hidden_size,
+                                                                                   rim_top_down_level2_level1,
+                                                                                   rim_top_down_level3_level2,
                                                                                    )
         self.output_layer_level1,\
         self.output_layer_level2,\
@@ -233,6 +248,7 @@ class Blocks(nn.Module):
                                            use_higher=False,
                                            higher_separate_att=True)
             blocks_level3 = blocks_level3.to(device)
+
         return blocks_level1.to(device), blocks_level2.to(device), blocks_level3
 
     @staticmethod
@@ -243,6 +259,10 @@ class Blocks(nn.Module):
                                           use_rim_level1,
                                           use_rim_level2,
                                           use_rim_level3,
+                                          rim_level2_hidden_size,
+                                          rim_level3_hidden_size,
+                                          rim_top_down_level2_level1,
+                                          rim_top_down_level3_level2,
                                           ):
         level1 = nn.ModuleList()
         level2 = nn.ModuleList()
@@ -259,7 +279,7 @@ class Blocks(nn.Module):
 
                 curr_input_dim = brim_input_dim
                 for i in range(len(brim_layers_before_rim_level1)):
-                    level1_1.append(nn.ReLU())
+                    level1_2.append(nn.ReLU())
                     level1_2.append(nn.Linear(curr_input_dim, brim_layers_before_rim_level1[i]))
                     curr_input_dim = brim_layers_before_rim_level1[i]
             level1.append(nn.Sequential(*level1_1))
@@ -290,6 +310,8 @@ class Blocks(nn.Module):
                     level3.append(nn.ReLU())
                     level3.append(nn.Linear(curr_input_dim, brim_layers_before_rim_level3[i]))
                     curr_input_dim = brim_layers_before_rim_level3[i]
+                if rim_top_down_level3_level2:
+                    level3.append(nn.Linear(curr_input_dim, rim_level2_hidden_size))
             level3 = nn.Sequential(*level3)
         return level1.to(device), level2.to(device), level3.to(device)
 
@@ -447,6 +469,8 @@ class Blocks(nn.Module):
                 if self.rim_level1_condition_on_task_inference_latent:
                     level1_input = torch.cat((level1_input, brim_level1_task_inference_latent), dim=-1)
                 if self.rim_top_down_level2_level1:
+                    level1_input = self.final_input_embedding_layer_level1_0(level1_input)
+                if self.rim_top_down_level2_level1:
                     brim_hidden_state1 = [brim_hidden_state1, brim_hidden_state3.detach()]
                 else:
                     brim_hidden_state1 = [brim_hidden_state1]
@@ -462,6 +486,8 @@ class Blocks(nn.Module):
                 level2_input = self.input_embedding_layer_level2[0](brim_input)
                 if self.rim_level2_condition_on_task_inference_latent:
                     level2_input = torch.cat((level2_input, brim_level2_task_inference_latent), dim=-1)
+                if self.rim_top_down_level3_level2:
+                    level2_input = self.final_input_embedding_layer_level2_0(level2_input)
                 if self.rim_top_down_level3_level2:
                     brim_hidden_state3 = [brim_hidden_state3, brim_hidden_state5.detach()]
                 else:
@@ -494,6 +520,8 @@ class Blocks(nn.Module):
                 if self.rim_level1_condition_on_task_inference_latent:
                     level1_input = torch.cat((level1_input, brim_level1_task_inference_latent), dim=-1)
                 if self.rim_top_down_level2_level1:
+                    level1_input = self.final_input_embedding_layer_level1_1(level1_input)
+                if self.rim_top_down_level2_level1:
                     brim_hidden_state2 = [brim_hidden_state2, brim_hidden_state4.detach()]
                 else:
                     brim_hidden_state2 = [brim_hidden_state2]
@@ -509,6 +537,8 @@ class Blocks(nn.Module):
                 level2_input = self.input_embedding_layer_level2[1](brim_input)
                 if self.rim_level2_condition_on_task_inference_latent:
                     level2_input = torch.cat((level2_input, brim_level2_task_inference_latent), dim=-1)
+                if self.rim_top_down_level3_level2:
+                    level2_input = self.final_input_embedding_layer_level2_1(level2_input)
                 if self.rim_top_down_level3_level2:
                     brim_hidden_state4 = [brim_hidden_state4, brim_hidden_state5.detach()]
                 else:
