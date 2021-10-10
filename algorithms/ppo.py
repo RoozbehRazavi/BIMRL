@@ -147,7 +147,8 @@ class PPO:
                 if rlloss_through_encoder:
                     loss += self.args.vae_loss_coeff * compute_vae_loss()
                     if self.args.use_rim_level2:
-                        loss += self.args.n_step_value_prediction_coeff * compute_n_step_value_prediction_loss(self.actor_critic, activated_branch)
+                        value_prediction_loss = compute_n_step_value_prediction_loss(self.actor_critic, activated_branch)
+                        loss += self.args.n_step_value_prediction_coeff * value_prediction_loss
 
                 # compute gradients (will attach to all networks involved in this computation)
                 loss.backward()

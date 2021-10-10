@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from torch.nn import functional as F
 
-from models.decoder import StateTransitionDecoder, RewardDecoder, TaskDecoder
+from models.decoder import StateTransitionDecoder, RewardDecoder, TaskDecoder, ValueDecoder
 from brim_core.brim_core import BRIMCore
 from utils.storage_vae import RolloutStorageVAE
 from utils.helpers import get_task_dim, get_num_tasks, get_latent_for_policy
@@ -40,6 +40,14 @@ def compute_returns(next_value, rewards, value_preds, returns, gamma, tau, use_g
             returns[-1] = next_value
             for step in reversed(range(rewards.size(0))):
                 returns[step] = returns[step + 1] * gamma * masks[step + 1] + rewards[step]
+
+
+def compute_loss_value(values, value_preds, return_batch, clip_param=0.2):
+    value_pred_clipped = value_preds + (values - value_preds).clamp(-clip_param, clip_param)
+    value_losses = F.smooth_l1_loss(values, return_batch, reduction='none')
+    value_losses_clipped = F.smooth_l1_loss(value_pred_clipped, return_batch, reduction='none')
+    value_loss = 0.5 * torch.max(value_losses, value_losses_clipped).mean(dim=-1)
+    return value_loss
 
 
 def compute_loss_state(state_pred, next_obs, state_pred_type):
@@ -106,7 +114,7 @@ class Base2Final:
         self.brim_core = self.initialise_brim_core()
 
         # initialise the decoders (returns None for unused decoders)
-        self.state_decoder, self.reward_decoder, self.task_decoder = self.initialise_decoder()
+        self.state_decoder, self.reward_decoder, self.task_decoder, self.value_decoder = self.initialise_decoder()
 
         # initialise rollout storage for the VAE update
         # (this differs from the data that the on-policy RL algorithm uses)
@@ -247,6 +255,20 @@ class Base2Final:
         else:
             reward_decoder = None
 
+        if self.args.use_rim_level2:
+            value_decoder = ValueDecoder(
+                layers=self.args.value_decoder_layers,
+                latent_dim=self.args.rim_level2_output_dim,
+                action_dim=self.args.action_dim,
+                action_embed_dim=self.args.action_embedding_size,
+                state_dim=self.args.state_dim,
+                state_embed_dim=self.args.state_embedding_size,
+                value_simulator_hidden_size=self.args.value_simulator_hidden_size,
+                pred_type=self.args.task_pred_type,
+                n_prediction=self.args.n_prediction)
+        else:
+            value_decoder = None
+
         # initialise task decoder for VAE
         if self.args.decode_task:
             task_decoder = TaskDecoder(
@@ -259,7 +281,7 @@ class Base2Final:
         else:
             task_decoder = None
 
-        return state_decoder, reward_decoder, task_decoder
+        return state_decoder, reward_decoder, task_decoder, value_decoder
 
     def compute_state_reconstruction_loss(self, latent, prev_obs, next_obs, action, n_step_action, n_step_next_obs, return_predictions=False):
         """ Compute state reconstruction loss.
@@ -285,35 +307,13 @@ class Base2Final:
                     losses.append(compute_loss_state(state_pred[i], n_step_next_obs[i-1], self.args.state_pred_type))
             if return_predictions:
                 # just return prediction of next step
-                losses, state_pred[0]
+                return losses, state_pred[0]
             else:
                 return losses
 
     def compute_rew_reconstruction_loss(self, latent, prev_obs, next_obs, action, reward, n_step_next_obs, n_step_actions, n_step_rewards, return_predictions=False):
         """ Compute reward reconstruction loss.
         (No reduction of loss along batch dimension is done here; sum/avg has to be done outside) """
-
-        # if self.args.multihead_for_reward:
-        #
-        #     rew_pred = self.reward_decoder(latent, None)
-        #     if self.args.rew_pred_type == 'categorical':
-        #         rew_pred = F.softmax(rew_pred, dim=-1)
-        #     elif self.args.rew_pred_type == 'bernoulli':
-        #         rew_pred = torch.sigmoid(rew_pred)
-        #
-        #     env = gym.make(self.args.env_name)
-        #     state_indices = env.task_to_id(next_obs).to(device)
-        #     if state_indices.dim() < rew_pred.dim():
-        #         state_indices = state_indices.unsqueeze(-1)
-        #     rew_pred = rew_pred.gather(dim=-1, index=state_indices)
-        #     rew_target = (reward == 1).float()
-        #     if self.args.rew_pred_type == 'deterministic':  # TODO: untested!
-        #         loss_rew = (rew_pred - reward).pow(2).mean(dim=-1)
-        #     elif self.args.rew_pred_type in ['categorical', 'bernoulli']:
-        #         loss_rew = F.binary_cross_entropy(rew_pred, rew_target, reduction='none').mean(dim=-1)
-        #     else:
-        #         raise NotImplementedError
-        #else:
         rew_pred = self.reward_decoder(latent,
                                        next_obs,
                                        prev_obs,
@@ -336,7 +336,7 @@ class Base2Final:
                     losses.append(compute_loss_reward(rew_pred[i], n_step_rewards[i-1], self.args.rew_pred_type))
             if return_predictions:
                 # just return prediction of next step
-                losses, rew_pred[0]
+                return losses, rew_pred[0]
             else:
                 return losses
 
@@ -411,6 +411,38 @@ class Base2Final:
             losses = torch.stack(partial_reconstruction_loss)
         return losses
 
+    def compute_value_reconstruction_loss(self,
+                                          brim_output_level2,
+                                          prev_obs,
+                                          rewards,
+                                          actions,
+                                          value_next_state,
+                                          returns_next_state,
+                                          n_step_actions,
+                                          n_step_rewards,
+                                          n_step_value_next_state,
+                                          n_step_returns_next_state
+                                          ):
+
+        value_pred = self.value_decoder(
+            # general info
+            brim_output_level2,
+            prev_obs,
+            # for one step value prediction
+            rewards,
+            actions,
+            # for n step value prediction
+            n_step_actions,
+            n_step_rewards)
+
+        losses = list()
+        for i in range(self.args.n_prediction + 1):
+            if i == 0:
+                losses.append(compute_loss_value(value_pred[i], value_next_state, returns_next_state))
+            else:
+                losses.append(compute_loss_value(value_pred[i], n_step_value_next_state[i - 1], n_step_returns_next_state[i - 1]))
+        return losses
+
     def compute_value_loss(self,
                            # input
                            brim_output_level2,
@@ -427,7 +459,145 @@ class Base2Final:
         assert not self.args.decode_only_past
         max_traj_len = np.max(trajectory_lens)
 
+        # input
+        n_step_actions = list()
+        n_step_rewards = list()
+        # target
+        n_step_value_next_state = list()
+        n_step_returns_next_state = list()
 
+        vae_actions_len = vae_actions.shape[0]
+        vae_rewards_len = vae_rewards.shape[0]
+        value_next_state_len = value_next_state.shape[0]
+        returns_next_state_len = returns_next_state.shape[0]
+
+        for i in range(self.args.n_prediction):
+            # for n last step of trajectory some n_step actions fill with not correct data -
+            # if vas_subsample big enough this issue not effective
+            if max_traj_len + i + 1 >= vae_actions_len:
+                n_step_actions.append(torch.cat((vae_actions[i + 1:vae_actions_len], torch.zeros(
+                    size=((max_traj_len + i + 1) - vae_actions_len, *vae_actions.shape[1:]), device=device))))
+            else:
+                n_step_actions.append(vae_actions[i + 1:max_traj_len + i + 1])
+
+            if max_traj_len + i + 1 >= vae_rewards_len:
+                n_step_rewards.append(torch.cat((vae_rewards[i + 1:vae_rewards_len], torch.zeros(
+                    size=((max_traj_len + i + 1) - vae_rewards_len, *vae_rewards.shape[1:]), device=device))))
+            else:
+                n_step_rewards.append(vae_rewards[i + 1:max_traj_len + i + 1])
+
+            if max_traj_len + i + 1 >= value_next_state_len:
+                n_step_value_next_state.append(torch.cat((value_next_state[i + 1: value_next_state_len], torch.zeros(
+                    size=((max_traj_len + i + 1) - value_next_state_len, *value_next_state.shape[1:]), device=device))))
+            else:
+                n_step_value_next_state.append(value_next_state[i + 1:max_traj_len + i + 1])
+
+            if max_traj_len + i + 1 >= returns_next_state_len:
+                n_step_returns_next_state.append(torch.cat((returns_next_state[i + 1: returns_next_state_len], torch.zeros(
+                    size=((max_traj_len + i + 1) - returns_next_state_len, *returns_next_state.shape[1:]), device=device))))
+            else:
+                n_step_returns_next_state.append(returns_next_state[i+1:max_traj_len + i + 1])
+
+        brim_output_level2 = brim_output_level2[:max_traj_len + 1]
+        vae_prev_obs = vae_prev_obs[:max_traj_len]
+        vae_actions = vae_actions[:max_traj_len]
+        vae_rewards = vae_rewards[:max_traj_len]
+        value_next_state = value_next_state[:max_traj_len]
+        returns_next_state = returns_next_state[:max_traj_len]
+
+        num_elbos = brim_output_level2.shape[0]
+        num_decodes = vae_prev_obs.shape[0]
+        batchsize = brim_output_level2.shape[1]  # number of trajectories
+
+        if self.args.vae_subsample_elbos is not None:
+            # randomly choose which elbo's to subsample
+            if num_unique_trajectory_lens == 1:
+                elbo_indices = torch.LongTensor(self.args.vae_subsample_elbos * batchsize).random_(0,
+                                                                                                   num_elbos)  # select diff elbos for each task
+            else:
+                # if we have different trajectory lengths, subsample elbo indices separately
+                # up to their maximum possible encoding length;
+                # only allow duplicates if the sample size would be larger than the number of samples
+                elbo_indices = np.concatenate([np.random.choice(range(0, t + 1), self.args.vae_subsample_elbos,
+                                                                replace=self.args.vae_subsample_elbos > (t + 1)) for
+                                               t in trajectory_lens])
+                if max_traj_len < self.args.vae_subsample_elbos:
+                    warnings.warn('The required number of ELBOs is larger than the shortest trajectory, '
+                                  'so there will be duplicates in your batch.'
+                                  'To avoid this use --split_batches_by_elbo or --split_batches_by_task.')
+            task_indices = torch.arange(batchsize).repeat(self.args.vae_subsample_elbos)  # for selection mask
+            brim_output_level2 = brim_output_level2[elbo_indices, task_indices, :].reshape((self.args.vae_subsample_elbos, batchsize, -1))
+            num_elbos = brim_output_level2.shape[0]
+        else:
+            elbo_indices = None
+
+        dec_prev_obs = vae_prev_obs.unsqueeze(0).expand((num_elbos, *vae_prev_obs.shape))
+        dec_actions = vae_actions.unsqueeze(0).expand((num_elbos, *vae_actions.shape))
+        dec_rewards = vae_rewards.unsqueeze(0).expand((num_elbos, *vae_rewards.shape))
+        dec_value_next_state = value_next_state.unsqueeze(0).expand((num_elbos, *value_next_state.shape))
+        dec_returns_next_state = returns_next_state.unsqueeze(0).expand((num_elbos, *returns_next_state.shape))
+
+        dec_n_step_actions = list()
+        for i in range(self.args.n_prediction):
+            dec_n_step_actions.append(n_step_actions[i].unsqueeze(0).expand((num_elbos, *n_step_actions[i].shape)))
+
+        dec_n_step_rewards = list()
+        for i in range(self.args.n_prediction):
+            dec_n_step_rewards.append(n_step_rewards[i].unsqueeze(0).expand((num_elbos, *n_step_rewards[i].shape)))
+
+        dec_n_step_value_next_state = list()
+        for i in range(self.args.n_prediction):
+            dec_n_step_value_next_state.append(n_step_value_next_state[i].unsqueeze(0).expand((num_elbos, *n_step_value_next_state[i].shape)))
+
+        dec_n_step_returns_next_state = list()
+        for i in range(self.args.n_prediction):
+            dec_n_step_returns_next_state.append(n_step_returns_next_state[i].unsqueeze(0).expand((num_elbos, *n_step_returns_next_state[i].shape)))
+
+        if self.args.vae_subsample_decodes is not None:
+            # shape before: vae_subsample_elbos * num_decodes * batchsize * dim
+            # shape after: vae_subsample_elbos * vae_subsample_decodes * batchsize * dim
+            # (Note that this will always have duplicates given how we set up the code)
+            indices0 = torch.arange(num_elbos).repeat(self.args.vae_subsample_decodes * batchsize)
+            if num_unique_trajectory_lens == 1:
+                indices1 = torch.LongTensor(num_elbos * self.args.vae_subsample_decodes * batchsize).random_(0, num_decodes)
+            else:
+                indices1 = np.concatenate([np.random.choice(range(0, t), num_elbos * self.args.vae_subsample_decodes,
+                                                            replace=True) for t in trajectory_lens])
+            indices2 = torch.arange(batchsize).repeat(num_elbos * self.args.vae_subsample_decodes)
+            dec_prev_obs = dec_prev_obs[indices0, indices1, indices2, :].reshape((num_elbos, self.args.vae_subsample_decodes, batchsize, -1))
+            dec_actions = dec_actions[indices0, indices1, indices2, :].reshape((num_elbos, self.args.vae_subsample_decodes, batchsize, -1))
+            dec_rewards = dec_rewards[indices0, indices1, indices2, :].reshape((num_elbos, self.args.vae_subsample_decodes, batchsize, -1))
+            dec_value_next_state = dec_value_next_state[indices0, indices1, indices2, :].reshape((num_elbos, self.args.vae_subsample_decodes, batchsize, -1))
+            dec_returns_next_state = dec_returns_next_state[indices0, indices1, indices2, :].reshape((num_elbos, self.args.vae_subsample_decodes, batchsize, -1))
+
+            for i in range(self.args.n_prediction):
+                dec_n_step_actions[i] = dec_n_step_actions[i][indices0, indices1, indices2, :].reshape((num_elbos, self.args.vae_subsample_decodes, batchsize, -1))
+                dec_n_step_rewards[i] = dec_n_step_rewards[i][indices0, indices1, indices2, :].reshape((num_elbos, self.args.vae_subsample_decodes, batchsize, -1))
+
+                dec_n_step_value_next_state[i] = dec_n_step_value_next_state[i][indices0, indices1, indices2, :].reshape((num_elbos, self.args.vae_subsample_decodes, batchsize, -1))
+                dec_n_step_returns_next_state[i] = dec_n_step_returns_next_state[i][indices0, indices1, indices2, :].reshape((num_elbos, self.args.vae_subsample_decodes, batchsize, -1))
+
+            num_decodes = dec_prev_obs.shape[1]
+            dec_brim_output_level2 = brim_output_level2.unsqueeze(0).expand((num_decodes, *brim_output_level2.shape)).transpose(1, 0)
+
+            value_reconstruction_loss = self.compute_value_reconstruction_loss(dec_brim_output_level2,
+                                                                               dec_prev_obs,
+                                                                               dec_rewards,
+                                                                               dec_actions,
+                                                                               dec_value_next_state,
+                                                                               dec_returns_next_state,
+                                                                               dec_n_step_actions,
+                                                                               dec_n_step_rewards,
+                                                                               dec_n_step_value_next_state,
+                                                                               dec_n_step_returns_next_state)
+            losses = torch.zeros(size=(self.args.n_prediction + 1, 1)).to(device)
+            for i in range(self.args.n_prediction + 1):
+                losses[i] = avg_loss(value_reconstruction_loss[i], self.args.vae_avg_elbo_terms, self.args.vae_avg_reconstruction_terms)
+            if self.args.vae_avg_n_step_prediction:
+                value_reconstruction_loss = losses.mean(dim=0)[0]
+            else:
+                value_reconstruction_loss = losses.sum(dim=0)[0]
+            return value_reconstruction_loss.mean()
 
     def compute_loss(self, brim_output5, latent_mean, latent_logvar, vae_prev_obs, vae_next_obs, vae_actions,
                      vae_rewards, vae_tasks, trajectory_lens):
@@ -540,7 +710,7 @@ class Base2Final:
             for i in range(self.args.n_prediction):
                 dec_n_step_next_obs.append(n_step_next_obs[i].unsqueeze(0).expand((num_elbos, *n_step_next_obs[i].shape)))
 
-            dec_n_step_rewards =list()
+            dec_n_step_rewards = list()
             for i in range(self.args.n_prediction):
                 dec_n_step_rewards.append(n_step_rewards[i].unsqueeze(0).expand((num_elbos, *n_step_rewards[i].shape)))
 
@@ -763,9 +933,7 @@ class Base2Final:
                 return_prior=True,
                 sample=True,
                 detach_every=None)
-            task_inference_latent = get_latent_for_policy(sample_embeddings=self.args.sample_embeddings,
-                                                          add_nonlinearity_to_latent=self.args.add_nonlinearity_to_latent,
-                                                          latent_sample=latent_sample, latent_mean=latent_mean, latent_logvar=latent_logvar)
+
         elif activated_branch == 'exploitation':
             if not self.exploitation_rollout_storage.ready_for_update():
                 return 0
@@ -814,17 +982,17 @@ class Base2Final:
         returns_next_state = returns[1:]
         value_next_state = value_states[1:]
 
-        self.compute_value_loss(
-            # input
-            brim_output_level2,
-            vae_prev_obs,
-            vae_actions,
-            vae_rewards,
-            # target
-            value_next_state,
-            returns_next_state)
-
-
+        n_step_value_pred_loss = self.compute_value_loss(
+                                                        # input
+                                                        brim_output_level2,
+                                                        vae_prev_obs,
+                                                        vae_actions,
+                                                        vae_rewards,
+                                                        # target
+                                                        value_next_state,
+                                                        returns_next_state,
+                                                        trajectory_lens)
+        return n_step_value_pred_loss
 
     def log(self, elbo_loss, rew_reconstruction_loss, state_reconstruction_loss, task_reconstruction_loss, kl_loss):
 

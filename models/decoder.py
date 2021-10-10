@@ -7,6 +7,77 @@ from utils import helpers as utl
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
+class ValueDecoder(nn.Module):
+    def __init__(self,
+                 layers,
+                 latent_dim,
+                 action_dim,
+                 action_embed_dim,
+                 state_dim,
+                 state_embed_dim,
+                 value_simulator_hidden_size,
+                 pred_type='deterministic',
+                 n_prediction=3
+                 ):
+        super(ValueDecoder, self).__init__()
+        self.n_prediction = n_prediction
+
+        self.state_encoder = utl.FeatureExtractor(state_dim, state_embed_dim, F.relu)
+        self.action_encoder = utl.FeatureExtractor(action_dim, action_embed_dim, F.relu)
+
+        curr_input_dim = latent_dim + state_embed_dim + action_embed_dim
+        self.fc_layers = nn.ModuleList([])
+        for i in range(len(layers)):
+            self.fc_layers.append(nn.Linear(curr_input_dim, layers[i]))
+            curr_input_dim = layers[i]
+
+
+        # RNN for simulate future state base on current state and future actions
+        self.h_to_hidden_state = nn.Sequential(
+            nn.Linear(curr_input_dim, value_simulator_hidden_size*2),
+            nn.ReLU(),
+            nn.Linear(value_simulator_hidden_size*2, value_simulator_hidden_size)
+        )
+        self.value_simulator = nn.GRUCell(action_embed_dim, value_simulator_hidden_size)
+        self.n_step_fc_out = nn.ModuleList([])
+        for i in range(self.n_prediction):
+            if pred_type == 'gaussian':
+                self.n_step_fc_out.append(nn.Linear(value_simulator_hidden_size, 2))
+            else:
+                self.n_step_fc_out.append(nn.Linear(value_simulator_hidden_size, 1))
+        self.n_step_action_encoder = utl.FeatureExtractor(action_dim, action_embed_dim, F.relu)
+
+        # output layer
+        if pred_type == 'gaussian':
+            self.one_step_fc_out = nn.Linear(curr_input_dim, 2)
+        else:
+            self.one_step_fc_out = nn.Linear(curr_input_dim, 1)
+
+    def forward(self, latent_state, state, rewards, action, n_step_action, n_step_rewards):
+        value_prediction = []
+
+        # one step value prediction
+        ha = self.action_encoder(action)
+        hs = self.state_encoder(state)
+        h = torch.cat((latent_state, hs, ha), dim=-1)
+
+        for i in range(len(self.fc_layers)):
+            h = F.relu(self.fc_layers[i](h))
+        value_prediction.append(self.one_step_fc_out(h))
+
+        #n step value prediction
+        h = self.h_to_hidden_state(h)
+        for i in range(self.n_prediction):
+            ha = self.n_step_action_encoder(n_step_action[i])
+            ha = ha.reshape((-1, ha.shape[-1]))
+            h_size = h.shape
+            h = h.reshape((-1, h.shape[-1]))
+            h = self.value_simulator(ha, h)
+            h = h.reshape((*h_size[:-1], h.shape[-1]))
+            value_prediction.append(self.n_step_fc_out[i](h))
+        return value_prediction
+
+
 class StateTransitionDecoder(nn.Module):
     def __init__(self,
                  layers,

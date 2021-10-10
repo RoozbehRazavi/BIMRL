@@ -205,6 +205,11 @@ def get_args(rest_args):
                         help='hidden size of GRU used in n step state prediction')
     parser.add_argument('--reward_simulator_hidden_size', type=int, default=16,
                         help='hidden size of GRU used in n step reward prediction')
+    parser.add_argument('--value_simulator_hidden_size', type=int, default=16,
+                        help='hidden size of GRU used in n step value prediction')
+
+    parser.add_argument('--value_decoder_layers', nargs='+', type=int, default=[32, 32])
+
     parser.add_argument('--input_action', type=boolean_argument, default=True, help='use prev action for rew pred')
 
 
