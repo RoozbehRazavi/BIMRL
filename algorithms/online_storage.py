@@ -31,26 +31,27 @@ class OnlineStorage(object):
 
         # normalisation of the rewards
         self.normalise_rewards = normalise_rewards
+        self.pass_task_inference_latent_to_policy = self.args.pass_task_inference_latent_to_policy or self.args.use_rim_level1
 
         # inputs to the policy
         # this will include s_0 when state was reset (hence num_steps+1)
         self.prev_state = torch.zeros(num_steps + 1, num_processes, state_dim)
-        if self.args.pass_task_inference_latent_to_policy:
+        if self.pass_task_inference_latent_to_policy:
             # latent variables (of VAE)
             self.task_inference_latent_dim = task_inference_latent_dim
             self.latent_samples = []
             self.latent_mean = []
             self.latent_logvar = []
-            self.brim_output_level1 = []
-            self.brim_output_level2 = []
-            self.brim_output_level3 = []
             # hidden states of RNN (necessary if we want to re-compute embeddings)
             self.task_inference_hidden_size = task_inference_hidden_size
             self.task_inference_hidden_states = torch.zeros(num_steps + 1, num_processes, task_inference_hidden_size)
-            self.brim_hidden_states = torch.zeros(num_steps + 1, num_processes, 5, brim_hidden_size)
             # next_state will include s_N when state was reset, skipping s_0
             # (only used if we need to re-compute embeddings after backpropagating RL loss through encoder)
             self.next_state = torch.zeros(num_steps, num_processes, state_dim)
+            self.brim_output_level1 = []
+            self.brim_output_level2 = []
+            self.brim_output_level3 = []
+            self.brim_hidden_states = torch.zeros(num_steps + 1, num_processes, 5, brim_hidden_size)
         if self.args.pass_belief_to_policy:
             self.beliefs = torch.zeros(num_steps + 1, num_processes, belief_dim)
         if self.args.pass_task_to_policy:
@@ -83,16 +84,16 @@ class OnlineStorage(object):
     def to_device(self):
         if self.args.pass_state_to_policy:
             self.prev_state = self.prev_state.to(device)
-        if self.args.pass_task_inference_latent_to_policy:
+        if self.pass_task_inference_latent_to_policy:
             self.latent_samples = [t.to(device) for t in self.latent_samples]
             self.latent_mean = [t.to(device) for t in self.latent_mean]
             self.latent_logvar = [t.to(device) for t in self.latent_logvar]
+            self.task_inference_hidden_states = self.task_inference_hidden_states.to(device)
             self.brim_output_level1 = [t.to(device) for t in self.brim_output_level1]
             self.brim_output_level2 = [t.to(device) for t in self.brim_output_level2]
             self.brim_output_level3 = [t.to(device) for t in self.brim_output_level3]
-            self.task_inference_hidden_states = self.task_inference_hidden_states.to(device)
             self.brim_hidden_states = self.brim_hidden_states.to(device)
-            self.next_state = self.next_state.to(device)
+        self.next_state = self.next_state.to(device)
         if self.args.pass_belief_to_policy:
             self.beliefs = self.beliefs.to(device)
         if self.args.pass_task_to_policy:
@@ -134,7 +135,7 @@ class OnlineStorage(object):
             self.beliefs[self.step + 1].copy_(belief)
         if self.args.pass_task_to_policy:
             self.tasks[self.step + 1].copy_(task)
-        if self.args.pass_task_inference_latent_to_policy:
+        if self.pass_task_inference_latent_to_policy:
             self.latent_samples.append(latent_sample.detach().clone())
             self.latent_mean.append(latent_mean.detach().clone())
             self.latent_logvar.append(latent_logvar.detach().clone())
@@ -163,7 +164,7 @@ class OnlineStorage(object):
             self.beliefs[0].copy_(self.beliefs[-1])
         if self.args.pass_task_to_policy:
             self.tasks[0].copy_(self.tasks[-1])
-        if self.args.pass_task_inference_latent_to_policy:
+        if self.pass_task_inference_latent_to_policy:
             self.latent_samples = []
             self.latent_mean = []
             self.latent_logvar = []
@@ -244,16 +245,24 @@ class OnlineStorage(object):
                 state_batch = self.prev_state[:-1].reshape(-1, *self.prev_state.size()[2:])[indices]
             else:
                 state_batch = None
-            if self.args.pass_task_inference_latent_to_policy:
+            if self.pass_task_inference_latent_to_policy:
                 latent_sample_batch = torch.cat(self.latent_samples[:-1])[indices]
                 latent_mean_batch = torch.cat(self.latent_mean[:-1])[indices]
                 latent_logvar_batch = torch.cat(self.latent_logvar[:-1])[indices]
-                brim_output_level1_batch = torch.cat(self.brim_output_level1[:-1])[indices]
-                brim_output_level2_batch = torch.cat(self.brim_output_level2[:-1])[indices]
-                brim_output_level3_batch = torch.cat(self.brim_output_level3[:-1])[indices]
             else:
                 latent_sample_batch = latent_mean_batch = latent_logvar_batch = None
-                brim_output_level1_batch = brim_output_level2_batch = brim_output_level3_batch = None
+            if self.args.use_rim_level1:
+                brim_output_level1_batch = torch.cat(self.brim_output_level1[:-1])[indices]
+            else:
+                brim_output_level1_batch =None
+            if self.args.use_rim_level2:
+                brim_output_level2_batch = torch.cat(self.brim_output_level2[:-1])[indices]
+            else:
+                brim_output_level2_batch = None
+            if self.args.use_rim_level3:
+                brim_output_level3_batch = torch.cat(self.brim_output_level3[:-1])[indices]
+            else:
+                brim_output_level3_batch=None
             if self.args.pass_belief_to_policy:
                 belief_batch = self.beliefs[:-1].reshape(-1, *self.beliefs.size()[2:])[indices]
             else:
