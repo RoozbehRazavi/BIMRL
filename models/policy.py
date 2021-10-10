@@ -232,6 +232,8 @@ class Policy(nn.Module):
         # concatenate inputs
         if brim_output_level1.dim() == 3:
             brim_output_level1 = brim_output_level1.squeeze(0)
+        if not self.args.rl_loss_throughout_vae_encoder:
+            task_inference_latent = task_inference_latent.detach()
         inputs = torch.cat((state, task_inference_latent, brim_output_level1, belief, task), dim=-1)
 
         # forward through critic/actor part

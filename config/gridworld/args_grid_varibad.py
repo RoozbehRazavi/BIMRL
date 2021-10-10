@@ -16,7 +16,7 @@ def get_args(rest_args):
 
     # what to pass to the policy (note this is after the encoder)
     parser.add_argument('--pass_state_to_policy', type=boolean_argument, default=True, help='condition policy on state')
-    parser.add_argument('--pass_task_inference_latent_to_policy', type=boolean_argument, default=True, help='condition policy on VAE latent')
+    parser.add_argument('--pass_task_inference_latent_to_policy', type=boolean_argument, default=False, help='condition policy on VAE latent')
     parser.add_argument('--pass_belief_to_policy', type=boolean_argument, default=False, help='condition policy on ground-truth belief')
     parser.add_argument('--pass_task_to_policy', type=boolean_argument, default=False, help='condition policy on ground-truth task description')
 
@@ -185,6 +185,7 @@ def get_args(rest_args):
                         help='reward prediction for n step forward not just next reward')
     parser.add_argument('--n_prediction', type=int, default=2,
                         help='for how many future step state prediction should does (exclude one step prediction; for til t+3 set to 2)')
+    parser.add_argument('--rl_loss_throughout_vae_encoder', type=boolean_argument, default=False)
 
     # Coefficient in Base2Final
     parser.add_argument('--add_extrinsic_reward_to_intrinsic', type=boolean_argument, default=True,
