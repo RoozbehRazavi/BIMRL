@@ -59,6 +59,7 @@ class PPO:
                encoder=None,  # variBAD encoder
                rlloss_through_encoder=False,  # whether or not to backprop RL loss through encoder
                compute_vae_loss=None,  # function that can compute the VAE loss
+               compute_n_step_value_prediction_loss=None,  # function that can compute the n step value prediction loss
                activated_branch='exploration'
                ):
 
@@ -145,6 +146,8 @@ class PPO:
                 # compute vae loss and backprop
                 if rlloss_through_encoder:
                     loss += self.args.vae_loss_coeff * compute_vae_loss()
+                    if self.args.use_rim_level2:
+                        loss += self.args.n_step_value_prediction_coeff * compute_n_step_value_prediction_loss(self.actor_critic, activated_branch)
 
                 # compute gradients (will attach to all networks involved in this computation)
                 loss.backward()

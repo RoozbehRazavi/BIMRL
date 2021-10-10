@@ -349,14 +349,20 @@ class MetaLearner:
                                                                            exploration_next_state.clone(),
                                                                            exploration_rew_raw.clone(),
                                                                            exploration_done.clone(),
-                                                                           exploration_task.clone() if exploration_task is not None else None)
+                                                                           exploration_task.clone() if exploration_task is not None else None,
+                                                                           exploration_masks_done,
+                                                                           exploration_bad_masks,
+                                                                           intrinsic_rewards=exploration_intrinsic_rew_normalised if self.args.norm_rew_for_policy else exploration_intrinsic_rew_raw)
                     if train_exploitation:
                         self.base2final.exploitation_rollout_storage.insert(exploitation_prev_state.clone(),
                                                                             exploitation_action.detach().clone(),
                                                                             exploitation_next_state.clone(),
                                                                             exploitation_rew_raw.clone(),
                                                                             exploitation_done.clone(),
-                                                                            exploitation_task.clone() if exploitation_task is not None else None)
+                                                                            exploitation_task.clone() if exploitation_task is not None else None,
+                                                                            exploitation_masks_done,
+                                                                            exploitation_bad_masks,
+                                                                            intrinsic_rewards=None)
 
                 if self.args.rlloss_through_encoder:
                     # add the obs before reset to the policy storage
@@ -588,6 +594,7 @@ class MetaLearner:
             encoder=self.base2final.brim_core,
             rlloss_through_encoder=self.args.rlloss_through_encoder,
             compute_vae_loss=self.base2final.compute_vae_loss,
+            compute_n_step_value_prediction_loss=self.base2final.compute_n_step_value_prediction_loss,
             activated_branch=activated_branch)
 
         return policy_train_stats

@@ -517,7 +517,7 @@ class Blocks(nn.Module):
                     brim_hidden_state4, _ = self.bc_list[1][1](level2_input, brim_hidden_state4, brim_hidden_state4, idx_layer=0)
                 else:
                     brim_hidden_state4 = self.bc_list[1][1](level2_input, brim_hidden_state4)
-                brim_output4 = self.output_layer_level2(brim_hidden_state4)
+                brim_output4 = self.output_layer_level2[1](brim_hidden_state4)
             else:
                 brim_output4 = torch.zeros(size=(*brim_hidden_state4.shape[:-1], self.rim_level2_output_dim), device=device)
 

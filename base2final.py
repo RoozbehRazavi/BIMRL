@@ -7,9 +7,39 @@ from torch.nn import functional as F
 from models.decoder import StateTransitionDecoder, RewardDecoder, TaskDecoder
 from brim_core.brim_core import BRIMCore
 from utils.storage_vae import RolloutStorageVAE
-from utils.helpers import get_task_dim, get_num_tasks
+from utils.helpers import get_task_dim, get_num_tasks, get_latent_for_policy
+
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+
+def compute_returns(next_value, rewards, value_preds, returns, gamma, tau, use_gae, masks, bad_masks, use_proper_time_limits):
+    if use_proper_time_limits:
+        if use_gae:
+            value_preds[-1] = next_value
+            gae = 0
+            for step in reversed(range(rewards.size(0))):
+                delta = rewards[step] + gamma * value_preds[step + 1] * masks[step + 1] - value_preds[step]
+                gae = delta + gamma * tau * masks[step + 1] * gae
+                gae = gae * bad_masks[step + 1]
+                returns[step] = gae + value_preds[step]
+        else:
+            returns[-1] = next_value
+            for step in reversed(range(rewards.size(0))):
+                returns[step] = (returns[step + 1] * gamma * masks[step + 1] + rewards[step]) * bad_masks[
+                    step + 1] + (1 - bad_masks[step + 1]) * value_preds[step]
+    else:
+        if use_gae:
+            value_preds[-1] = next_value
+            gae = 0
+            for step in reversed(range(rewards.size(0))):
+                delta = rewards[step] + gamma * value_preds[step + 1] * masks[step + 1] - value_preds[step]
+                gae = delta + gamma * tau * masks[step + 1] * gae
+                returns[step] = gae + value_preds[step]
+        else:
+            returns[-1] = next_value
+            for step in reversed(range(rewards.size(0))):
+                returns[step] = returns[step + 1] * gamma * masks[step + 1] + rewards[step]
 
 
 def compute_loss_state(state_pred, next_obs, state_pred_type):
@@ -39,7 +69,6 @@ def compute_loss_reward(rew_pred, reward, rew_pred_type):
     else:
         raise NotImplementedError
     return loss_rew
-
 
 
 def avg_loss(state_reconstruction_loss, vae_avg_elbo_terms, vae_avg_reconstruction_terms):
@@ -82,15 +111,6 @@ class Base2Final:
         # initialise rollout storage for the VAE update
         # (this differs from the data that the on-policy RL algorithm uses)
         self.exploration_rollout_storage = RolloutStorageVAE(num_processes=self.args.num_processes,
-                                                 max_trajectory_len=self.args.max_trajectory_len,
-                                                 zero_pad=True,
-                                                 max_num_rollouts=self.args.size_vae_buffer,
-                                                 state_dim=self.args.state_dim,
-                                                 action_dim=self.args.action_dim,
-                                                 vae_buffer_add_thresh=self.args.vae_buffer_add_thresh,
-                                                 task_dim=self.task_dim,
-                                                 )
-        self.exploitation_rollout_storage = RolloutStorageVAE(num_processes=self.args.num_processes,
                                                              max_trajectory_len=self.args.max_trajectory_len,
                                                              zero_pad=True,
                                                              max_num_rollouts=self.args.size_vae_buffer,
@@ -98,7 +118,17 @@ class Base2Final:
                                                              action_dim=self.args.action_dim,
                                                              vae_buffer_add_thresh=self.args.vae_buffer_add_thresh,
                                                              task_dim=self.task_dim,
+                                                             save_intrinsic_reward=True
                                                              )
+        self.exploitation_rollout_storage = RolloutStorageVAE(num_processes=self.args.num_processes,
+                                                              max_trajectory_len=self.args.max_trajectory_len,
+                                                              zero_pad=True,
+                                                              max_num_rollouts=self.args.size_vae_buffer,
+                                                              state_dim=self.args.state_dim,
+                                                              action_dim=self.args.action_dim,
+                                                              vae_buffer_add_thresh=self.args.vae_buffer_add_thresh,
+                                                              task_dim=self.task_dim,
+                                                              )
 
 
         # initalise optimiser for the brim_core and decoders
@@ -380,6 +410,24 @@ class Base2Final:
                 start_idx = end_idx
             losses = torch.stack(partial_reconstruction_loss)
         return losses
+
+    def compute_value_loss(self,
+                           # input
+                           brim_output_level2,
+                           vae_prev_obs,
+                           vae_actions,
+                           vae_rewards,
+                           # target
+                           value_next_state,
+                           returns_next_state,
+                           # general
+                           trajectory_lens):
+        num_unique_trajectory_lens = len(np.unique(trajectory_lens))
+        assert (num_unique_trajectory_lens == 1) or (self.args.vae_subsample_elbos and self.args.vae_subsample_decodes)
+        assert not self.args.decode_only_past
+        max_traj_len = np.max(trajectory_lens)
+
+
 
     def compute_loss(self, brim_output5, latent_mean, latent_logvar, vae_prev_obs, vae_next_obs, vae_actions,
                      vae_rewards, vae_tasks, trajectory_lens):
@@ -697,6 +745,86 @@ class Base2Final:
         self.log(elbo_loss, rew_reconstruction_loss, state_reconstruction_loss, task_reconstruction_loss, kl_loss)
 
         return elbo_loss
+
+    def compute_n_step_value_prediction_loss(self, policy, activated_branch):
+        if activated_branch == 'exploration':
+            if not self.exploration_rollout_storage.ready_for_update():
+                return 0
+            vae_prev_obs, vae_next_obs, vae_actions, vae_rewards, vae_tasks, \
+            trajectory_lens = self.exploration_rollout_storage.get_batch(batchsize=self.args.vae_batch_num_trajs, value_prediction=True)
+
+            brim_output_level1, brim_output_level2, brim_output_level3, _, \
+            latent_sample, latent_mean, latent_logvar, _ = self.brim_core.forward_exploration_branch(
+                actions=vae_actions,
+                states=vae_next_obs,
+                rewards=vae_rewards,
+                brim_hidden_state=None,
+                task_inference_hidden_state=None,
+                return_prior=True,
+                sample=True,
+                detach_every=None)
+            task_inference_latent = get_latent_for_policy(sample_embeddings=self.args.sample_embeddings,
+                                                          add_nonlinearity_to_latent=self.args.add_nonlinearity_to_latent,
+                                                          latent_sample=latent_sample, latent_mean=latent_mean, latent_logvar=latent_logvar)
+        elif activated_branch == 'exploitation':
+            if not self.exploitation_rollout_storage.ready_for_update():
+                return 0
+            vae_prev_obs, vae_next_obs, vae_actions, vae_rewards, vae_tasks, masks, bad_masks,\
+            trajectory_lens = self.exploitation_rollout_storage.get_batch(batchsize=self.args.vae_batch_num_trajs, value_prediction=True)
+
+            brim_output_level1, brim_output_level2, brim_output_level3, _, \
+            latent_sample, latent_mean, latent_logvar, _ = self.brim_core.forward_exploitation_branch(
+                actions=vae_actions,
+                states=vae_next_obs,
+                rewards=vae_rewards,
+                brim_hidden_state=None,
+                task_inference_hidden_state=None,
+                return_prior=True,
+                sample=True,
+                detach_every=None)
+        else:
+            raise NotImplementedError
+
+        task_inference_latent = get_latent_for_policy(sample_embeddings=self.args.sample_embeddings,
+                                                      add_nonlinearity_to_latent=self.args.add_nonlinearity_to_latent,
+                                                      latent_sample=latent_sample, latent_mean=latent_mean,
+                                                      latent_logvar=latent_logvar)
+        # TODO should debug
+        states = torch.cat((vae_prev_obs[0:1], vae_next_obs))
+        value_states = policy.get_value(states.view(-1, self.args.state_dim),
+                                        task_inference_latent.view(-1, self.args.task_inference_latent_dim*2),
+                                        brim_output_level1.view(-1, self.args.rim_level1_output_dim),
+                                        None, vae_tasks).detach()
+        shape = states.shape[:-1]
+
+        value_states = value_states.reshape((*shape, 1))
+        # returns is our target
+        returns = torch.zeros(size=(shape[0],  shape[1], 1), device=device)
+        compute_returns(next_value=value_states[-1],
+                        rewards=vae_rewards,
+                        value_preds=value_states,
+                        returns=returns,
+                        gamma=self.args.policy_gamma,
+                        tau=self.args.policy_tau,
+                        use_gae=self.args.policy_use_gae,
+                        masks=masks,
+                        bad_masks=bad_masks,
+                        use_proper_time_limits=False)
+        returns = returns.detach()
+        returns_next_state = returns[1:]
+        value_next_state = value_states[1:]
+
+        self.compute_value_loss(
+            # input
+            brim_output_level2,
+            vae_prev_obs,
+            vae_actions,
+            vae_rewards,
+            # target
+            value_next_state,
+            returns_next_state)
+
+
 
     def log(self, elbo_loss, rew_reconstruction_loss, state_reconstruction_loss, task_reconstruction_loss, kl_loss):
 

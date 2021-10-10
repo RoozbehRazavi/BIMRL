@@ -187,6 +187,9 @@ def get_args(rest_args):
                         help='for how many future step state prediction should does (exclude one step prediction; for til t+3 set to 2)')
     parser.add_argument('--rl_loss_throughout_vae_encoder', type=boolean_argument, default=False)
 
+    parser.add_argument('--n_step_value_prediction_coeff', type=float, default=1.0,
+                        help='weight for n step value prediction vs (VAE loss and RL loss)')
+
     # Coefficient in Base2Final
     parser.add_argument('--add_extrinsic_reward_to_intrinsic', type=boolean_argument, default=True,
                         help='for compute intrinsic reward add extrinsic also')
@@ -212,7 +215,7 @@ def get_args(rest_args):
     parser.add_argument('--use_rim_level1', type=boolean_argument, default=True,
                         help='whatever create rim level1 (use for policy) or not')
 
-    parser.add_argument('--use_rim_level2', type=boolean_argument, default=False,
+    parser.add_argument('--use_rim_level2', type=boolean_argument, default=True,
                         help='whatever create rim level2 (use for n step value prediction) or not')
 
     parser.add_argument('--use_rim_level3', type=boolean_argument, default=True,
