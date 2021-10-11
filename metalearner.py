@@ -138,8 +138,10 @@ class MetaLearner:
             self.start_idx = general_info['iter_idx']
             self.total_frames = self.start_idx * args.policy_num_steps * args.num_processes
             self.base2final.optimiser_vae.load_state_dict(general_info['vae_optimiser'])
-            self.exploration_policy.optimiser.load_state_dict(general_info['exploration_policy_optimiser'])
-            self.exploitation_policy.optimiser.load_state_dict(general_info['exploitation_policy_optimiser'])
+            if self.exploration_policy is not None:
+                self.exploration_policy.optimiser.load_state_dict(general_info['exploration_policy_optimiser'])
+            if self.exploitation_policy is not None:
+                self.exploitation_policy.optimiser.load_state_dict(general_info['exploitation_policy_optimiser'])
 
     def initialise_policy_storage(self, num_processes):
         return OnlineStorage(args=self.args,
