@@ -145,10 +145,6 @@ class Blocks(nn.Module):
                                                                                    use_rim_level1,
                                                                                    use_rim_level2,
                                                                                    use_rim_level3,
-                                                                                   rim_level2_hidden_size,
-                                                                                   rim_level3_hidden_size,
-                                                                                   rim_top_down_level2_level1,
-                                                                                   rim_top_down_level3_level2,
                                                                                    )
         self.output_layer_level1,\
         self.output_layer_level2,\
@@ -262,10 +258,6 @@ class Blocks(nn.Module):
                                           use_rim_level1,
                                           use_rim_level2,
                                           use_rim_level3,
-                                          rim_level2_hidden_size,
-                                          rim_level3_hidden_size,
-                                          rim_top_down_level2_level1,
-                                          rim_top_down_level3_level2,
                                           ):
         level1 = nn.ModuleList()
         level2 = nn.ModuleList()
@@ -313,8 +305,6 @@ class Blocks(nn.Module):
                     level3.append(nn.ReLU())
                     level3.append(nn.Linear(curr_input_dim, brim_layers_before_rim_level3[i]))
                     curr_input_dim = brim_layers_before_rim_level3[i]
-                if rim_top_down_level3_level2:
-                    level3.append(nn.Linear(curr_input_dim, rim_level2_hidden_size))
             level3 = nn.Sequential(*level3)
         return level1.to(device), level2.to(device), level3.to(device)
 
