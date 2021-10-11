@@ -403,10 +403,6 @@ class MetaLearner:
                     exploitation_done_episode = list()
                     for i in range(self.exploitation_num_processes):
                         exploitation_done_episode.append(exploitation_infos[i]['done_mdp'])
-                    print(step)
-                    print('1: ', exploitation_done)
-                    print('2: ', exploitation_done_episode)
-                    print('3: ', exploitation_next_state[:, -1])
 
                     exploitation_done = torch.from_numpy(np.array(exploitation_done, dtype=int)).to(device).float().view((-1, 1))
                     # create mask for episode ends
