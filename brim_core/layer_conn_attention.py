@@ -58,8 +58,6 @@ class LayerConnAttention(nn.Module):
         output = output.permute(1, 2, 0, 3).contiguous().view(sz_b, len_q, -1) # b x lq x (n*dv)
 
 
-        #TODO: probably shouldn't just apply residual layer in the forward pass.
-
         output_init = output*1.0
 
         #output = self.dropout(self.fc(output_init))

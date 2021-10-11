@@ -9,7 +9,7 @@ import torch.nn.functional as F
 from brim_core.GroupLinearLayer import GroupLinearLayer
 from brim_core.sparse_grad_attn import Sparse_grad_attention
 
-# TODO modify to become similar BAM
+
 class ScaledDotProductAttention(nn.Module):
     ''' Scaled Dot-Product Attention '''
 
@@ -141,8 +141,6 @@ class MultiHeadAttention(nn.Module):
         # print("Here Output: ", output.size())
 
         #print('output shape before fc', output.shape)
-
-        #TODO: probably shouldn't just apply residual layer in the forward pass.  
 
         output_init = output*1.0
 

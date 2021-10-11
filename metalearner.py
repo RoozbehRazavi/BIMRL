@@ -130,11 +130,6 @@ class MetaLearner:
                 self.exploitation_policy.actor_critic.load_state_dict(
                     torch.load(os.path.join(save_path, f"exploitation_policy.pt"), map_location=device))
 
-            if train_exploration:
-                self.state_prediction_running_normalizer.mean = general_info['state_normalizer_mean']
-                self.state_prediction_running_normalizer.var = general_info['state_normalizer_var']
-                self.action_prediction_running_normalizer.mean = general_info['action_normalizer_mean']
-                self.action_prediction_running_normalizer.var = general_info['action_normalizer_var']
             self.start_idx = general_info['iter_idx']
             self.total_frames = self.start_idx * args.policy_num_steps * args.num_processes
             self.base2final.optimiser_vae.load_state_dict(general_info['vae_optimiser'])
@@ -142,6 +137,31 @@ class MetaLearner:
                 self.exploration_policy.optimiser.load_state_dict(general_info['exploration_policy_optimiser'])
             if self.exploitation_policy is not None:
                 self.exploitation_policy.optimiser.load_state_dict(general_info['exploitation_policy_optimiser'])
+
+            if self.args.norm_rew_for_policy:
+                if self.exploration_envs is not None:
+                    self.exploration_envs.venv.ret_rms = utl.load_obj(save_path, 'env_rew_rms_exploration')
+                if self.exploitation_envs is not None:
+                    self.exploitation_envs.venv.ret_rms = utl.load_obj(save_path, 'env_rew_rms_exploitation')
+            if self.args.norm_state_for_policy and self.args.pass_state_to_policy:
+                if self.exploration_policy is not None:
+                    self.exploration_policy.actor_critic.state_rms = utl.load_obj(save_path, 'policy_state_rms_exploration')
+                if self.exploitation_policy is not None:
+                    self.exploitation_policy.actor_critic.state_rms = utl.load_obj(save_path, 'policy_state_rms_exploitation')
+            if self.args.norm_task_inference_latent_for_policy and self.args.pass_task_inference_latent_to_policy:
+                if self.exploration_policy is not None:
+                    self.exploration_policy.actor_critic.task_inference_latent_rms = utl.load_obj(save_path, 'policy_latent_rms_exploration')
+                if self.exploitation_policy is not None:
+                    self.exploitation_policy.actor_critic.task_inference_latent_rms = utl.load_obj(save_path, 'policy_latent_rms_exploitation')
+            if self.args.norm_rim_level1_output and self.args.use_rim_level1:
+                if self.exploration_policy is not None:
+                    self.exploration_policy.actor_critic.rim_level1_output_rms = utl.load_obj(save_path, 'policy_rim_level1_rms_exploration')
+                if self.exploitation_policy is not None:
+                    self.exploitation_policy.actor_critic.rim_level1_output_rms = utl.load_obj(save_path, 'policy_rim_level1_rms_exploitation')
+            if self.state_prediction_running_normalizer is not None:
+                self.state_prediction_running_normalizer = utl.load_obj(save_path, 'state_error_rms')
+            if self.action_prediction_running_normalizer is not None:
+                self.action_prediction_running_normalizer = utl.load_obj(save_path, 'action_error_rms')
 
     def initialise_policy_storage(self, num_processes):
         return OnlineStorage(args=self.args,
@@ -366,30 +386,32 @@ class MetaLearner:
                     for i in range(self.exploration_num_processes):
                         exploration_done_episode.append(exploration_infos[i]['done_mdp'])
 
-                    exploration_done = torch.from_numpy(np.array(exploration_done, dtype=int)).to(device).float().view(
-                        (-1, 1))
+                    exploration_done = torch.from_numpy(np.array(exploration_done, dtype=int)).to(device).float().view((-1, 1))
                     # create mask for episode ends
                     exploration_masks_done = torch.FloatTensor(
-                        [[0.0] if done_ else [1.0] for done_ in exploration_done]).to(device)
+                        [[0.0] if done_ else [1.0] for done_ in exploration_done_episode]).to(device)
                     # bad_mask is true if episode ended because time limit was reached
                     exploration_bad_masks = torch.FloatTensor(
                         [[0.0] if 'bad_transition' in info.keys() else [1.0] for info in exploration_infos]).to(device)
 
                 if train_exploitation:
+                    # TODO double check this part for mask generation - mask should create from done_task or done_episdoe
                     [exploitation_next_state, exploitation_belief, exploitation_task], \
                     (exploitation_rew_raw, exploitation_rew_normalised), \
-                    exploitation_done, exploitation_infos = utl.env_step(self.exploitation_envs, exploitation_action,
-                                                                         self.args)
+                    exploitation_done, exploitation_infos = utl.env_step(self.exploitation_envs, exploitation_action, self.args)
 
                     exploitation_done_episode = list()
                     for i in range(self.exploitation_num_processes):
                         exploitation_done_episode.append(exploitation_infos[i]['done_mdp'])
+                    print(step)
+                    print('1: ', exploitation_done)
+                    print('2: ', exploitation_done_episode)
+                    print('3: ', exploitation_next_state[:, -1])
 
-                    exploitation_done = torch.from_numpy(np.array(exploitation_done, dtype=int)).to(
-                        device).float().view((-1, 1))
+                    exploitation_done = torch.from_numpy(np.array(exploitation_done, dtype=int)).to(device).float().view((-1, 1))
                     # create mask for episode ends
                     exploitation_masks_done = torch.FloatTensor(
-                        [[0.0] if done_ else [1.0] for done_ in exploitation_done]).to(device)
+                        [[0.0] if done_ else [1.0] for done_ in exploitation_done_episode]).to(device)
                     # bad_mask is true if episode ended because time limit was reached
                     exploitation_bad_masks = torch.FloatTensor(
                         [[0.0] if 'bad_transition' in info.keys() else [1.0] for info in exploitation_infos]).to(device)
@@ -469,11 +491,6 @@ class MetaLearner:
                             self.args,
                             indices=done_indices,
                             state=exploitation_next_state)
-
-                # TODO: deal with resampling for posterior sampling algorithm
-                #     latent_sample = latent_sample
-                #     latent_sample[i] = latent_sample[i]
-
                 # add experience to policy buffer
                 if train_exploration:
                     self.exploration_policy_storage.insert(
@@ -767,11 +784,6 @@ class MetaLearner:
                     'vae_optimiser': self.base2final.optimiser_vae.state_dict(),
                 }
 
-                if self.state_prediction_running_normalizer is not None and self.action_prediction_running_normalizer is not None:
-                    tmp_dict['state_normalizer_mean'] = self.state_prediction_running_normalizer.mean,
-                    tmp_dict['state_normalizer_var'] = self.state_prediction_running_normalizer.var,
-                    tmp_dict['action_normalizer_mean'] = self.action_prediction_running_normalizer.mean,
-                    tmp_dict['action_normalizer_var'] = self.action_prediction_running_normalizer.var,
                 if self.exploration_policy is not None:
                     tmp_dict['exploration_policy_optimiser'] = self.exploration_policy.optimiser.state_dict()
                 if self.exploitation_policy is not None:
@@ -783,11 +795,22 @@ class MetaLearner:
                 # save normalisation params of envs
                 if self.args.norm_rew_for_policy:
                     rew_rms = envs.venv.ret_rms
-                    utl.save_obj(rew_rms, save_path, f"env_rew_rms{idx_label}")
-                # TODO: grab from policy and save?
-                # if self.args.norm_obs_for_policy:
-                #     obs_rms = self.envs.venv.obs_rms
-                #     utl.save_obj(obs_rms, save_path, f"env_obs_rms{idx_label}")
+                    utl.save_obj(rew_rms, save_path, f"env_rew_rms_{policy_type}{idx_label}")
+
+                if self.state_prediction_running_normalizer is not None:
+                    utl.save_obj(self.state_prediction_running_normalizer, save_path, f"state_error_rms{policy_type}{idx_label}")
+
+                if self.action_prediction_running_normalizer is not None:
+                    utl.save_obj(self.action_prediction_running_normalizer, save_path, f"action_error_rms{policy_type}{idx_label}")
+
+                if self.args.norm_state_for_policy and self.args.pass_state_to_policy:
+                    utl.save_obj(policy.actor_critic.state_rms, save_path, f"policy_state_rms_{policy_type}{idx_label}")
+
+                if self.args.norm_task_inference_latent_for_policy and self.args.pass_task_inference_latent_to_policy:
+                    utl.save_obj(policy.actor_critic.task_inference_latent_rms, save_path, f"policy_latent_rms_{policy_type}{idx_label}")
+
+                if self.args.norm_rim_level1_output and self.args.use_rim_level1:
+                    utl.save_obj(policy.actor_critic.rim_level1_output_rms, save_path, f"policy_rim_level1_rms_{policy_type}{idx_label}")
 
         # --- log some other things ---
 

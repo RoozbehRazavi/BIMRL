@@ -202,7 +202,6 @@ class RolloutStorageVAE(object):
         return self.buffer_len
 
     def get_batch(self, batchsize=5, replace=False, value_prediction=False):
-        # TODO: check if we can get rid of num_enc_len and num_rollouts (call it batchsize instead)
 
         batchsize = min(self.buffer_len, batchsize)
 

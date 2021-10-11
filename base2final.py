@@ -64,7 +64,7 @@ def compute_loss_value(values, value_preds, return_batch, clip_param=0.2):
 def compute_loss_state(state_pred, next_obs, state_pred_type):
     if state_pred_type == 'deterministic':
         loss_state = (state_pred - next_obs).pow(2).mean(dim=-1)
-    elif state_pred_type == 'gaussian':  # TODO: untested!
+    elif state_pred_type == 'gaussian':
         state_pred_mean = state_pred[:, :state_pred.shape[1] // 2]
         state_pred_std = torch.exp(0.5 * state_pred[:, state_pred.shape[1] // 2:])
         m = torch.distributions.normal.Normal(state_pred_mean, state_pred_std)
@@ -81,7 +81,7 @@ def compute_loss_reward(rew_pred, reward, rew_pred_type):
         rew_pred = torch.sigmoid(rew_pred)
 
     rew_target = (reward == 1).float()
-    if rew_pred_type == 'deterministic':  # TODO: untested!
+    if rew_pred_type == 'deterministic':
         loss_rew = (rew_pred - reward).pow(2).mean(dim=-1)
     elif rew_pred_type in ['categorical', 'bernoulli']:
         loss_rew = F.binary_cross_entropy(rew_pred, rew_target, reduction='none').mean(dim=-1)
@@ -1059,7 +1059,7 @@ class Base2Final:
                                                       add_nonlinearity_to_latent=self.args.add_nonlinearity_to_latent,
                                                       latent_sample=latent_sample, latent_mean=latent_mean,
                                                       latent_logvar=latent_logvar)
-        # TODO should debug
+
         states = torch.cat((vae_prev_obs[0:1], vae_next_obs))
         value_states = policy.get_value(states.view(-1, self.args.state_dim),
                                         task_inference_latent.view(-1, self.args.task_inference_latent_dim*2),

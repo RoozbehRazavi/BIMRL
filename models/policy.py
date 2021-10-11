@@ -70,7 +70,7 @@ class Policy(nn.Module):
 
         # set normalisation parameters for the inputs
         # (will be updated from outside using the RL batches)
-        self.norm_rim_level1_output = self.args.norm_rim_level1_output and (task_inference_latent_dim is not None)
+        self.norm_rim_level1_output = self.args.norm_rim_level1_output and (rim_level1_output_dim is not None)
         if self.pass_rim_level1_output_to_policy and self.norm_rim_level1_output:
             self.rim_level1_output_rms = utl.RunningMeanStd(shape=(rim_level1_output_dim))
 
@@ -369,7 +369,6 @@ class DiagGaussian(nn.Module):
                     torch.unique(self.action_high) == 1:
                 action_mean = torch.tanh(action_mean)
             else:
-                # TODO: this isn't tested
                 action_mean = torch.sigmoid(action_mean) * (self.action_high - self.action_low) + self.action_low
         std = torch.max(self.min_std, self.logstd.exp())
         return FixedNormal(action_mean, std)

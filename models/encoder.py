@@ -44,7 +44,6 @@ class VAERNNEncoder(nn.Module):
             curr_input_dim = layers_before_gru[i]
 
         # recurrent unit
-        # TODO: TEST RNN vs GRU vs LSTM
         self.gru = nn.GRUCell(input_size=curr_input_dim,
                               hidden_size=hidden_size)
 
@@ -71,7 +70,7 @@ class VAERNNEncoder(nn.Module):
             eps = torch.randn_like(std)
             return eps.mul(std).add_(mu)
         else:
-            raise NotImplementedError  # TODO: double check this code, maybe we should use .unsqueeze(0).expand((num, *logvar.shape))
+            raise NotImplementedError
             std = torch.exp(0.5 * logvar).repeat(num, 1)
             eps = torch.randn_like(std)
             mu = mu.repeat(num, 1)
@@ -89,9 +88,6 @@ class VAERNNEncoder(nn.Module):
         return hidden_state
 
     def prior(self, batch_size, sample=True):
-
-        # TODO: add option to incorporate the initial state
-
         # we start out with a hidden state of zero
         hidden_state = torch.zeros((1, batch_size, self.hidden_size), requires_grad=True).to(device)
 

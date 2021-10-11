@@ -58,7 +58,6 @@ class BRIMCore(nn.Module):
                  reward_embed_size,
                  ):
         super(BRIMCore, self).__init__()
-        # TODO add assertion
         assert (not use_memory and not use_hebb and not use_gen) or use_memory
         assert (use_gru_or_rim == 'GRU' and rim_level1_num_modules == 1 and rim_level2_num_modules == 1 and rim_level3_num_modules == 1) or use_gru_or_rim == 'RIM'
         assert rim_level1_topk <= rim_level1_num_modules and rim_level2_topk <= rim_level2_num_modules and rim_level3_topk <= rim_level3_num_modules
@@ -217,7 +216,7 @@ class BRIMCore(nn.Module):
             eps = torch.randn_like(std)
             return eps.mul(std).add_(mu)
         else:
-            raise NotImplementedError  # TODO: double check this code, maybe we should use .unsqueeze(0).expand((num, *logvar.shape))
+            raise NotImplementedError
             std = torch.exp(0.5 * logvar).repeat(num, 1)
             eps = torch.randn_like(std)
             mu = mu.repeat(num, 1)
