@@ -268,6 +268,8 @@ class Policy(nn.Module):
                                                               torch.cat(policy_storage.latent_mean[:-1]),
                                                               torch.cat(policy_storage.latent_logvar[:-1]))
             self.task_inference_latent_rms.update(task_inference_latent.detach().clone())
+        if self.pass_rim_level1_output_to_policy and self.norm_rim_level1_output:
+            self.rim_level1_output_rms.update(policy_storage.brim_output_level1[:-1].detach().clone())
         if self.pass_belief_to_policy and self.norm_belief:
             self.belief_rms.update(policy_storage.beliefs[:-1])
         if self.pass_task_to_policy and self.norm_task:

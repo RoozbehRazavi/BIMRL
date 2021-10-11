@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from torch.nn import functional as F
 
-from models.decoder import StateTransitionDecoder, RewardDecoder, TaskDecoder, ValueDecoder
+from models.decoder import StateTransitionDecoder, RewardDecoder, TaskDecoder, ValueDecoder, ActionDecoder
 from brim_core.brim_core import BRIMCore
 from utils.storage_vae import RolloutStorageVAE
 from utils.helpers import get_task_dim, get_num_tasks, get_latent_for_policy
@@ -40,6 +40,17 @@ def compute_returns(next_value, rewards, value_preds, returns, gamma, tau, use_g
             returns[-1] = next_value
             for step in reversed(range(rewards.size(0))):
                 returns[step] = returns[step + 1] * gamma * masks[step + 1] + rewards[step]
+
+
+def compute_loss_action(action_pred, action):
+    action = action.long()
+    action = action.reshape(*action.shape[:-1])
+    action = action.reshape((action.shape[2], action.shape[0], action.shape[1]))
+    action_pred = action_pred.reshape((action_pred.shape[2], action_pred.shape[3], action_pred.shape[0], action_pred.shape[1]))
+    criterion = torch.nn.NLLLoss(reduction='none')
+    loss = criterion(action_pred, action)
+    loss = loss.reshape((loss.shape[1], loss.shape[2], loss.shape[0]))
+    return loss
 
 
 def compute_loss_value(values, value_preds, return_batch, clip_param=0.2):
@@ -114,7 +125,7 @@ class Base2Final:
         self.brim_core = self.initialise_brim_core()
 
         # initialise the decoders (returns None for unused decoders)
-        self.state_decoder, self.reward_decoder, self.task_decoder, self.value_decoder = self.initialise_decoder()
+        self.state_decoder, self.reward_decoder, self.task_decoder, self.exploration_value_decoder, self.exploitation_value_decoder, self.action_decoder = self.initialise_decoder()
 
         # initialise rollout storage for the VAE update
         # (this differs from the data that the on-policy RL algorithm uses)
@@ -137,8 +148,6 @@ class Base2Final:
                                                               vae_buffer_add_thresh=self.args.vae_buffer_add_thresh,
                                                               task_dim=self.task_dim,
                                                               )
-
-
         # initalise optimiser for the brim_core and decoders
         decoder_params = []
         if not self.args.disable_decoder:
@@ -148,6 +157,12 @@ class Base2Final:
                 decoder_params.extend(self.state_decoder.parameters())
             if self.args.decode_task:
                 decoder_params.extend(self.task_decoder.parameters())
+            if self.args.decode_action:
+                decoder_params.extend(self.action_decoder.parameters())
+            if self.args.use_rim_level2:
+                decoder_params.extend(self.exploration_value_decoder.parameters())
+                decoder_params.extend(self.exploitation_value_decoder.parameters())
+
         self.optimiser_vae = torch.optim.Adam([*self.brim_core.parameters(), *decoder_params], lr=self.args.lr_vae)
 
     def initialise_brim_core(self):
@@ -256,7 +271,17 @@ class Base2Final:
             reward_decoder = None
 
         if self.args.use_rim_level2:
-            value_decoder = ValueDecoder(
+            exploration_value_decoder = ValueDecoder(
+                layers=self.args.value_decoder_layers,
+                latent_dim=self.args.rim_level2_output_dim,
+                action_dim=self.args.action_dim,
+                action_embed_dim=self.args.action_embedding_size,
+                state_dim=self.args.state_dim,
+                state_embed_dim=self.args.state_embedding_size,
+                value_simulator_hidden_size=self.args.value_simulator_hidden_size,
+                pred_type=self.args.task_pred_type,
+                n_prediction=self.args.n_prediction).to(device)
+            exploitation_value_decoder = ValueDecoder(
                 layers=self.args.value_decoder_layers,
                 latent_dim=self.args.rim_level2_output_dim,
                 action_dim=self.args.action_dim,
@@ -267,7 +292,22 @@ class Base2Final:
                 pred_type=self.args.task_pred_type,
                 n_prediction=self.args.n_prediction).to(device)
         else:
-            value_decoder = None
+            exploration_value_decoder = None
+            exploitation_value_decoder = None
+
+        if self.args.decode_action:
+            action_decoder = ActionDecoder(
+                layers=self.args.action_decoder_layers,
+                latent_dim=latent_dim,
+                state_dim=self.args.state_dim,
+                state_embed_dim=self.args.state_embedding_size,
+                state_simulator_hidden_size=self.args.state_simulator_hidden_size,
+                action_space=self.args.action_space,
+                n_step_action_prediction=self.args.n_step_action_prediction,
+                n_prediction=self.args.n_prediction
+            ).to(device)
+        else:
+            action_decoder = None
 
         # initialise task decoder for VAE
         if self.args.decode_task:
@@ -281,17 +321,56 @@ class Base2Final:
         else:
             task_decoder = None
 
-        return state_decoder, reward_decoder, task_decoder, value_decoder
+        return state_decoder, reward_decoder, task_decoder, exploration_value_decoder, exploitation_value_decoder, action_decoder
 
-    def compute_state_reconstruction_loss(self, latent, prev_obs, next_obs, action, n_step_action, n_step_next_obs, return_predictions=False):
+    def compute_action_reconstruction_loss(self,
+                                           # input
+                                           latent_state,
+                                           prev_state,
+                                           next_state,
+                                           n_step_next_state,
+                                           # target
+                                           action,
+                                           n_step_action,
+                                           n_step_action_prediction,
+                                           return_predictions=False,
+                                           ):
+        action_pred = self.action_decoder(latent_state,
+                                          prev_state,
+                                          next_state,
+                                          n_step_next_state,
+                                          n_step_action_prediction=n_step_action_prediction)
+
+        if not n_step_action_prediction:
+            action_pred = action_pred[0]
+            loss_state = compute_loss_action(action_pred, action)
+            if return_predictions:
+                return loss_state, action_pred
+            else:
+                return loss_state
+        else:
+            losses = list()
+            for i in range(self.args.n_prediction + 1):
+                if i == 0:
+                    losses.append(compute_loss_action(action_pred[i], action))
+                else:
+                    losses.append(compute_loss_action(action_pred[i], n_step_action[i - 1]))
+            if return_predictions:
+                # just return prediction of next step
+                return losses, action_pred[0]
+            else:
+                return losses
+
+    def compute_state_reconstruction_loss(self, latent, prev_obs, next_obs, action, n_step_action, n_step_next_obs, n_step_state_prediction, return_predictions=False):
         """ Compute state reconstruction loss.
         (No reduction of loss along batch dimension is done here; sum/avg has to be done outside) """
         state_pred = self.state_decoder(latent,
                                         prev_obs,
                                         action,
-                                        n_step_action)
+                                        n_step_action,
+                                        n_step_state_prediction=n_step_state_prediction)
 
-        if not self.args.n_step_state_prediction:
+        if not n_step_state_prediction:
             state_pred = state_pred[0]
             loss_state = compute_loss_state(state_pred, next_obs, self.args.state_pred_type)
             if return_predictions:
@@ -421,10 +500,11 @@ class Base2Final:
                                           n_step_actions,
                                           n_step_rewards,
                                           n_step_value_next_state,
-                                          n_step_returns_next_state
+                                          n_step_returns_next_state,
+                                          value_decoder
                                           ):
 
-        value_pred = self.value_decoder(
+        value_pred = value_decoder(
             # general info
             brim_output_level2,
             prev_obs,
@@ -453,7 +533,8 @@ class Base2Final:
                            value_next_state,
                            returns_next_state,
                            # general
-                           trajectory_lens):
+                           trajectory_lens,
+                           value_decoder):
         num_unique_trajectory_lens = len(np.unique(trajectory_lens))
         assert (num_unique_trajectory_lens == 1) or (self.args.vae_subsample_elbos and self.args.vae_subsample_decodes)
         assert not self.args.decode_only_past
@@ -589,7 +670,8 @@ class Base2Final:
                                                                                dec_n_step_actions,
                                                                                dec_n_step_rewards,
                                                                                dec_n_step_value_next_state,
-                                                                               dec_n_step_returns_next_state)
+                                                                               dec_n_step_returns_next_state,
+                                                                               value_decoder)
             losses = torch.zeros(size=(self.args.n_prediction + 1, 1)).to(device)
             for i in range(self.args.n_prediction + 1):
                 losses[i] = avg_loss(value_reconstruction_loss[i], self.args.vae_avg_elbo_terms, self.args.vae_avg_reconstruction_terms)
@@ -618,6 +700,7 @@ class Base2Final:
         n_step_rewards = None
         n_step_state_prediction = self.args.n_step_state_prediction and self.args.decode_state
         n_step_reward_prediction = self.args.n_step_reward_prediction and self.args.decode_reward
+        n_step_action_prediction = self.args.n_step_action_prediction and self.args.decode_action
         if n_step_state_prediction or n_step_reward_prediction:
             # if vae_sub_sample >> n_prediction get better result
             n_step_actions = list()
@@ -766,7 +849,7 @@ class Base2Final:
 
         if self.args.decode_state:
             state_reconstruction_loss = self.compute_state_reconstruction_loss(dec_embedding, dec_prev_obs,
-                                                                               dec_next_obs, dec_actions, dec_n_step_actions, dec_n_step_next_obs)
+                                                                               dec_next_obs, dec_actions, dec_n_step_actions, dec_n_step_next_obs, n_step_state_prediction=self.args.n_step_state_prediction)
             if n_step_state_prediction:
                 losses = torch.zeros(size=(self.args.n_prediction+1, 1)).to(device)
                 for i in range(self.args.n_prediction+1):
@@ -779,6 +862,22 @@ class Base2Final:
                 state_reconstruction_loss = avg_loss(state_reconstruction_loss, self.args.vae_avg_elbo_terms, self.args.vae_avg_reconstruction_terms)
         else:
             state_reconstruction_loss = 0
+
+        if self.args.decode_action:
+            action_reconstruction_loss = self.compute_action_reconstruction_loss(dec_embedding, dec_prev_obs, dec_next_obs,
+                                                                                 dec_n_step_next_obs, dec_actions, dec_n_step_actions, n_step_action_prediction=self.args.n_step_action_prediction)
+            if n_step_action_prediction:
+                losses = torch.zeros(size=(self.args.n_prediction+1, 1)).to(device)
+                for i in range(self.args.n_prediction+1):
+                    losses[i] = avg_loss(action_reconstruction_loss[i], self.args.vae_avg_elbo_terms, self.args.vae_avg_reconstruction_terms)
+                if self.args.vae_avg_n_step_prediction:
+                    action_reconstruction_loss = losses.mean(dim=0)
+                else:
+                    action_reconstruction_loss = losses.sum(dim=0)
+            else:
+                action_reconstruction_loss = avg_loss(action_reconstruction_loss, self.args.vae_avg_elbo_terms, self.args.vae_avg_reconstruction_terms)
+        else:
+            action_reconstruction_loss = 0
 
         if self.args.decode_task:
             task_reconstruction_loss = self.compute_task_reconstruction_loss(latent_samples, vae_tasks)
@@ -805,7 +904,7 @@ class Base2Final:
         else:
             kl_loss = 0
 
-        return rew_reconstruction_loss, state_reconstruction_loss, task_reconstruction_loss, kl_loss
+        return rew_reconstruction_loss, state_reconstruction_loss, task_reconstruction_loss, action_reconstruction_loss, kl_loss
 
     def compute_vae_loss(self, update=False):
         """
@@ -882,13 +981,14 @@ class Base2Final:
 
         losses = self.compute_loss(brim_output5, latent_mean, latent_logvar, vae_prev_obs, vae_next_obs, vae_actions,
                                    vae_rewards, vae_tasks, trajectory_lens)
-        rew_reconstruction_loss, state_reconstruction_loss, task_reconstruction_loss, kl_loss = losses
+        rew_reconstruction_loss, state_reconstruction_loss, task_reconstruction_loss, action_reconstruction_loss, kl_loss = losses
 
         # VAE loss = KL loss + reward reconstruction + state transition reconstruction
         # take average (this is the expectation over p(M))
         loss = (self.args.rew_loss_coeff * rew_reconstruction_loss +
                 self.args.state_loss_coeff * state_reconstruction_loss +
                 self.args.task_loss_coeff * task_reconstruction_loss +
+                self.args.action_loss_coeff * action_reconstruction_loss +
                 self.args.kl_weight * kl_loss).mean()
 
         # make sure we can compute gradients
@@ -900,6 +1000,8 @@ class Base2Final:
             assert state_reconstruction_loss.requires_grad
         if self.args.decode_task:
             assert task_reconstruction_loss.requires_grad
+        if self.args.decode_action:
+            assert action_reconstruction_loss.requires_grad
 
         # overall loss
         elbo_loss = loss.mean()
@@ -991,7 +1093,8 @@ class Base2Final:
                                                         # target
                                                         value_next_state,
                                                         returns_next_state,
-                                                        trajectory_lens)
+                                                        trajectory_lens,
+                                                        value_decoder=self.exploration_value_decoder if activated_branch=='exploration' else self.exploitation_value_decoder)
         return n_step_value_pred_loss
 
     def log(self, elbo_loss, rew_reconstruction_loss, state_reconstruction_loss, task_reconstruction_loss, kl_loss):

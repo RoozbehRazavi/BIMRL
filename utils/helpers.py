@@ -152,8 +152,35 @@ def update_encoding(brim_core, next_obs, action, reward, done, task_inference_hi
             return brim_output2, brim_output4, brim_output5, brim_hidden_state, latent_sample, latent_mean, latent_logvar, task_inference_hidden_state
 
 
-def compute_intrinsic_reward(rew_raw, rew_normalised):
-    return rew_raw, rew_normalised
+def compute_intrinsic_reward(rew_raw,
+                             rew_normalised,
+                             latent,
+                             prev_state,
+                             next_state,
+                             action,
+                             state_decoder,
+                             action_decoder,
+                             state_prediction_running_normalizer,
+                             action_prediction_running_normalizer,
+                             state_prediction_intrinsic_reward_coef,
+                             action_prediction_intrinsic_reward_coef,
+                             extrinsic_reward_intrinsic_reward_coef):
+    state_pred = state_decoder(latent_state=latent, state=prev_state, action=action, n_step_action=None, n_step_state_prediction=False)[0].detach()
+    action_pred = action_decoder(latent_state=latent, state=prev_state, next_state=next_state, n_step_next_state=None, n_step_action_prediction=False)[0].detach()
+    state_error = (state_pred - next_state).pow(2).mean()
+    action_error = F.nll_loss(action_pred, action).mean()
+
+    norm_state_error = (state_error - state_prediction_running_normalizer.mean) / torch.sqrt(state_prediction_running_normalizer.var + 1e-8)
+    norm_action_error = (action_error - action_prediction_running_normalizer.mean) / torch.sqrt(action_prediction_running_normalizer.var + 1e-8)
+    intrinsic_rew_normalised = norm_state_error * state_prediction_intrinsic_reward_coef +\
+        norm_action_error * action_prediction_intrinsic_reward_coef +\
+        rew_normalised * extrinsic_reward_intrinsic_reward_coef
+
+    intrinsic_rew_raw = state_error * state_prediction_intrinsic_reward_coef + \
+        action_error * action_prediction_intrinsic_reward_coef +\
+        rew_raw
+
+    return intrinsic_rew_raw, intrinsic_rew_normalised, state_error, action_error
 
 
 def seed(seed, deterministic_execution=False):

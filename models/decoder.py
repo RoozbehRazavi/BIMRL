@@ -78,6 +78,85 @@ class ValueDecoder(nn.Module):
         return value_prediction
 
 
+class ActionDecoder(nn.Module):
+    def __init__(self,
+                 layers,
+                 latent_dim,
+                 state_dim,
+                 state_embed_dim,
+                 state_simulator_hidden_size,
+                 action_space,
+                 pred_type='deterministic',
+                 n_step_action_prediction=True,
+                 n_prediction=3
+                 ):
+        super(ActionDecoder, self).__init__()
+        self.n_step_action_prediction = n_step_action_prediction
+        self.n_prediction = n_prediction
+        self.action_log_dim = action_space.n
+
+        self.state_t_encoder = utl.FeatureExtractor(state_dim, state_embed_dim, F.relu)
+        self.state_t_1_encoder = utl.FeatureExtractor(state_dim, state_embed_dim, F.relu)
+
+        curr_input_dim = latent_dim + state_embed_dim + state_embed_dim
+        self.fc_layers = nn.ModuleList([])
+        for i in range(len(layers)):
+            self.fc_layers.append(nn.Linear(curr_input_dim, layers[i]))
+            curr_input_dim = layers[i]
+
+        if n_step_action_prediction:
+            # RNN for simulate future state base on current state and future actions
+            self.h_to_hidden_state = nn.Sequential(
+                nn.Linear(curr_input_dim, state_simulator_hidden_size*2),
+                nn.ReLU(),
+                nn.Linear(state_simulator_hidden_size*2, state_simulator_hidden_size)
+            )
+            self.action_simulator = nn.GRUCell(state_embed_dim, state_simulator_hidden_size)
+            self.n_step_fc_out = nn.ModuleList([])
+            for i in range(self.n_prediction):
+                if pred_type == 'gaussian':
+                    self.n_step_fc_out.append(nn.Linear(state_simulator_hidden_size, 2*self.action_log_dim))
+                else:
+                    self.n_step_fc_out.append(nn.Linear(state_simulator_hidden_size, self.action_log_dim))
+            self.n_step_next_state_encoder = utl.FeatureExtractor(state_dim, state_embed_dim, F.relu)
+
+        # output layer
+        if pred_type == 'gaussian':
+            self.one_step_fc_out = nn.Linear(curr_input_dim, 2*self.action_log_dim)
+        else:
+            self.one_step_fc_out = nn.Linear(curr_input_dim, self.action_log_dim)
+        self.log_softmax = nn.LogSoftmax(dim=-1)
+
+    def forward(self,
+                latent_state,
+                state,
+                next_state,
+                n_step_next_state,
+                n_step_action_prediction,
+                ):
+        action_prediction = []
+
+        hs_t = self.state_t_encoder(state)
+        hs_t_1 = self.state_t_1_encoder(next_state)
+        h = torch.cat((latent_state, hs_t, hs_t_1), dim=-1)
+
+        for i in range(len(self.fc_layers)):
+            h = F.relu(self.fc_layers[i](h))
+        action_prediction.append(self.log_softmax(self.one_step_fc_out(h)))
+
+        if n_step_action_prediction:
+            h = self.h_to_hidden_state(h)
+            for i in range(self.n_prediction):
+                hs_t_1 = self.n_step_next_state_encoder(n_step_next_state[i])
+                hs_t_1 = hs_t_1.reshape((-1, hs_t_1.shape[-1]))
+                h_size = h.shape
+                h = h.reshape((-1, h.shape[-1]))
+                h = self.action_simulator(hs_t_1, h)
+                h = h.reshape((*h_size[:-1], h.shape[-1]))
+                action_prediction.append(self.log_softmax(self.n_step_fc_out[i](h)))
+        return action_prediction
+
+
 class StateTransitionDecoder(nn.Module):
     def __init__(self,
                  layers,
@@ -126,8 +205,8 @@ class StateTransitionDecoder(nn.Module):
         else:
             self.one_step_fc_out = nn.Linear(curr_input_dim, state_dim)
 
-    def forward(self, latent_state, state, action, n_step_action):
-        assert n_step_action is not None or not self.n_step_state_prediction
+    def forward(self, latent_state, state, action, n_step_action, n_step_state_prediction):
+        assert n_step_action is not None or not n_step_state_prediction
         state_prediction = []
 
         ha = self.action_encoder(action)
@@ -138,7 +217,7 @@ class StateTransitionDecoder(nn.Module):
             h = F.relu(self.fc_layers[i](h))
         state_prediction.append(self.one_step_fc_out(h))
 
-        if self.n_step_state_prediction:
+        if n_step_state_prediction:
             h = self.h_to_hidden_state(h)
             for i in range(self.n_prediction):
                 ha = self.n_step_action_encoder(n_step_action[i])

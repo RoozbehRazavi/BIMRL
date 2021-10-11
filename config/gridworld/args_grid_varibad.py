@@ -166,7 +166,7 @@ def get_args(rest_args):
     parser.add_argument('--deterministic_execution', type=boolean_argument, default=False,
                         help='Make code fully deterministic. Expects 1 process and uses deterministic CUDNN')
 
-    parser.add_argument('--load_model', type=boolean_argument, default=False, )
+    parser.add_argument('--load_model', type=boolean_argument, default=True)
 
     # General Base2Final
     parser.add_argument('--vae_fill_with_exploration_experience', type=boolean_argument, default=False,
@@ -183,12 +183,29 @@ def get_args(rest_args):
                         help='state prediction for n step forward not just next state')
     parser.add_argument('--n_step_reward_prediction', type=boolean_argument, default=True,
                         help='reward prediction for n step forward not just next reward')
+    parser.add_argument('--n_step_action_prediction', type=boolean_argument, default=True,
+                        help='action prediction for n step forward not just next reward')
+
     parser.add_argument('--n_prediction', type=int, default=2,
                         help='for how many future step state prediction should does (exclude one step prediction; for til t+3 set to 2)')
     parser.add_argument('--rl_loss_throughout_vae_encoder', type=boolean_argument, default=False)
 
     parser.add_argument('--n_step_value_prediction_coeff', type=float, default=1.0,
                         help='weight for n step value prediction vs (VAE loss and RL loss)')
+
+    parser.add_argument('--action_loss_coeff', type=float, default=1.0, help='weight for state loss')
+
+    parser.add_argument('--decode_action', type=boolean_argument, default=True,
+                        help='predict action between two state')
+
+    parser.add_argument('--state_prediction_intrinsic_reward_coef', type=float, default=0.5,
+                        help='coefficient for state pred error in intrinsic reward')
+
+    parser.add_argument('--action_prediction_intrinsic_reward_coef', type=float, default=0.5,
+                        help='coefficient for action pred error in intrinsic reward')
+
+    parser.add_argument('--extrinsic_reward_intrinsic_reward_coef', type=float, default=0.1,
+                        help='coefficient for action pred error in intrinsic reward')
 
     # Coefficient in Base2Final
     parser.add_argument('--add_extrinsic_reward_to_intrinsic', type=boolean_argument, default=True,
@@ -208,9 +225,17 @@ def get_args(rest_args):
     parser.add_argument('--value_simulator_hidden_size', type=int, default=16,
                         help='hidden size of GRU used in n step value prediction')
 
+    parser.add_argument('--state_simulator_hidden_size', type=int, default=16,
+                        help='hidden size of GRU used in n step action prediction')
+
     parser.add_argument('--value_decoder_layers', nargs='+', type=int, default=[32, 32])
+    parser.add_argument('--action_decoder_layers', nargs='+', type=int, default=[32, 32])
 
     parser.add_argument('--input_action', type=boolean_argument, default=True, help='use prev action for rew pred')
+
+    parser.add_argument('--train_meta_policy', type=boolean_argument, default=False,
+                        help='whatever or not meta policy should train')
+    parser.add_argument('--num_frame_for_warmup_sub_polices', type=int, default=300000)
 
 
     # RIM configuration
