@@ -206,24 +206,35 @@ class Blocks(nn.Module):
                         input_dropout=0.0,
                         comm_dropout=0.0
                     ))
-                blocks_level1.append(BlocksCore(ninp=rim_level1_input_dim,
-                                                nhid=rim_level1_hidden_size,
-                                                num_blocks_in=1,
-                                                num_blocks_out=rim_level1_num_modules,
-                                                topkval=rim_level1_topk,
-                                                do_gru=True,
-                                                num_modules_read_input=2,
-                                                use_higher=rim_top_down_level2_level1,
-                                                higher_separate_att=True))
-                blocks_level1.append(BlocksCore(ninp=rim_level1_input_dim,
-                                                nhid=rim_level1_hidden_size,
-                                                num_blocks_in=1,
-                                                num_blocks_out=rim_level1_num_modules,
-                                                topkval=rim_level1_topk,
-                                                do_gru=True,
-                                                num_modules_read_input=2,
-                                                use_higher=rim_top_down_level2_level1,
-                                                higher_separate_att=True))
+                    blocks_level1.append(BRIMCell(
+                        device=device,
+                        input_size=rim_level1_input_dim,
+                        hidden_size=rim_level1_hidden_size,
+                        num_units=rim_level1_num_modules,
+                        k=rim_level1_topk,
+                        rnn_cell='GRU',
+                        input_dropout=0.0,
+                        comm_dropout=0.0
+                    ))
+                else:
+                    blocks_level1.append(BlocksCore(ninp=rim_level1_input_dim,
+                                                    nhid=rim_level1_hidden_size,
+                                                    num_blocks_in=1,
+                                                    num_blocks_out=rim_level1_num_modules,
+                                                    topkval=rim_level1_topk,
+                                                    do_gru=True,
+                                                    num_modules_read_input=2,
+                                                    use_higher=rim_top_down_level2_level1,
+                                                    higher_separate_att=True))
+                    blocks_level1.append(BlocksCore(ninp=rim_level1_input_dim,
+                                                    nhid=rim_level1_hidden_size,
+                                                    num_blocks_in=1,
+                                                    num_blocks_out=rim_level1_num_modules,
+                                                    topkval=rim_level1_topk,
+                                                    do_gru=True,
+                                                    num_modules_read_input=2,
+                                                    use_higher=rim_top_down_level2_level1,
+                                                    higher_separate_att=True))
         if use_rim_level2:
             rim_level2_input_dim = rim_level2_input_dim
             if use_gru_or_rim == 'GRU':
