@@ -652,7 +652,6 @@ class Blocks(nn.Module):
                 brim_output5 = self.output_layer_level3(brim_hidden_state5)
             else:
                 brim_output5 = torch.zeros(size=(*brim_hidden_state5.shape[:-1], self.rim_level3_output_dim), device=device)
-                raise NotImplementedError
 
             brim_output1 = torch.zeros(size=(*brim_hidden_state1.shape[:-1], self.rim_level1_output_dim), device=device)
             brim_output2 = torch.zeros(size=(*brim_hidden_state2.shape[:-1], self.rim_level1_output_dim), device=device)

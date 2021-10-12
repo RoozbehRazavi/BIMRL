@@ -43,12 +43,12 @@ class BlocksCore(nn.Module):
             if self.higher_separate_att:
                 self.ninp = self.ninp//2
 
-        self.mha = MultiHeadAttention(n_head=4, d_model_read=self.block_size_out, d_model_write=self.block_size_out, d_model_out=self.block_size_out, d_k=32, d_v=32, num_blocks_read=self.num_blocks_out, num_blocks_write=self.num_blocks_out, topk=self.num_blocks_out, grad_sparse=False)
+        self.mha = MultiHeadAttention(n_head=4, d_model_read=self.block_size_out, d_model_write=self.block_size_out, d_model_out=self.block_size_out, d_k=16, d_v=32, num_blocks_read=self.num_blocks_out, num_blocks_write=self.num_blocks_out, topk=self.num_blocks_out, grad_sparse=False)
 
         self.att_out = self.block_size_out*4 * 1
 
         self.inp_heads = 4
-        self.inp_att = MultiHeadAttention(n_head=self.inp_heads, d_model_read=self.block_size_out, d_model_write=self.ninp, d_model_out=self.att_out, d_k=64, d_v=self.att_out//self.inp_heads, num_blocks_read=num_blocks_out, num_blocks_write=num_modules_read_input,residual=False, topk=self.num_blocks_in+1, grad_sparse=False, skip_write=True)
+        self.inp_att = MultiHeadAttention(n_head=self.inp_heads, d_model_read=self.block_size_out, d_model_write=self.ninp, d_model_out=self.att_out, d_k=8, d_v=self.att_out//self.inp_heads, num_blocks_read=num_blocks_out, num_blocks_write=num_modules_read_input,residual=False, topk=self.num_blocks_in+1, grad_sparse=False, skip_write=True)
 
         if do_gru:
             self.block_lstm = BlockGRU(self.att_out*self.num_blocks_out, self.nhid, k=self.num_blocks_out)

@@ -245,7 +245,7 @@ def get_args(rest_args):
 
     # RIM configuration
 
-    parser.add_argument('--new_impl', type=boolean_argument, default=True,
+    parser.add_argument('--new_impl', type=boolean_argument, default=False,
                         help='use new implementation of BRIM ')
 
     parser.add_argument('--use_gru_or_rim', type=str, default='RIM',
