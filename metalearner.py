@@ -88,8 +88,6 @@ class MetaLearner:
             self.exploration_policy = self.initialise_policy(policy_type='exploration')
         if train_exploitation:
             self.exploitation_policy = self.initialise_policy(policy_type='exploitation')
-        if self.args.train_meta_policy:
-            self.initialise_policy(policy_type='meta')
 
         self.state_prediction_running_normalizer = None
         self.action_prediction_running_normalizer = None
@@ -313,7 +311,12 @@ class MetaLearner:
                 action_errors = []
 
             if train_exploitation:
-                assert len(self.exploitation_policy_storage.latent_mean) == 0  # make sure we emptied buffers
+                if hasattr(self.exploitation_policy_storage, 'latent_mean'):
+                    assert len(self.exploitation_policy_storage.latent_mean) == 0  # make sure we emptied buffers
+                elif hasattr(self.exploitation_policy_storage, 'brim_output_level1'):
+                    assert len(self.exploitation_policy_storage.brim_output_level1) == 0  # make sure we emptied buffers
+                else:
+                    print('Policy independent on indeed task')
                 self.exploitation_policy_storage.task_inference_hidden_states[0].copy_(
                     exploitation_task_inference_hidden_state)
                 self.exploitation_policy_storage.latent_samples.append(exploitation_latent_sample.clone())
@@ -389,7 +392,7 @@ class MetaLearner:
                     exploration_done = torch.from_numpy(np.array(exploration_done, dtype=int)).to(device).float().view((-1, 1))
                     # create mask for episode ends
                     exploration_masks_done = torch.FloatTensor(
-                        [[0.0] if done_ else [1.0] for done_ in exploration_done_episode]).to(device)
+                        [[0.0] if done_ else [1.0] for done_ in exploration_done]).to(device)
                     # bad_mask is true if episode ended because time limit was reached
                     exploration_bad_masks = torch.FloatTensor(
                         [[0.0] if 'bad_transition' in info.keys() else [1.0] for info in exploration_infos]).to(device)
@@ -407,7 +410,7 @@ class MetaLearner:
                     exploitation_done = torch.from_numpy(np.array(exploitation_done, dtype=int)).to(device).float().view((-1, 1))
                     # create mask for episode ends
                     exploitation_masks_done = torch.FloatTensor(
-                        [[0.0] if done_ else [1.0] for done_ in exploitation_done_episode]).to(device)
+                        [[0.0] if done_ else [1.0] for done_ in exploitation_done]).to(device)
                     # bad_mask is true if episode ended because time limit was reached
                     exploitation_bad_masks = torch.FloatTensor(
                         [[0.0] if 'bad_transition' in info.keys() else [1.0] for info in exploitation_infos]).to(device)

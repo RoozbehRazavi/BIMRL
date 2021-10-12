@@ -187,6 +187,10 @@ class Blocks(nn.Module):
                         use_gru_or_rim,
                         new_impl
                         ):
+        if new_impl:
+            assert rim_level1_hidden_size%rim_level1_num_modules == 0
+            assert rim_level2_hidden_size % rim_level2_num_modules == 0
+            assert rim_level3_hidden_size % rim_level3_num_modules == 0
 
         blocks_level1 = nn.ModuleList([])
         blocks_level2 = nn.ModuleList([])
@@ -199,8 +203,9 @@ class Blocks(nn.Module):
                 if new_impl:
                     blocks_level1.append(BRIMCell(
                         device=device,
+                        use_higher=rim_top_down_level2_level1,
                         input_size=rim_level1_input_dim,
-                        hidden_size=rim_level1_hidden_size,
+                        hidden_size=int(rim_level1_hidden_size/rim_level1_num_modules),
                         num_units=rim_level1_num_modules,
                         k=rim_level1_topk,
                         rnn_cell='GRU',
@@ -209,8 +214,9 @@ class Blocks(nn.Module):
                     ))
                     blocks_level1.append(BRIMCell(
                         device=device,
+                        use_higher=rim_top_down_level2_level1,
                         input_size=rim_level1_input_dim,
-                        hidden_size=rim_level1_hidden_size,
+                        hidden_size=int(rim_level1_hidden_size/rim_level1_num_modules),
                         num_units=rim_level1_num_modules,
                         k=rim_level1_topk,
                         rnn_cell='GRU',
@@ -242,37 +248,74 @@ class Blocks(nn.Module):
                 blocks_level2.append(nn.GRUCell(rim_level2_input_dim, rim_level2_hidden_size))
                 blocks_level2.append(nn.GRUCell(rim_level2_input_dim, rim_level2_hidden_size))
             elif use_gru_or_rim == 'RIM':
-                blocks_level2.append(BlocksCore(ninp=rim_level2_input_dim,
-                                                nhid=rim_level2_hidden_size,
-                                                num_blocks_in=1,
-                                                num_blocks_out=rim_level2_num_modules,
-                                                topkval=rim_level2_topk,
-                                                do_gru=True,
-                                                num_modules_read_input=2,
-                                                use_higher=rim_top_down_level3_level2,
-                                                higher_separate_att=True))
-                blocks_level2.append(BlocksCore(ninp=rim_level2_input_dim,
-                                                nhid=rim_level2_hidden_size,
-                                                num_blocks_in=1,
-                                                num_blocks_out=rim_level2_num_modules,
-                                                topkval=rim_level2_topk,
-                                                do_gru=True,
-                                                num_modules_read_input=2,
-                                                use_higher=rim_top_down_level3_level2,
-                                                higher_separate_att=True))
+                if new_impl:
+                    blocks_level2.append(BRIMCell(
+                        device=device,
+                        use_higher=rim_top_down_level3_level2,
+                        input_size=rim_level2_input_dim,
+                        hidden_size=int(rim_level2_hidden_size / rim_level2_num_modules),
+                        num_units=rim_level2_num_modules,
+                        k=rim_level2_topk,
+                        rnn_cell='GRU',
+                        input_dropout=0.0,
+                        comm_dropout=0.0
+                    ))
+                    blocks_level2.append(BRIMCell(
+                        device=device,
+                        use_higher=rim_top_down_level3_level2,
+                        input_size=rim_level2_input_dim,
+                        hidden_size=int(rim_level2_hidden_size / rim_level2_num_modules),
+                        num_units=rim_level2_num_modules,
+                        k=rim_level2_topk,
+                        rnn_cell='GRU',
+                        input_dropout=0.0,
+                        comm_dropout=0.0
+                    ))
+                else:
+                    blocks_level2.append(BlocksCore(ninp=rim_level2_input_dim,
+                                                    nhid=rim_level2_hidden_size,
+                                                    num_blocks_in=1,
+                                                    num_blocks_out=rim_level2_num_modules,
+                                                    topkval=rim_level2_topk,
+                                                    do_gru=True,
+                                                    num_modules_read_input=2,
+                                                    use_higher=rim_top_down_level3_level2,
+                                                    higher_separate_att=True))
+                    blocks_level2.append(BlocksCore(ninp=rim_level2_input_dim,
+                                                    nhid=rim_level2_hidden_size,
+                                                    num_blocks_in=1,
+                                                    num_blocks_out=rim_level2_num_modules,
+                                                    topkval=rim_level2_topk,
+                                                    do_gru=True,
+                                                    num_modules_read_input=2,
+                                                    use_higher=rim_top_down_level3_level2,
+                                                    higher_separate_att=True))
         if use_rim_level3:
             if use_gru_or_rim == 'GRU':
                 blocks_level3 = nn.GRUCell(rim_level3_input_dim, rim_level3_hidden_size)
             elif use_gru_or_rim == 'RIM':
-                blocks_level3 = BlocksCore(ninp=rim_level3_input_dim,
-                                           nhid=rim_level3_hidden_size,
-                                           num_blocks_in=1,
-                                           num_blocks_out=rim_level3_num_modules,
-                                           topkval=rim_level3_topk,
-                                           do_gru=True,
-                                           num_modules_read_input=2,
-                                           use_higher=False,
-                                           higher_separate_att=True)
+                if new_impl:
+                    blocks_level3 = BRIMCell(
+                        device=device,
+                        use_higher=False,
+                        input_size=rim_level3_input_dim,
+                        hidden_size=int(rim_level3_hidden_size / rim_level3_num_modules),
+                        num_units=rim_level3_num_modules,
+                        k=rim_level2_topk,
+                        rnn_cell='GRU',
+                        input_dropout=0.0,
+                        comm_dropout=0.0
+                    )
+                else:
+                    blocks_level3 = BlocksCore(ninp=rim_level3_input_dim,
+                                               nhid=rim_level3_hidden_size,
+                                               num_blocks_in=1,
+                                               num_blocks_out=rim_level3_num_modules,
+                                               topkval=rim_level3_topk,
+                                               do_gru=True,
+                                               num_modules_read_input=2,
+                                               use_higher=False,
+                                               higher_separate_att=True)
             blocks_level3 = blocks_level3.to(device)
 
         return blocks_level1.to(device), blocks_level2.to(device), blocks_level3
@@ -493,7 +536,10 @@ class Blocks(nn.Module):
                 else:
                     brim_hidden_state1 = [brim_hidden_state1]
                 if self.use_gru_or_rim == 'RIM':
-                    brim_hidden_state1, _ = self.bc_list[0][0](level1_input, brim_hidden_state1, brim_hidden_state1, idx_layer=0)
+                    if self.new_impl:
+                        brim_hidden_state1, _ = self.bc_list[0][0](level1_input, brim_hidden_state3.detach(), brim_hidden_state1[0])
+                    else:
+                        brim_hidden_state1, _ = self.bc_list[0][0](level1_input, brim_hidden_state1, brim_hidden_state1, idx_layer=0)
                 else:
                     brim_hidden_state1 = self.bc_list[0][0](level1_input, brim_hidden_state1)
                 brim_output1 = self.output_layer_level1[0](brim_hidden_state1)
@@ -509,7 +555,10 @@ class Blocks(nn.Module):
                 else:
                     brim_hidden_state3 = [brim_hidden_state3]
                 if self.use_gru_or_rim == 'RIM':
-                    brim_hidden_state3, _ = self.bc_list[1][0](level2_input, brim_hidden_state3, brim_hidden_state3, idx_layer=0)
+                    if self.new_impl:
+                        brim_hidden_state3, _ = self.bc_list[1][0](level2_input, brim_hidden_state5.detach(), brim_hidden_state3[0])
+                    else:
+                        brim_hidden_state3, _ = self.bc_list[1][0](level2_input, brim_hidden_state3, brim_hidden_state3, idx_layer=0)
                 else:
                     brim_hidden_state3 = self.bc_list[1][0](level2_input, brim_hidden_state3)
                 brim_output3 = self.output_layer_level2[0](brim_hidden_state3)
@@ -520,7 +569,10 @@ class Blocks(nn.Module):
                 level3_input = self.input_embedding_layer_level3(brim_input)
                 level3_input = torch.cat((level3_input, brim_level3_task_inference_latent), dim=-1)
                 if self.use_gru_or_rim == 'RIM':
-                    brim_hidden_state5, _ = self.bc_list[2](level3_input, [brim_hidden_state5], [brim_hidden_state5], idx_layer=0)
+                    if self.new_impl:
+                        brim_hidden_state5, _ = self.bc_list[2](level3_input, None, brim_hidden_state5)
+                    else:
+                        brim_hidden_state5, _ = self.bc_list[2](level3_input, [brim_hidden_state5], [brim_hidden_state5], idx_layer=0)
                 else:
                     brim_hidden_state5 = self.bc_list[2](level3_input, brim_hidden_state5)
                 brim_output5 = self.output_layer_level3(brim_hidden_state5)
@@ -541,7 +593,7 @@ class Blocks(nn.Module):
                     brim_hidden_state2 = [brim_hidden_state2]
                 if self.use_gru_or_rim == 'RIM':
                     if self.new_impl:
-                        brim_hidden_state2 = self.bc_list[0][1](level1_input, brim_hidden_state2[0], brim_hidden_state2[1])
+                        brim_hidden_state2, _ = self.bc_list[0][1](level1_input, brim_hidden_state4.detach(), brim_hidden_state2[0])
                     else:
                         brim_hidden_state2, _ = self.bc_list[0][1](level1_input, brim_hidden_state2, brim_hidden_state2, idx_layer=0)
                 else:
@@ -559,7 +611,10 @@ class Blocks(nn.Module):
                 else:
                     brim_hidden_state4 = [brim_hidden_state4]
                 if self.use_gru_or_rim == 'RIM':
-                    brim_hidden_state4, _ = self.bc_list[1][1](level2_input, brim_hidden_state4, brim_hidden_state4, idx_layer=0)
+                    if self.new_impl:
+                        brim_hidden_state4, _ = self.bc_list[0][1](level2_input, brim_hidden_state5.detach(), brim_hidden_state4[0])
+                    else:
+                        brim_hidden_state4, _ = self.bc_list[1][1](level2_input, brim_hidden_state4, brim_hidden_state4, idx_layer=0)
                 else:
                     brim_hidden_state4 = self.bc_list[1][1](level2_input, brim_hidden_state4)
                 brim_output4 = self.output_layer_level2[1](brim_hidden_state4)
@@ -570,7 +625,10 @@ class Blocks(nn.Module):
                 level3_input = self.input_embedding_layer_level3(brim_input)
                 level3_input = torch.cat((level3_input, brim_level3_task_inference_latent), dim=-1)
                 if self.use_gru_or_rim == 'RIM':
-                    brim_hidden_state5, _ = self.bc_list[2](level3_input, [brim_hidden_state5], [brim_hidden_state5], idx_layer=0)
+                    if self.new_impl:
+                        brim_hidden_state5, _ = self.bc_list[2](x1=level3_input, x2=None, hs=brim_hidden_state5)
+                    else:
+                        brim_hidden_state5, _ = self.bc_list[2](level3_input, [brim_hidden_state5], [brim_hidden_state5], idx_layer=0)
                 else:
                     brim_hidden_state5 = self.bc_list[2](level3_input, brim_hidden_state5)
                 brim_output5 = self.output_layer_level3(brim_hidden_state5)
@@ -585,7 +643,10 @@ class Blocks(nn.Module):
                 level3_input = self.input_embedding_layer_level3(brim_input)
                 level3_input = torch.cat((level3_input, brim_level3_task_inference_latent), dim=-1)
                 if self.use_gru_or_rim == 'RIM':
-                    brim_hidden_state5, _ = self.bc_list[2](level3_input, [brim_hidden_state5], [brim_hidden_state5], idx_layer=0)
+                    if self.new_impl:
+                        brim_hidden_state5, _ = self.bc_list[2](x1=level3_input, x2=None, hs=brim_hidden_state5)
+                    else:
+                        brim_hidden_state5, _ = self.bc_list[2](level3_input, [brim_hidden_state5], [brim_hidden_state5], idx_layer=0)
                 else:
                     brim_hidden_state5 = self.bc_list[2](level3_input, brim_hidden_state5)
                 brim_output5 = self.output_layer_level3(brim_hidden_state5)

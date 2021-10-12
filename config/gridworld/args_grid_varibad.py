@@ -16,7 +16,7 @@ def get_args(rest_args):
 
     # what to pass to the policy (note this is after the encoder)
     parser.add_argument('--pass_state_to_policy', type=boolean_argument, default=True, help='condition policy on state')
-    parser.add_argument('--pass_task_inference_latent_to_policy', type=boolean_argument, default=False, help='condition policy on VAE latent')
+    parser.add_argument('--pass_task_inference_latent_to_policy', type=boolean_argument, default=True, help='condition policy on VAE latent')
     parser.add_argument('--pass_belief_to_policy', type=boolean_argument, default=False, help='condition policy on ground-truth belief')
     parser.add_argument('--pass_task_to_policy', type=boolean_argument, default=False, help='condition policy on ground-truth task description')
 
@@ -179,23 +179,25 @@ def get_args(rest_args):
 
     parser.add_argument('--rlloss_through_encoder', type=boolean_argument, default=True,
                         help='backprop rl loss through encoder')
-    parser.add_argument('--n_step_state_prediction', type=boolean_argument, default=True,
+    parser.add_argument('--n_step_state_prediction', type=boolean_argument, default=False,
                         help='state prediction for n step forward not just next state')
-    parser.add_argument('--n_step_reward_prediction', type=boolean_argument, default=True,
+    parser.add_argument('--n_step_reward_prediction', type=boolean_argument, default=False,
                         help='reward prediction for n step forward not just next reward')
-    parser.add_argument('--n_step_action_prediction', type=boolean_argument, default=True,
+    parser.add_argument('--n_step_action_prediction', type=boolean_argument, default=False,
                         help='action prediction for n step forward not just next reward')
 
     parser.add_argument('--n_prediction', type=int, default=2,
                         help='for how many future step state prediction should does (exclude one step prediction; for til t+3 set to 2)')
-    parser.add_argument('--rl_loss_throughout_vae_encoder', type=boolean_argument, default=False)
+
+    parser.add_argument('--rl_loss_throughout_vae_encoder', type=boolean_argument, default=False,
+                        help='detach output of task inference module when pass it to policy network')
 
     parser.add_argument('--n_step_value_prediction_coeff', type=float, default=1.0,
                         help='weight for n step value prediction vs (VAE loss and RL loss)')
 
     parser.add_argument('--action_loss_coeff', type=float, default=1.0, help='weight for state loss')
 
-    parser.add_argument('--decode_action', type=boolean_argument, default=True,
+    parser.add_argument('--decode_action', type=boolean_argument, default=False,
                         help='predict action between two state')
 
     parser.add_argument('--state_prediction_intrinsic_reward_coef', type=float, default=0.5,
@@ -220,8 +222,10 @@ def get_args(rest_args):
 
     parser.add_argument('--action_simulator_hidden_size', type=int, default=16,
                         help='hidden size of GRU used in n step state prediction')
+
     parser.add_argument('--reward_simulator_hidden_size', type=int, default=16,
                         help='hidden size of GRU used in n step reward prediction')
+
     parser.add_argument('--value_simulator_hidden_size', type=int, default=16,
                         help='hidden size of GRU used in n step value prediction')
 
@@ -229,24 +233,28 @@ def get_args(rest_args):
                         help='hidden size of GRU used in n step action prediction')
 
     parser.add_argument('--value_decoder_layers', nargs='+', type=int, default=[32, 32])
+
     parser.add_argument('--action_decoder_layers', nargs='+', type=int, default=[32, 32])
 
     parser.add_argument('--input_action', type=boolean_argument, default=True, help='use prev action for rew pred')
 
-    parser.add_argument('--train_meta_policy', type=boolean_argument, default=False,
-                        help='whatever or not meta policy should train')
-    parser.add_argument('--num_frame_for_warmup_sub_polices', type=int, default=300000)
+    # parser.add_argument('--train_meta_policy', type=boolean_argument, default=False,
+    #                     help='whatever or not meta policy should train')
+    # parser.add_argument('--num_frame_for_warmup_sub_polices', type=int, default=300000)
 
 
     # RIM configuration
-    parser.add_argument('--new_impl', type=boolean_argument, default=True)
+
+    parser.add_argument('--new_impl', type=boolean_argument, default=True,
+                        help='use new implementation of BRIM ')
+
     parser.add_argument('--use_gru_or_rim', type=str, default='RIM',
                         help='as a RNN model use RIM or GRU')
 
-    parser.add_argument('--use_rim_level1', type=boolean_argument, default=True,
+    parser.add_argument('--use_rim_level1', type=boolean_argument, default=False,
                         help='whatever create rim level1 (use for policy) or not')
 
-    parser.add_argument('--use_rim_level2', type=boolean_argument, default=True,
+    parser.add_argument('--use_rim_level2', type=boolean_argument, default=False,
                         help='whatever create rim level2 (use for n step value prediction) or not')
 
     parser.add_argument('--use_rim_level3', type=boolean_argument, default=True,
@@ -292,13 +300,13 @@ def get_args(rest_args):
 
     parser.add_argument('--policy_rim_level1_output_embedding_dim', type=int, default=None)
 
-    parser.add_argument('--rim_level1_condition_on_task_inference_latent', type=boolean_argument, default=True,
+    parser.add_argument('--rim_level1_condition_on_task_inference_latent', type=boolean_argument, default=False,
                         help='rim level 1 get information from task inference output')
-    parser.add_argument('--rim_level2_condition_on_task_inference_latent', type=boolean_argument, default=True,
+    parser.add_argument('--rim_level2_condition_on_task_inference_latent', type=boolean_argument, default=False,
                         help='rim level 2 get information from task inference output')
-    parser.add_argument('--rim_top_down_level3_level2', type=boolean_argument, default=True,
+    parser.add_argument('--rim_top_down_level3_level2', type=boolean_argument, default=False,
                         help='rim level 2 get information from level 3')
-    parser.add_argument('--rim_top_down_level2_level1', type=boolean_argument, default=True,
+    parser.add_argument('--rim_top_down_level2_level1', type=boolean_argument, default=False,
                         help='rim level 1 get information from level 2')
     # memory
     parser.add_argument('--use_memory', type=boolean_argument, default=False,

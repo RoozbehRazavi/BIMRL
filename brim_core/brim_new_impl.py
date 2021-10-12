@@ -115,7 +115,7 @@ class GroupGRUCell(nn.Module):
 
 class BRIMCell(nn.Module):
     def __init__(self,
-                 device, input_size, hidden_size, num_units, k, rnn_cell, input_key_size=64, input_value_size=400,
+                 device, input_size, hidden_size, num_units, k, rnn_cell, use_higher, input_key_size=64, input_value_size=400,
                  input_query_size=64,
                  num_input_heads=1, input_dropout=0.1, comm_key_size=32, comm_value_size=100, comm_query_size=32,
                  num_comm_heads=4, comm_dropout=0.1
@@ -129,6 +129,7 @@ class BRIMCell(nn.Module):
         self.num_units = num_units
         self.rnn_cell = rnn_cell
         self.key_size = input_key_size
+        self.use_higher = use_higher
         self.k = k
         self.num_input_heads = num_input_heads
         self.num_comm_heads = num_comm_heads
@@ -179,14 +180,15 @@ class BRIMCell(nn.Module):
 
         attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2)) / math.sqrt(self.input_key_size)
         attention_scores = torch.mean(attention_scores, dim=1)
-        mask_ = torch.zeros(x.size(0), self.num_units).to(self.device)
+        mask_ = torch.ones(x.size(0), self.num_units).to(self.device)
 
-        not_null_scores = attention_scores[:, :, 0:2].mean(dim=-1)
-        topk1 = torch.topk(not_null_scores, self.k, dim=1)
+        # TODO instead of not null score get null score
+        null_scores = attention_scores[:, :, -1]
+        topk1 = torch.topk(null_scores, self.num_units - self.k, dim=1)
         row_index = np.arange(x.size(0))
-        row_index = np.repeat(row_index, self.k)
+        row_index = np.repeat(row_index, self.num_units - self.k)
 
-        mask_[row_index, topk1.indices.view(-1)] = 1
+        mask_[row_index, topk1.indices.view(-1)] = 0
 
         attention_probs = self.input_dropout(nn.Softmax(dim=-1)(attention_scores))
         inputs = torch.matmul(attention_probs, value_layer) * mask_.unsqueeze(2)
@@ -237,12 +239,16 @@ class BRIMCell(nn.Module):
         Output: new hs, cs for LSTM
                 new hs for GRU
         """
+        x1 = x1.unsqueeze(1)
+        hs = hs.view((hs.shape[0], self.num_units, -1))
         size1 = x1.size()
         null_input = torch.zeros(size1[0], 1, size1[2]).float().to(self.device)
-        x = torch.cat((x1, x2, null_input), dim=1)
+        if self.use_higher:
+            x2 = x2.unsqueeze(1)
+            x = torch.cat((x1, x2, null_input), dim=1)
+        else:
+            x = torch.cat((x1, null_input), dim=1)
 
-        # TODO Compute input attention add above layer for attention
-        # TODO each layer have different linear matrix
         inputs, mask = self.input_attention_mask(x, hs)
         h_old = hs * 1.0
         if cs is not None:
@@ -267,7 +273,7 @@ class BRIMCell(nn.Module):
             cs = mask * cs + (1 - mask) * c_old
             return hs, cs
 
-        return hs, None
+        return hs.view((size1[0], -1)), None
 
 
 class BRIM(nn.Module):
@@ -286,7 +292,6 @@ class BRIM(nn.Module):
                                               **kwargs).to(self.device) if i == 0 else
                                       BRIMCell(self.device, hidden_size * self.num_units, hidden_size, num_units, k,
                                               rnn_cell, **kwargs).to(self.device) for i in range(self.n_layers)])
-
 
     def prior(self, batch_size):
         h_list = list()

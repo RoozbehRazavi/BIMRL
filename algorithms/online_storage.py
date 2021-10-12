@@ -93,7 +93,7 @@ class OnlineStorage(object):
             self.brim_output_level2 = [t.to(device) for t in self.brim_output_level2]
             self.brim_output_level3 = [t.to(device) for t in self.brim_output_level3]
             self.brim_hidden_states = self.brim_hidden_states.to(device)
-        self.next_state = self.next_state.to(device)
+            self.next_state = self.next_state.to(device)
         if self.args.pass_belief_to_policy:
             self.beliefs = self.beliefs.to(device)
         if self.args.pass_task_to_policy:
