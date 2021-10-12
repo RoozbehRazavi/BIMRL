@@ -181,7 +181,7 @@ class BRIMCell(nn.Module):
         attention_scores = torch.mean(attention_scores, dim=1)
         mask_ = torch.zeros(x.size(0), self.num_units).to(self.device)
 
-        not_null_scores = attention_scores[:, :, 0:2]
+        not_null_scores = attention_scores[:, :, 0:2].mean(dim=-1)
         topk1 = torch.topk(not_null_scores, self.k, dim=1)
         row_index = np.arange(x.size(0))
         row_index = np.repeat(row_index, self.k)
