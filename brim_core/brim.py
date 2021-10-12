@@ -57,6 +57,7 @@ class BRIM(nn.Module):
                  state_embed_dim,
                  reward_size,
                  reward_embed_size,
+                 new_impl
                  ):
         super(BRIM, self).__init__()
 
@@ -95,7 +96,8 @@ class BRIM(nn.Module):
                                             reward_dim=reward_size,
                                             action_embed_dim=action_embed_dim,
                                             reward_embed_size=reward_embed_size,
-                                            state_embed_dim=state_embed_dim
+                                            state_embed_dim=state_embed_dim,
+                                            new_impl=new_impl
                                             )
 
         self.vae_encoder = self.initialise_vae_encoder(vae_encoder_layers_before_gru=vae_encoder_layers_before_gru,
@@ -143,7 +145,8 @@ class BRIM(nn.Module):
                           reward_dim,
                           action_embed_dim,
                           reward_embed_size,
-                          state_embed_dim
+                          state_embed_dim,
+                          new_impl,
                           ):
         blocks = Blocks(use_rim_level1=use_rim_level1,
                         use_rim_level2=use_rim_level2,
@@ -177,8 +180,8 @@ class BRIM(nn.Module):
                         reward_dim=reward_dim,
                         action_embed_dim=action_embed_dim,
                         reward_embed_size=reward_embed_size,
-                        state_embed_dim=state_embed_dim
-                        ).to(device)
+                        state_embed_dim=state_embed_dim,
+                        new_impl=new_impl).to(device)
         return blocks
 
     @staticmethod

@@ -239,6 +239,7 @@ def get_args(rest_args):
 
 
     # RIM configuration
+    parser.add_argument('--new_impl', type=boolean_argument, default=True)
     parser.add_argument('--use_gru_or_rim', type=str, default='RIM',
                         help='as a RNN model use RIM or GRU')
 
@@ -317,6 +318,4 @@ def get_args(rest_args):
     # visoin core
     parser.add_argument('--use_stateless_vision_core', type=boolean_argument, default=False,
                         help='use attentional visual process unit')
-
-
     return parser.parse_args(rest_args)

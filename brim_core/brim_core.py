@@ -56,6 +56,7 @@ class BRIMCore(nn.Module):
                  state_embed_dim,
                  reward_size,
                  reward_embed_size,
+                 new_impl,
                  ):
         super(BRIMCore, self).__init__()
         assert (not use_memory and not use_hebb and not use_gen) or use_memory
@@ -111,7 +112,8 @@ class BRIMCore(nn.Module):
                                          state_dim,
                                          state_embed_dim,
                                          reward_size,
-                                         reward_embed_size)
+                                         reward_embed_size,
+                                         new_impl)
 
     @staticmethod
     def initialise_brim(use_memory,
@@ -160,7 +162,8 @@ class BRIMCore(nn.Module):
                         state_dim,
                         state_embed_dim,
                         reward_size,
-                        reward_embed_size):
+                        reward_embed_size,
+                        new_impl):
         brim = BRIM(use_memory=use_memory,
                     use_hebb=use_hebb,
                     use_gen=use_gen,
@@ -207,7 +210,8 @@ class BRIMCore(nn.Module):
                     state_dim=state_dim,
                     state_embed_dim=state_embed_dim,
                     reward_size=reward_size,
-                    reward_embed_size=reward_embed_size).to(device)
+                    reward_embed_size=reward_embed_size,
+                    new_impl=new_impl).to(device)
         return brim
 
     def _sample_gaussian(self, mu, logvar, num=None):
