@@ -42,7 +42,7 @@ class Blocks(nn.Module):
                  action_embed_dim,
                  reward_embed_size,
                  state_embed_dim,
-                 new_impl=False
+                 new_impl=True
                  ):
         super(Blocks, self).__init__()
         assert (rim_top_down_level2_level1 and use_rim_level2) or not rim_top_down_level2_level1
@@ -539,7 +539,7 @@ class Blocks(nn.Module):
                 else:
                     brim_hidden_state2 = [brim_hidden_state2]
                 if self.use_gru_or_rim == 'RIM':
-                    brim_hidden_state2, _ = self.bc_list[0][1](level1_input, brim_hidden_state2, brim_hidden_state2, idx_layer=0)
+                    brim_hidden_state2, _ = self.bc_list[0][1](level1_input, brim_hidden_state2[0], brim_hidden_state2[1])#, idx_layer=0)
                 else:
                     brim_hidden_state2 = self.bc_list[0][1](level1_input, brim_hidden_state2)
                 brim_output2 = self.output_layer_level1[1](brim_hidden_state2)
