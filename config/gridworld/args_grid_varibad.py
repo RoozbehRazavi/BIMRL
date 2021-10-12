@@ -106,7 +106,7 @@ def get_args(rest_args):
     parser.add_argument('--vae_encoder_layers_before_gru', nargs='+', type=int, default=[])
     parser.add_argument('--vae_encoder_gru_hidden_size', type=int, default=64, help='dimensionality of RNN hidden state')
     parser.add_argument('--vae_encoder_layers_after_gru', nargs='+', type=int, default=[])
-    parser.add_argument('--task_inference_latent_dim', type=int, default=5, help='dimensionality of latent space')
+    parser.add_argument('--task_inference_latent_dim', type=int, default=32, help='dimensionality of latent space')
 
     # - decoder: rewards
     parser.add_argument('--decode_reward', type=boolean_argument, default=True, help='use reward decoder')
@@ -257,7 +257,7 @@ def get_args(rest_args):
     parser.add_argument('--use_rim_level2', type=boolean_argument, default=False,
                         help='whatever create rim level2 (use for n step value prediction) or not')
 
-    parser.add_argument('--use_rim_level3', type=boolean_argument, default=False,
+    parser.add_argument('--use_rim_level3', type=boolean_argument, default=True,
                         help='whatever create rim level3 (use for decode VAE terms) or not')
 
     parser.add_argument('--rim_level1_hidden_size', type=int, default=32,
