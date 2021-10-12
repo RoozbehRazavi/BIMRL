@@ -99,6 +99,8 @@ class BlocksCore(nn.Module):
         mask = new_mask
         print(torch.mean(torch.sum(mask, dim=1)).item())
         print(self.topkval)
+        print(mask.shape)
+        print(mask)
         assert(torch.mean(torch.sum(mask, dim=1)).item() == self.topkval)
 
         mask = mask.reshape((inp_use.shape[0], self.num_blocks_out, 1)).repeat((1, 1, self.block_size_out)).reshape((inp_use.shape[0], self.num_blocks_out*self.block_size_out))
