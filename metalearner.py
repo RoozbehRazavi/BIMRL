@@ -835,7 +835,10 @@ class MetaLearner:
                 [self.base2final.brim_core, 'brim_core'],
                 [self.base2final.reward_decoder, 'reward_decoder'],
                 [self.base2final.state_decoder, 'state_transition_decoder'],
-                [self.base2final.task_decoder, 'task_decoder']
+                [self.base2final.task_decoder, 'task_decoder'],
+                [self.base2final.action_decoder, 'action_decoder'],
+                [self.base2final.exploitation_value_decoder, 'exploitation_value_decoder'],
+                [self.base2final.exploration_value_decoder, 'exploration_value_decoder'],
             ]
 
             for [model, name] in model_params:
