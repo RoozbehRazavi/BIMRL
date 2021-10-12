@@ -258,14 +258,14 @@ def get_args(rest_args):
     parser.add_argument('--rim_level3_hidden_size', type=int, default=32,
                         help='hidden size of level 3 rim (output of this level use decode VAE term)')
 
-    parser.add_argument('--rim_level1_num_modules', type=int, default=1,
+    parser.add_argument('--rim_level1_num_modules', type=int, default=4,
                         help='number of module in rim level 1')
     parser.add_argument('--rim_level2_num_modules', type=int, default=4,
                         help='number of module in rim level 2')
     parser.add_argument('--rim_level3_num_modules', type=int, default=4,
                         help='number of module in rim level 3')
 
-    parser.add_argument('--rim_level1_topk', type=int, default=1,
+    parser.add_argument('--rim_level1_topk', type=int, default=3,
                         help='number of module in rim level 1 that can active in each time step')
     parser.add_argument('--rim_level2_topk', type=int, default=3,
                         help='number of module in rim level 2 that can active in each time step')

@@ -3,6 +3,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 from brim_core.blocks_core_all import BlocksCore
 from utils import helpers as utl
+from brim_core.brim_new_impl import BRIMCell
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
@@ -40,7 +41,8 @@ class Blocks(nn.Module):
                  reward_dim,
                  action_embed_dim,
                  reward_embed_size,
-                 state_embed_dim
+                 state_embed_dim,
+                 new_impl=False
                  ):
         super(Blocks, self).__init__()
         assert (rim_top_down_level2_level1 and use_rim_level2) or not rim_top_down_level2_level1
@@ -135,7 +137,8 @@ class Blocks(nn.Module):
                                             rim_level1_input_dim=rim_level1_input_dim,
                                             rim_level2_input_dim=rim_level2_input_dim,
                                             rim_level3_input_dim=rim_level3_input_dim,
-                                            use_gru_or_rim=use_gru_or_rim)
+                                            use_gru_or_rim=use_gru_or_rim,
+                                            new_impl=new_impl)
         self.input_embedding_layer_level1,\
         self.input_embedding_layer_level2,\
         self.input_embedding_layer_level3 = self.initialise_input_embedding_layers(brim_input_dim,
@@ -180,7 +183,8 @@ class Blocks(nn.Module):
                         rim_level1_input_dim,
                         rim_level2_input_dim,
                         rim_level3_input_dim,
-                        use_gru_or_rim
+                        use_gru_or_rim,
+                        new_impl
                         ):
 
         blocks_level1 = nn.ModuleList([])
@@ -191,6 +195,17 @@ class Blocks(nn.Module):
                 blocks_level1.append(nn.GRUCell(rim_level1_input_dim, rim_level1_hidden_size))
                 blocks_level1.append(nn.GRUCell(rim_level1_input_dim, rim_level1_hidden_size))
             elif use_gru_or_rim == 'RIM':
+                if new_impl:
+                    blocks_level1.append(BRIMCell(
+                        device=device,
+                        input_size=rim_level1_input_dim,
+                        hidden_size=rim_level1_hidden_size,
+                        num_units=rim_level1_num_modules,
+                        k=rim_level1_topk,
+                        rnn_cell='GRU',
+                        input_dropout=0.0,
+                        comm_dropout=0.0
+                    ))
                 blocks_level1.append(BlocksCore(ninp=rim_level1_input_dim,
                                                 nhid=rim_level1_hidden_size,
                                                 num_blocks_in=1,
