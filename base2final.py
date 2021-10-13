@@ -226,7 +226,13 @@ class Base2Final:
 
         if self.args.use_rim_level3:
             latent_dim = self.args.rim_level3_output_dim
+            if self.args.residual_task_inference_latent:
+                latent_dim += self.args.task_inference_latent_dim
+                if self.args.disable_stochasticity_in_latent:
+                    # double latent dimension (input size to decoder) if we use a deterministic latents (for easier comparison)
+                    latent_dim += self.args.task_inference_latent_dim
         else:
+            assert self.args.residual_task_inference_latent is None
             latent_dim = self.args.task_inference_latent_dim
             # double latent dimension (input size to decoder) if we use a deterministic latents (for easier comparison)
             if self.args.disable_stochasticity_in_latent:
@@ -826,7 +832,10 @@ class Base2Final:
         dec_brim_output5 = brim_output5.unsqueeze(0).expand((num_decodes, *brim_output5.shape)).transpose(1, 0)
         # if use rim in VAE decoder use output of rim level 3 instead of VAE encoder output
         if self.args.use_rim_level3:
-            dec_embedding = dec_brim_output5
+            if self.args.residual_task_inference_latent:
+                dec_embedding = torch.cat((dec_embedding, dec_brim_output5), dim=-1)
+            else:
+                dec_embedding = dec_brim_output5
 
         if self.args.decode_reward:
             # compute reconstruction loss for this trajectory (for each timestep that was encoded, decode everything and sum it up)
