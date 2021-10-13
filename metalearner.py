@@ -833,7 +833,8 @@ class MetaLearner:
             # log the average weights and gradients of all models (where applicable)
             model_params = [
                 [policy.actor_critic, 'policy'],
-                [self.base2final.brim_core, 'brim_core'],
+                [self.base2final.brim_core.brim.vae_encoder, 'vae_encoder'],
+                [self.base2final.brim_core.brim.model, 'brim'],
                 [self.base2final.reward_decoder, 'reward_decoder'],
                 [self.base2final.state_decoder, 'state_transition_decoder'],
                 [self.base2final.task_decoder, 'task_decoder'],

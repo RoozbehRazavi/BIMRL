@@ -114,6 +114,11 @@ class BRIMCore(nn.Module):
                                          reward_size,
                                          reward_embed_size,
                                          new_impl)
+        for name, param in self.brim.named_parameters():
+            if 'bias' in name:
+                nn.init.constant_(param, 0)
+            elif 'weight' in name:
+                nn.init.orthogonal_(param)
 
     @staticmethod
     def initialise_brim(use_memory,

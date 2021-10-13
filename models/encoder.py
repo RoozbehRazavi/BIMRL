@@ -47,12 +47,6 @@ class VAERNNEncoder(nn.Module):
         self.gru = nn.GRUCell(input_size=curr_input_dim,
                               hidden_size=hidden_size)
 
-        for name, param in self.gru.named_parameters():
-            if 'bias' in name:
-                nn.init.constant_(param, 0)
-            elif 'weight' in name:
-                nn.init.orthogonal_(param)
-
         # fully connected layers after the recurrent cell
         curr_input_dim = hidden_size
         self.fc_after_gru = nn.ModuleList([])
