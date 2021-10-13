@@ -42,7 +42,9 @@ class Blocks(nn.Module):
                  action_embed_dim,
                  reward_embed_size,
                  state_embed_dim,
-                 new_impl
+                 new_impl,
+                 vae_loss_throughout_vae_encoder_from_rim_level3,
+                 residual_task_inference_latent
                  ):
         super(Blocks, self).__init__()
         assert (rim_top_down_level2_level1 and use_rim_level2) or not rim_top_down_level2_level1
@@ -64,6 +66,8 @@ class Blocks(nn.Module):
         self.state_embed_dim = state_embed_dim
         self.use_gru_or_rim = use_gru_or_rim
         self.new_impl = new_impl
+        self.vae_loss_throughout_vae_encoder_from_rim_level3 = vae_loss_throughout_vae_encoder_from_rim_level3
+        self.residual_task_inference_latent = residual_task_inference_latent
 
         self.state_encoder = utl.SimpleVision(state_embed_dim)
         self.action_encoder = utl.FeatureExtractor(action_dim, action_embed_dim, F.relu)
@@ -567,7 +571,11 @@ class Blocks(nn.Module):
 
             if self.use_rim_level3:
                 level3_input = self.input_embedding_layer_level3(brim_input)
-                level3_input = torch.cat((level3_input, brim_level3_task_inference_latent), dim=-1)
+                if not self.vae_loss_throughout_vae_encoder_from_rim_level3:
+                    assert self.residual_task_inference_latent
+                    level3_input = torch.cat((level3_input, brim_level3_task_inference_latent.detach()), dim=-1)
+                else:
+                    level3_input = torch.cat((level3_input, brim_level3_task_inference_latent), dim=-1)
                 if self.use_gru_or_rim == 'RIM':
                     if self.new_impl:
                         brim_hidden_state5, _ = self.bc_list[2](level3_input, None, brim_hidden_state5)
@@ -623,7 +631,11 @@ class Blocks(nn.Module):
 
             if self.use_rim_level3:
                 level3_input = self.input_embedding_layer_level3(brim_input)
-                level3_input = torch.cat((level3_input, brim_level3_task_inference_latent), dim=-1)
+                if not self.vae_loss_throughout_vae_encoder_from_rim_level3:
+                    assert self.residual_task_inference_latent
+                    level3_input = torch.cat((level3_input, brim_level3_task_inference_latent.detach()), dim=-1)
+                else:
+                    level3_input = torch.cat((level3_input, brim_level3_task_inference_latent), dim=-1)
                 if self.use_gru_or_rim == 'RIM':
                     if self.new_impl:
                         brim_hidden_state5, _ = self.bc_list[2](x1=level3_input, x2=None, hs=brim_hidden_state5)
@@ -641,7 +653,11 @@ class Blocks(nn.Module):
         elif activated_branch == 'level3':
             if self.use_rim_level3:
                 level3_input = self.input_embedding_layer_level3(brim_input)
-                level3_input = torch.cat((level3_input, brim_level3_task_inference_latent), dim=-1)
+                if not self.vae_loss_throughout_vae_encoder_from_rim_level3:
+                    assert self.residual_task_inference_latent
+                    level3_input = torch.cat((level3_input, brim_level3_task_inference_latent.detach()), dim=-1)
+                else:
+                    level3_input = torch.cat((level3_input, brim_level3_task_inference_latent), dim=-1)
                 if self.use_gru_or_rim == 'RIM':
                     if self.new_impl:
                         brim_hidden_state5, _ = self.bc_list[2](x1=level3_input, x2=None, hs=brim_hidden_state5)

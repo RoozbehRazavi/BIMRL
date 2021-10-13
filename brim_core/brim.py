@@ -57,7 +57,9 @@ class BRIM(nn.Module):
                  state_embed_dim,
                  reward_size,
                  reward_embed_size,
-                 new_impl
+                 new_impl,
+                 vae_loss_throughout_vae_encoder_from_rim_level3,
+                 residual_task_inference_latent
                  ):
         super(BRIM, self).__init__()
 
@@ -97,7 +99,9 @@ class BRIM(nn.Module):
                                             action_embed_dim=action_embed_dim,
                                             reward_embed_size=reward_embed_size,
                                             state_embed_dim=state_embed_dim,
-                                            new_impl=new_impl
+                                            new_impl=new_impl,
+                                            vae_loss_throughout_vae_encoder_from_rim_level3=vae_loss_throughout_vae_encoder_from_rim_level3,
+                                            residual_task_inference_latent=residual_task_inference_latent
                                             )
 
         self.vae_encoder = self.initialise_vae_encoder(vae_encoder_layers_before_gru=vae_encoder_layers_before_gru,
@@ -147,6 +151,8 @@ class BRIM(nn.Module):
                           reward_embed_size,
                           state_embed_dim,
                           new_impl,
+                          vae_loss_throughout_vae_encoder_from_rim_level3,
+                          residual_task_inference_latent
                           ):
         blocks = Blocks(use_rim_level1=use_rim_level1,
                         use_rim_level2=use_rim_level2,
@@ -181,7 +187,10 @@ class BRIM(nn.Module):
                         action_embed_dim=action_embed_dim,
                         reward_embed_size=reward_embed_size,
                         state_embed_dim=state_embed_dim,
-                        new_impl=new_impl).to(device)
+                        new_impl=new_impl,
+                        vae_loss_throughout_vae_encoder_from_rim_level3=vae_loss_throughout_vae_encoder_from_rim_level3,
+                        residual_task_inference_latent=residual_task_inference_latent
+                        ).to(device)
         return blocks
 
     @staticmethod

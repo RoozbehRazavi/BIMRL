@@ -57,6 +57,8 @@ class BRIMCore(nn.Module):
                  reward_size,
                  reward_embed_size,
                  new_impl,
+                 vae_loss_throughout_vae_encoder_from_rim_level3,
+                 residual_task_inference_latent
                  ):
         super(BRIMCore, self).__init__()
         assert (not use_memory and not use_hebb and not use_gen) or use_memory
@@ -113,7 +115,10 @@ class BRIMCore(nn.Module):
                                          state_embed_dim,
                                          reward_size,
                                          reward_embed_size,
-                                         new_impl)
+                                         new_impl,
+                                         vae_loss_throughout_vae_encoder_from_rim_level3,
+                                         residual_task_inference_latent
+                                         )
         for name, param in self.brim.named_parameters():
             if 'bias' in name:
                 nn.init.constant_(param, 0)
@@ -168,7 +173,10 @@ class BRIMCore(nn.Module):
                         state_embed_dim,
                         reward_size,
                         reward_embed_size,
-                        new_impl):
+                        new_impl,
+                        vae_loss_throughout_vae_encoder_from_rim_level3,
+                        residual_task_inference_latent
+                        ):
         brim = BRIM(use_memory=use_memory,
                     use_hebb=use_hebb,
                     use_gen=use_gen,
@@ -216,7 +224,10 @@ class BRIMCore(nn.Module):
                     state_embed_dim=state_embed_dim,
                     reward_size=reward_size,
                     reward_embed_size=reward_embed_size,
-                    new_impl=new_impl).to(device)
+                    new_impl=new_impl,
+                    vae_loss_throughout_vae_encoder_from_rim_level3=vae_loss_throughout_vae_encoder_from_rim_level3,
+                    residual_task_inference_latent=residual_task_inference_latent
+                    ).to(device)
         return brim
 
     def _sample_gaussian(self, mu, logvar, num=None):

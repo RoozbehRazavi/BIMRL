@@ -215,7 +215,10 @@ class Base2Final:
             state_embed_dim=self.args.state_embedding_size,
             reward_size=1,
             reward_embed_size=self.args.reward_embedding_size,
-            new_impl=self.args.new_impl).to(device)
+            new_impl=self.args.new_impl,
+            vae_loss_throughout_vae_encoder_from_rim_level3=self.args.vae_loss_throughout_vae_encoder_from_rim_level3,
+            residual_task_inference_latent=self.args.residual_task_inference_latent
+        ).to(device)
         return brim_core
 
     def initialise_decoder(self):
