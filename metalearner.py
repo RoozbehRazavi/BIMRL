@@ -129,6 +129,7 @@ class MetaLearner:
                     torch.load(os.path.join(save_path, f"exploitation_policy.pt"), map_location=device))
 
             self.start_idx = general_info['iter_idx']
+            self.iter_idx = self.start_idx
             self.total_frames = self.start_idx * args.policy_num_steps * args.num_processes
             self.base2final.optimiser_vae.load_state_dict(general_info['vae_optimiser'])
             if self.exploration_policy is not None:
