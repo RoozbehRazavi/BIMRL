@@ -179,7 +179,7 @@ def get_args(rest_args):
 
     parser.add_argument('--rlloss_through_encoder', type=boolean_argument, default=True,
                         help='backprop rl loss through encoder')
-    parser.add_argument('--n_step_state_prediction', type=boolean_argument, default=False,
+    parser.add_argument('--n_step_state_prediction', type=boolean_argument, default=True,
                         help='state prediction for n step forward not just next state')
     parser.add_argument('--n_step_reward_prediction', type=boolean_argument, default=False,
                         help='reward prediction for n step forward not just next reward')

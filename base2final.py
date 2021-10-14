@@ -1026,7 +1026,7 @@ class Base2Final:
             # nn.utils.clip_grad_norm_(self.encoder.parameters(), self.args.a2c_max_grad_norm)
             # nn.utils.clip_grad_norm_(reward_decoder.parameters(), self.args.max_grad_norm)
 
-        self.log(elbo_loss, rew_reconstruction_loss, state_reconstruction_loss, task_reconstruction_loss, kl_loss)
+        self.log(elbo_loss, rew_reconstruction_loss, state_reconstruction_loss, task_reconstruction_loss, action_reconstruction_loss, kl_loss)
 
         return elbo_loss
 
@@ -1107,9 +1107,10 @@ class Base2Final:
                                                         returns_next_state,
                                                         trajectory_lens,
                                                         value_decoder=self.exploration_value_decoder if activated_branch=='exploration' else self.exploitation_value_decoder)
+        self.log_value_prediction(n_step_value_pred_loss, policy_type=activated_branch)
         return n_step_value_pred_loss
 
-    def log(self, elbo_loss, rew_reconstruction_loss, state_reconstruction_loss, task_reconstruction_loss, kl_loss):
+    def log(self, elbo_loss, rew_reconstruction_loss, state_reconstruction_loss, task_reconstruction_loss, action_reconstruction_loss, kl_loss):
 
         curr_iter_idx = self.get_iter_idx()
         if curr_iter_idx % self.args.log_interval == 0:
@@ -1120,7 +1121,14 @@ class Base2Final:
                 self.logger.add('vae_losses/state_reconstr_err', state_reconstruction_loss.mean(), curr_iter_idx)
             if self.args.decode_task:
                 self.logger.add('vae_losses/task_reconstr_err', task_reconstruction_loss.mean(), curr_iter_idx)
+            if self.args.decode_action:
+                self.logger.add('vae_losses/action_reconstr_err', action_reconstruction_loss.mean(), curr_iter_idx)
 
             if not self.args.disable_stochasticity_in_latent:
                 self.logger.add('vae_losses/kl', kl_loss.mean(), curr_iter_idx)
             self.logger.add('vae_losses/sum', elbo_loss, curr_iter_idx)
+
+    def log_value_prediction(self, value_reconstruction_loss, policy_type):
+        curr_iter_idx = self.get_iter_idx()
+        if curr_iter_idx % self.args.log_interval == 0:
+            self.logger.add(f'n_step_value_pred_loss/value_reconstr_err_{policy_type}', value_reconstruction_loss.mean(), curr_iter_idx)
