@@ -214,7 +214,7 @@ class Blocks(nn.Module):
                         k=rim_level1_topk,
                         rnn_cell='GRU',
                         input_dropout=0.0,
-                        comm_dropout=0.0
+                        comm_dropout=0.0,
                     ))
                     blocks_level1.append(BRIMCell(
                         device=device,
@@ -225,7 +225,7 @@ class Blocks(nn.Module):
                         k=rim_level1_topk,
                         rnn_cell='GRU',
                         input_dropout=0.0,
-                        comm_dropout=0.0
+                        comm_dropout=0.0,
                     ))
                 else:
                     blocks_level1.append(BlocksCore(ninp=rim_level1_input_dim,
@@ -620,7 +620,7 @@ class Blocks(nn.Module):
                     brim_hidden_state4 = [brim_hidden_state4]
                 if self.use_gru_or_rim == 'RIM':
                     if self.new_impl:
-                        brim_hidden_state4, _ = self.bc_list[0][1](level2_input, brim_hidden_state5.detach(), brim_hidden_state4[0])
+                        brim_hidden_state4, _ = self.bc_list[1][1](level2_input, brim_hidden_state5.detach(), brim_hidden_state4[0])
                     else:
                         brim_hidden_state4, _ = self.bc_list[1][1](level2_input, brim_hidden_state4, brim_hidden_state4, idx_layer=0)
                 else:
