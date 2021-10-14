@@ -1091,7 +1091,7 @@ class Base2Final:
                         use_gae=self.args.policy_use_gae,
                         masks=masks,
                         bad_masks=bad_masks,
-                        use_proper_time_limits=False)
+                        use_proper_time_limits=True)
         returns = returns.detach()
         returns_next_state = returns[1:]
         value_next_state = value_states[1:]
