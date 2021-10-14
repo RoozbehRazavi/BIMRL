@@ -131,15 +131,20 @@ def compute_intrinsic_reward(rew_raw,
                              action,
                              state_decoder,
                              action_decoder,
+                             decode_action,
                              state_prediction_running_normalizer,
                              action_prediction_running_normalizer,
                              state_prediction_intrinsic_reward_coef,
                              action_prediction_intrinsic_reward_coef,
                              extrinsic_reward_intrinsic_reward_coef):
-    state_pred = state_decoder(latent_state=latent, state=prev_state, action=action, n_step_action=None, n_step_state_prediction=False)[0].detach()
-    action_pred = action_decoder(latent_state=latent, state=prev_state, next_state=next_state, n_step_next_state=None, n_step_action_prediction=False)[0].detach()
+    if decode_action:
+        action_pred = action_decoder(latent_state=latent, state=prev_state, next_state=next_state, n_step_next_state=None, n_step_action_prediction=False)[0].detach()
+        action_error = F.nll_loss(action_pred, action).mean()
+    else:
+        action_error = 0.0
+    state_pred = state_decoder(latent_state=latent, state=prev_state, action=action, n_step_action=None,
+                               n_step_state_prediction=False)[0].detach()
     state_error = (state_pred - next_state).pow(2).mean()
-    action_error = F.nll_loss(action_pred, action).mean()
 
     norm_state_error = (state_error - state_prediction_running_normalizer.mean) / torch.sqrt(state_prediction_running_normalizer.var + 1e-8)
     norm_action_error = (action_error - action_prediction_running_normalizer.mean) / torch.sqrt(action_prediction_running_normalizer.var + 1e-8)

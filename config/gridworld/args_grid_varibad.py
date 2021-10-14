@@ -166,13 +166,13 @@ def get_args(rest_args):
     parser.add_argument('--deterministic_execution', type=boolean_argument, default=False,
                         help='Make code fully deterministic. Expects 1 process and uses deterministic CUDNN')
 
-    parser.add_argument('--load_model', type=boolean_argument, default=True)
+    parser.add_argument('--load_model', type=boolean_argument, default=False)
 
     # General Base2Final
     parser.add_argument('--vae_fill_with_exploration_experience', type=boolean_argument, default=False,
                         help='vae buffer fill just with exploration trajectory of with both exploration and exploitation')
 
-    parser.add_argument('--exploration_processes_portion', type=float, default=0.0,
+    parser.add_argument('--exploration_processes_portion', type=float, default=1.0,
                         help='what portion of process generate trajectory with exploration policy')
 
     # Disable Loss of Base2Final
@@ -183,7 +183,7 @@ def get_args(rest_args):
                         help='state prediction for n step forward not just next state')
     parser.add_argument('--n_step_reward_prediction', type=boolean_argument, default=False,
                         help='reward prediction for n step forward not just next reward')
-    parser.add_argument('--n_step_action_prediction', type=boolean_argument, default=False,
+    parser.add_argument('--n_step_action_prediction', type=boolean_argument, default=True,
                         help='action prediction for n step forward not just next reward')
 
     parser.add_argument('--n_prediction', type=int, default=2,
@@ -198,7 +198,7 @@ def get_args(rest_args):
 
     parser.add_argument('--action_loss_coeff', type=float, default=1.0, help='weight for state loss')
 
-    parser.add_argument('--decode_action', type=boolean_argument, default=False,
+    parser.add_argument('--decode_action', type=boolean_argument, default=True,
                         help='predict action between two state')
 
     parser.add_argument('--state_prediction_intrinsic_reward_coef', type=float, default=0.5,

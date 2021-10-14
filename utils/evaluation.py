@@ -11,6 +11,10 @@ def evaluate(args,
              policy,
              ret_rms,
              iter_idx,
+             state_decoder,
+             action_decoder,
+             state_prediction_running_normalizer,
+             action_prediction_running_normalizer,
              brim_core=None,
              num_episodes=None,
              policy_type='exploration'
@@ -84,13 +88,38 @@ def evaluate(args,
                                                  latent_logvar=latent_logvar,
                                                  brim_output_level1=brim_output_level1,
                                                  deterministic=True)
+            prev_state = state
 
             # observe reward and next obs
             [state, belief, task], (rew_raw, rew_normalised), done, infos = utl.env_step(envs, action, args)
 
             # replace intrinsic reward instead extrinsic reward
             if policy_type == 'exploration':
-                rew_raw, rew_normalised = utl.compute_intrinsic_reward(rew_raw, rew_normalised)
+                latent = utl.get_latent_for_policy(sample_embeddings=True,
+                                                   add_nonlinearity_to_latent=args.add_nonlinearity_to_latent,
+                                                   latent_sample=latent_sample,
+                                                   latent_mean=latent_mean,
+                                                   latent_logvar=latent_logvar)
+                if args.use_rim_level3:
+                    if args.residual_task_inference_latent:
+                        latent = torch.cat((brim_output_level3.squeeze(0), latent), dim=-1)
+                    else:
+                        latent = brim_output_level3
+
+                rew_raw, rew_normalised, _, _ = utl.compute_intrinsic_reward(rew_raw=rew_raw,
+                                                                             rew_normalised=rew_normalised,
+                                                                             latent=latent,
+                                                                             prev_state=prev_state,
+                                                                             next_state=state,
+                                                                             action=action.float(),
+                                                                             state_decoder=state_decoder,
+                                                                             action_decoder=action_decoder,
+                                                                             decode_action=args.decode_action,
+                                                                             state_prediction_running_normalizer=state_prediction_running_normalizer,
+                                                                             action_prediction_running_normalizer=action_prediction_running_normalizer,
+                                                                             state_prediction_intrinsic_reward_coef=args.state_prediction_intrinsic_reward_coef,
+                                                                             action_prediction_intrinsic_reward_coef=args.action_prediction_intrinsic_reward_coef,
+                                                                             extrinsic_reward_intrinsic_reward_coef=args.extrinsic_reward_intrinsic_reward_coef)
 
             done_mdp = [info['done_mdp'] for info in infos]
 
