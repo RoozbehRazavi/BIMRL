@@ -397,7 +397,7 @@ class BRIMCore(nn.Module):
                                                                                                activated_branch='exploration')
 
         return brim_output1, brim_output3, brim_output5, brim_hidden_states, \
-               latent_mean, latent_logvar, task_inference_hidden_states
+               latent_sample, latent_mean, latent_logvar, task_inference_hidden_states
 
     def forward_exploitation_branch(self,
                                     actions,

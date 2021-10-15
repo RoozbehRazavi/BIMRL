@@ -1034,7 +1034,7 @@ class Base2Final:
         if activated_branch == 'exploration':
             if not self.exploration_rollout_storage.ready_for_update():
                 return 0
-            vae_prev_obs, vae_next_obs, vae_actions, vae_rewards, vae_tasks, \
+            vae_prev_obs, vae_next_obs, vae_actions, vae_rewards, vae_tasks, masks, bad_masks,\
             trajectory_lens = self.exploration_rollout_storage.get_batch(batchsize=self.args.vae_batch_num_trajs, value_prediction=True)
 
             brim_output_level1, brim_output_level2, brim_output_level3, _, \

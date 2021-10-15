@@ -101,13 +101,15 @@ def update_encoding(brim_core, next_obs, action, reward, done, task_inference_hi
     with torch.no_grad():
         if activated_branch == 'exploration':
             brim_output1, brim_output3, brim_output5, brim_hidden_state,\
-            latent_sample, latent_mean, latent_logvar, task_inference_hidden_state = brim_core.forward_exploration_branch(actions=action.float(),
-                                                                                                           states=next_obs,
-                                                                                                           rewards=reward,
-                                                                                                           task_inference_hidden_state=task_inference_hidden_state,
-                                                                                                           brim_hidden_state=brim_hidden_state,
-                                                                                                           sample=True,
-                                                                                                           return_prior=False)
+            latent_sample, latent_mean, latent_logvar, task_inference_hidden_state = brim_core.forward_exploration_branch(
+                actions=action.float(),
+                states=next_obs,
+                rewards=reward,
+                task_inference_hidden_state=task_inference_hidden_state,
+                brim_hidden_state=brim_hidden_state,
+                sample=True,
+                return_prior=False,
+                detach_every=None)
             return brim_output1, brim_output3, brim_output5, brim_hidden_state, latent_sample, latent_mean, latent_logvar, task_inference_hidden_state
         if activated_branch == 'exploitation':
             brim_output2, brim_output4, brim_output5, brim_hidden_state, \
@@ -139,12 +141,12 @@ def compute_intrinsic_reward(rew_raw,
                              extrinsic_reward_intrinsic_reward_coef):
     if decode_action:
         action_pred = action_decoder(latent_state=latent, state=prev_state, next_state=next_state, n_step_next_state=None, n_step_action_prediction=False)[0].detach()
-        action_error = F.nll_loss(action_pred, action).mean()
+        action_error = F.nll_loss(action_pred, action.squeeze(-1).long(), reduction='none').unsqueeze(-1)
     else:
         action_error = 0.0
     state_pred = state_decoder(latent_state=latent, state=prev_state, action=action, n_step_action=None,
                                n_step_state_prediction=False)[0].detach()
-    state_error = (state_pred - next_state).pow(2).mean()
+    state_error = (state_pred - next_state).pow(2).mean(dim=-1).unsqueeze(-1)
 
     norm_state_error = (state_error - state_prediction_running_normalizer.mean) / torch.sqrt(state_prediction_running_normalizer.var + 1e-8)
     norm_action_error = (action_error - action_prediction_running_normalizer.mean) / torch.sqrt(action_prediction_running_normalizer.var + 1e-8)
@@ -156,7 +158,7 @@ def compute_intrinsic_reward(rew_raw,
         action_error * action_prediction_intrinsic_reward_coef +\
         rew_raw
 
-    return intrinsic_rew_raw, intrinsic_rew_normalised, state_error, action_error
+    return intrinsic_rew_raw.detach(), intrinsic_rew_normalised.detach(), state_error.detach(), action_error.detach()
 
 
 def seed(seed, deterministic_execution=False):

@@ -73,6 +73,8 @@ class Blocks(nn.Module):
         self.action_encoder = utl.FeatureExtractor(action_dim, action_embed_dim, F.relu)
         self.reward_encoder = utl.FeatureExtractor(reward_dim, reward_embed_size, F.relu)
         brim_input_dim = action_embed_dim + state_embed_dim + reward_embed_size
+        self.use_fix_dim_level1 = False
+        self.use_fix_dim_level2 = False
 
         if use_rim_level1:
             if len(brim_layers_before_rim_level1) > 0:
@@ -92,7 +94,11 @@ class Blocks(nn.Module):
                     brim_layers_before_rim_level1.append(rim_level2_hidden_size - (rim_level1_input_dim - tmp))
                     rim_level1_input_dim = rim_level2_hidden_size
                 else:
-                    raise NotImplementedError
+                    # TODO unfortunately should add Linear Layer
+                    self.use_fix_dim_level1 = True
+                    self.rim1_input_fix_dim = nn.ModuleList([])
+                    self.rim1_input_fix_dim.append(nn.Linear(rim_level2_hidden_size, rim_level1_input_dim))
+                    self.rim1_input_fix_dim.append(nn.Linear(rim_level2_hidden_size, rim_level1_input_dim))
 
         else:
             rim_level1_input_dim = 0
@@ -112,7 +118,10 @@ class Blocks(nn.Module):
                     brim_layers_before_rim_level2.append(rim_level3_hidden_size - (rim_level2_input_dim - tmp))
                     rim_level2_input_dim = rim_level3_hidden_size
                 else:
-                    raise NotImplementedError
+                    self.use_fix_dim_level2 = True
+                    self.rim2_input_fix_dim = nn.ModuleList([])
+                    self.rim2_input_fix_dim.append(nn.Linear(rim_level3_hidden_size, rim_level2_input_dim))
+                    self.rim2_input_fix_dim.append(nn.Linear(rim_level3_hidden_size, rim_level2_input_dim))
         else:
             rim_level2_input_dim = 0
 
@@ -535,13 +544,17 @@ class Blocks(nn.Module):
                 level1_input = self.input_embedding_layer_level1[0](brim_input)
                 if self.rim_level1_condition_on_task_inference_latent:
                     level1_input = torch.cat((level1_input, brim_level1_task_inference_latent), dim=-1)
+                if self.use_fix_dim_level1:
+                    brim_hidden_state3_ = self.rim1_input_fix_dim[0](brim_hidden_state3.detach())
+                else:
+                    brim_hidden_state3_ = brim_hidden_state3.detach()
                 if self.rim_top_down_level2_level1:
-                    brim_hidden_state1 = [brim_hidden_state1, brim_hidden_state3.detach()]
+                    brim_hidden_state1 = [brim_hidden_state1, brim_hidden_state3_]
                 else:
                     brim_hidden_state1 = [brim_hidden_state1]
                 if self.use_gru_or_rim == 'RIM':
                     if self.new_impl:
-                        brim_hidden_state1, _ = self.bc_list[0][0](level1_input, brim_hidden_state3.detach(), brim_hidden_state1[0])
+                        brim_hidden_state1, _ = self.bc_list[0][0](level1_input, brim_hidden_state3_, brim_hidden_state1[0])
                     else:
                         brim_hidden_state1, _ = self.bc_list[0][0](level1_input, brim_hidden_state1, brim_hidden_state1, idx_layer=0)
                 else:
@@ -554,13 +567,18 @@ class Blocks(nn.Module):
                 level2_input = self.input_embedding_layer_level2[0](brim_input)
                 if self.rim_level2_condition_on_task_inference_latent:
                     level2_input = torch.cat((level2_input, brim_level2_task_inference_latent), dim=-1)
+                if self.use_fix_dim_level2:
+                    brim_hidden_state5_ = self.rim2_input_fix_dim[0](brim_hidden_state5.detach())
+                else:
+                    brim_hidden_state5_ = brim_hidden_state5.detach()
+
                 if self.rim_top_down_level3_level2:
-                    brim_hidden_state3 = [brim_hidden_state3, brim_hidden_state5.detach()]
+                    brim_hidden_state3 = [brim_hidden_state3, brim_hidden_state5_]
                 else:
                     brim_hidden_state3 = [brim_hidden_state3]
                 if self.use_gru_or_rim == 'RIM':
                     if self.new_impl:
-                        brim_hidden_state3, _ = self.bc_list[1][0](level2_input, brim_hidden_state5.detach(), brim_hidden_state3[0])
+                        brim_hidden_state3, _ = self.bc_list[1][0](level2_input, brim_hidden_state5_, brim_hidden_state3[0])
                     else:
                         brim_hidden_state3, _ = self.bc_list[1][0](level2_input, brim_hidden_state3, brim_hidden_state3, idx_layer=0)
                 else:
@@ -595,13 +613,17 @@ class Blocks(nn.Module):
                 level1_input = self.input_embedding_layer_level1[1](brim_input)
                 if self.rim_level1_condition_on_task_inference_latent:
                     level1_input = torch.cat((level1_input, brim_level1_task_inference_latent), dim=-1)
+                if self.use_fix_dim_level1:
+                    brim_hidden_state4_ = self.rim1_input_fix_dim[1](brim_hidden_state4.detach())
+                else:
+                    brim_hidden_state4_ = brim_hidden_state4.detach()
                 if self.rim_top_down_level2_level1:
-                    brim_hidden_state2 = [brim_hidden_state2, brim_hidden_state4.detach()]
+                    brim_hidden_state2 = [brim_hidden_state2, brim_hidden_state4_]
                 else:
                     brim_hidden_state2 = [brim_hidden_state2]
                 if self.use_gru_or_rim == 'RIM':
                     if self.new_impl:
-                        brim_hidden_state2, _ = self.bc_list[0][1](level1_input, brim_hidden_state4.detach(), brim_hidden_state2[0])
+                        brim_hidden_state2, _ = self.bc_list[0][1](level1_input, brim_hidden_state4_, brim_hidden_state2[0])
                     else:
                         brim_hidden_state2, _ = self.bc_list[0][1](level1_input, brim_hidden_state2, brim_hidden_state2, idx_layer=0)
                 else:
@@ -614,13 +636,17 @@ class Blocks(nn.Module):
                 level2_input = self.input_embedding_layer_level2[1](brim_input)
                 if self.rim_level2_condition_on_task_inference_latent:
                     level2_input = torch.cat((level2_input, brim_level2_task_inference_latent), dim=-1)
+                if self.use_fix_dim_level2:
+                    brim_hidden_state5_ = self.rim2_input_fix_dim[1](brim_hidden_state5.detach())
+                else:
+                    brim_hidden_state5_ = brim_hidden_state5.detach()
                 if self.rim_top_down_level3_level2:
-                    brim_hidden_state4 = [brim_hidden_state4, brim_hidden_state5.detach()]
+                    brim_hidden_state4 = [brim_hidden_state4, brim_hidden_state5_]
                 else:
                     brim_hidden_state4 = [brim_hidden_state4]
                 if self.use_gru_or_rim == 'RIM':
                     if self.new_impl:
-                        brim_hidden_state4, _ = self.bc_list[1][1](level2_input, brim_hidden_state5.detach(), brim_hidden_state4[0])
+                        brim_hidden_state4, _ = self.bc_list[1][1](level2_input, brim_hidden_state5_, brim_hidden_state4[0])
                     else:
                         brim_hidden_state4, _ = self.bc_list[1][1](level2_input, brim_hidden_state4, brim_hidden_state4, idx_layer=0)
                 else:

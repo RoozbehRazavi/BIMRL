@@ -172,7 +172,7 @@ def get_args(rest_args):
     parser.add_argument('--vae_fill_with_exploration_experience', type=boolean_argument, default=False,
                         help='vae buffer fill just with exploration trajectory of with both exploration and exploitation')
 
-    parser.add_argument('--exploration_processes_portion', type=float, default=0.0,
+    parser.add_argument('--exploration_processes_portion', type=float, default=1.0,
                         help='what portion of process generate trajectory with exploration policy')
 
     # Disable Loss of Base2Final
@@ -303,11 +303,11 @@ def get_args(rest_args):
 
     parser.add_argument('--policy_rim_level1_output_embedding_dim', type=int, default=None)
 
-    parser.add_argument('--rim_level1_condition_on_task_inference_latent', type=boolean_argument, default=False,
+    parser.add_argument('--rim_level1_condition_on_task_inference_latent', type=boolean_argument, default=True,
                         help='rim level 1 get information from task inference output')
     parser.add_argument('--rim_level2_condition_on_task_inference_latent', type=boolean_argument, default=True,
                         help='rim level 2 get information from task inference output')
-    parser.add_argument('--rim_top_down_level3_level2', type=boolean_argument, default=False,
+    parser.add_argument('--rim_top_down_level3_level2', type=boolean_argument, default=True,
                         help='rim level 2 get information from level 3')
     parser.add_argument('--rim_top_down_level2_level1', type=boolean_argument, default=True,
                         help='rim level 1 get information from level 2')

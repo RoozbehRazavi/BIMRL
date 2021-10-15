@@ -13,6 +13,7 @@ from utils import evaluation as utl_eval
 from utils import helpers as utl
 from utils.tb_logger import TBLogger
 from base2final import Base2Final
+from utils.visualize import visualize_policy
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -367,14 +368,26 @@ class MetaLearner:
                     (exploration_rew_raw, exploration_rew_normalised), \
                     exploration_done, exploration_infos = utl.env_step(self.exploration_envs, exploration_action, self.args)
 
+                    latent = utl.get_latent_for_policy(sample_embeddings=True,
+                                                       add_nonlinearity_to_latent=self.args.add_nonlinearity_to_latent,
+                                                       latent_sample=exploration_latent_sample,
+                                                       latent_mean=exploration_latent_mean,
+                                                       latent_logvar=exploration_latent_logvar)
+                    if self.args.use_rim_level3:
+                        if self.args.residual_task_inference_latent:
+                            latent = torch.cat((exploration_brim_output5.squeeze(0), latent), dim=-1)
+                        else:
+                            latent = exploration_brim_output5
+
                     exploration_intrinsic_rew_raw, \
                     exploration_intrinsic_rew_normalised, state_error, action_error = utl.compute_intrinsic_reward(
                         exploration_rew_raw,
                         exploration_rew_normalised,
-                        latent=exploration_brim_output5 if not self.args.use_rim_level3 else exploration_latent_sample,
+                        latent=latent,
                         prev_state=exploration_prev_state,
                         next_state=exploration_next_state,
-                        action=exploration_action,
+                        action=exploration_action.float(),
+                        decode_action=self.args.decode_action,
                         state_decoder=self.base2final.state_decoder,
                         action_decoder=self.base2final.action_decoder,
                         state_prediction_running_normalizer=self.state_prediction_running_normalizer,
@@ -600,6 +613,13 @@ class MetaLearner:
                                      envs=self.exploitation_envs,
                                      policy_type='exploitation'
                                      )
+                        if train_exploration and train_exploitation:
+                            self.evaluate_meta_policy(
+                                                      self.base2final,
+                                                      self.exploration_policy,
+                                                      self.exploitation_policy,
+                                                      self.exploration_envs,
+                                                      self.args.max_exploration_episdoe)
 
             # clean up after update
             if train_exploration:
@@ -711,6 +731,11 @@ class MetaLearner:
         return policy_train_stats
 
     def log(self, run_stats, train_stats, start_time, policy, policy_storage, envs, policy_type):
+
+        # --- visualize policy ----
+        if self.iter_idx % self.args.vis_interval == 0 and not policy_type == 'meta_policy':
+            ret_rms = envs.venv.ret_rms if self.args.norm_rew_for_policy else None
+            visualize_policy(policy, self.base2final, envs[0], policy_type)
 
         # --- evaluate policy ----
 
@@ -864,3 +889,14 @@ class MetaLearner:
                                 pass
                         param_grad_mean = np.mean(param_grad_mean)
                         self.logger.add('gradients/{}'.format(name), param_grad_mean, self.iter_idx)
+
+    def evaluate_meta_policy(self,
+                             base2final,
+                             exploration_policy,
+                             exploitation_policy,
+                             exploration_envs,
+                             max_exploration_episode):
+        for i in range(max_exploration_episode):
+            pass
+            # TODO add counter and ...
+
