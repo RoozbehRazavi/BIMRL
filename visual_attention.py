@@ -252,10 +252,10 @@ class VisionCore(nn.Module):
         self.answer_processor = nn.Sequential(
             # 1026 x 512
             nn.Linear(
-                (c_v + c_s) * num_queries + (c_k + c_s) * num_queries, 512
+                (c_v + c_s) * num_queries , 64
             ),
             nn.ReLU(),
-            nn.Linear(512, state_embedding_size-1),
+            nn.Linear(64, state_embedding_size-1),
         )
 
     def reset(self, done):
@@ -299,9 +299,7 @@ class VisionCore(nn.Module):
 
         # (n, (c_v + c_s) * num_queries + (c_k + c_s) * num_queries + 1 + 1)
         a = torch.chunk(a, self.num_queries, dim=1)
-        b = torch.chunk(Q, self.num_queries, dim=1)
-        c = a + b
-        answer = torch.cat(c, dim=2).squeeze(1)
+        answer = torch.cat(a, dim=2).squeeze(1)
         # (n, hidden_size)
         answer = self.answer_processor(answer)
 

@@ -1,6 +1,5 @@
 from memory.episodic import DND
 from memory.hebbian import Hebbian
-from memory.generative import Generative
 import torch.nn as nn
 import torch
 from memory.helpers import compute_weight, apply_alpha
@@ -12,46 +11,81 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # TODO is good have multi head attention on memory_controller ? (test on run)
 # TODO remove RIM structure for memory controller
 class Hippocampus(nn.Module):
-    def __init__(self, args):
+    def __init__(self,
+                 use_hebb=False,
+                 use_gen=False,
+                 read_num_head=4,
+                 combination_num_head=4,
+                 key_size=16,
+                 value_size=16,
+                 value_decoder_layers=[32],
+                 policy_rim_hidden_state_to_query_layers=[],
+                 policy_num_steps=None,
+                 max_rollouts_per_task=None,
+                 w_max=0.5,
+                 memory_state_embedding=0,
+                 general_key_encoder_layer=None,
+                 general_value_encoder_layer=None,
+                 general_query_encoder_layer=None,
+                 episodic_key_encoder_layer=None,
+                 episodic_value_encoder_layer=None,
+                 hebbian_key_encoder_layer=None,
+                 hebbian_value_encoder_layer=None,
+                 state_dim=None
+                 ):
         super(Hippocampus, self).__init__()
-        self.args = args
-        self.num_head = 4
-        self.controller_num_head = 4
-        self.controller_input_size = 128
-        self.fc_layer = [self.controller_input_size]
-        self.num_process = self.args.num_processes
-        self.memory_controller_hidden_size = self.args.base_memory_controller_hidden_size + \
-                                             (
-                                              self.args.base_memory_controller_hidden_size if self.args.use_hebb else 0) + \
-                                             (self.args.base_memory_controller_hidden_size if self.args.use_gen else 0)
-
+        assert policy_num_steps is not None and max_rollouts_per_task is not None
+        self.use_hebb = use_hebb
+        self.use_gen = use_gen
+        self.read_num_head = read_num_head
+        self.combination_num_head = combination_num_head
         self.num_memory_level = 1 + (1 if self.args.use_hebb else 0) + (1 if self.args.use_gen else 0)
-        self.episodic = DND(args=args, num_head=self.num_head).to(device)
-        self.hebbian = Hebbian(args=args, num_head=self.num_head).to(device) if self.args.use_hebb else None
-        self.generative = Generative(args=args, num_head=self.num_head) if self.args.use_gen else None
-        self.key_encoder = nn.Linear(self.args.state_dim+2*self.args.latent_dim, self.args.state_embedding_size)
-        self.value_encoder = nn.Linear(self.args.brim_hidden_size[0], self.args.brim_hidden_size[0])
-        self.query_encoder = nn.Linear(self.args.state_dim+self.args.latent_dim*2+self.args.brim_hidden_size[0]*2, self.num_head*self.args.state_embedding_size)
-        self.rim_hidden_state_to_key = nn.Linear(self.memory_controller_hidden_size,
-                                                 self.args.brim_hidden_size[0]*self.num_memory_level)
-        self.brim_hidden_state_to_query = nn.Linear(self.args.brim_hidden_size[0], self.controller_num_head*self.args.brim_hidden_size[0])
-        self.value_decoder = nn.Linear(self.args.brim_hidden_size[0], self.args.brim_hidden_size[0])
-        self.fc_before_controller = nn.ModuleList([])
-        current_input_dim = self.args.state_embedding_size*self.num_head + self.args.state_embedding_size + 2 * \
-                            self.args.brim_hidden_size[0] + 2 * self.args.brim_hidden_size[0]
+        self.state_encoder = nn.Linear(state_dim, memory_state_embedding)
+        self.mha = nn.MultiheadAttention(embed_dim, num_heads)
+        self.episodic = DND(key_size,
+                            value_size,
+                            episodic_key_encoder_layer,
+                            episodic_value_encoder_layer,
+                            episodic_query_encoder_layer,
+                            policy_num_steps,
+                            max_rollouts_per_task).to(device)
 
-        for i in range(len(self.fc_layer)):
-            self.fc_before_controller.append(nn.Linear(current_input_dim, self.fc_layer[i]))
-            self.fc_before_controller.append(nn.ReLU())
-            current_input_dim = self.fc_layer[i]
+        if use_hebb:
+            self.hebbian = Hebbian(w_max,
+                                   key_size,
+                                   value_size,
+                                   hebbian_key_encoder_layer,
+                                   hebbian_value_encoder_layer,
+                                   hebbian_query_encoder_layer)
+        else:
+            self.hebbian = None
 
-        self.controller = nn.GRUCell(self.controller_input_size, self.memory_controller_hidden_size)
-        self.linear_output = nn.Linear(self.controller_num_head*self.args.brim_hidden_size[0], self.args.brim_hidden_size[0])
-        self.generative_linear_output = torch.nn.Linear(self.num_head * 2 * self.args.brim_hidden_size[0],
-                                             2 * self.args.brim_hidden_size[0])
-        self.controller_brim_hidden = None
-        self.last_task_inf_latent = None
-        self.batch_size = None
+        self.key_encoder = nn.ModuleList([])
+
+        curr_dim = key_size
+        for i in range(general_key_encoder_layer):
+            self.key_encoder.append(nn.Linear(curr_dim, general_key_encoder_layer[i]))
+            self.key_encoder.append(nn.ReLU())
+        self.key_encoder.append(nn.Linear(curr_dim, key_size))
+        self.key_encoder = nn.Sequential(*self.key_encoder)
+
+        self.value_encoder = nn.ModuleList([])
+        curr_dim = value_size
+        for i in range(general_value_encoder_layer):
+            self.value_encoder.append(nn.Linear(curr_dim, general_value_encoder_layer[i]))
+            self.value_encoder.append(nn.ReLU())
+        self.value_encoder.append(nn.Linear(curr_dim, value_size))
+        self.value_encoder = nn.Sequential(*self.value_encoder)
+
+        self.query_encoder = nn.ModuleList([])
+        curr_dim = key_size
+        for i in range(general_query_encoder_layer):
+            self.query_encoder.append(nn.Linear(curr_dim, general_query_encoder_layer[i]))
+            self.query_encoder.append(nn.ReLU())
+        self.query_encoder.append(nn.Linear(curr_dim, key_size))
+        self.query_encoder = nn.Sequential(*self.query_encoder)
+
+        self.last_task_inf_latent = self.batch_size = None
 
     def prior(self, batch_size):
         self.episodic.prior(batch_size)
@@ -59,102 +93,30 @@ class Hippocampus(nn.Module):
         if self.args.use_hebb:
             self.hebbian.prior(batch_size)
 
-        self.controller_brim_hidden = torch.zeros(size=(batch_size, self.memory_controller_hidden_size),
-                                                  requires_grad=True, device=device)
         self.last_task_inf_latent = None
         self.batch_size = batch_size
 
     def reset(self, done_task, done_episode):
-        if not torch.is_tensor(done_task):
-            done_task = done_task.copy()
-            done_task = torch.tensor(done_task).int().view(len(done_task), 1).double()
-        else:
-            done_task = done_task.detach().clone()
-            done_task = done_task.int().view(len(done_task), 1).double()
+        self.memory_consolidation(done_episode=done_episode)
 
-        self.memory_consolidation(done_episode=done_episode,
-                                  done_task=done_task,
-                                  task_inf_latent=self.last_task_inf_latent)
-
-        if self.controller_brim_hidden[0].dim() != done_task.dim():
-            if done_task.dim() == 1:
-                done_task = done_task.unsqueeze(0)
-
-        self.controller_brim_hidden = (self.controller_brim_hidden * (1 - done_task)).float()
-
-    def update_brim_controller_hidden_state(self, memory_query, saved_key, saved_value, retrieved_brim_hidden1, retrieved_brim_hidden2):
-        result = torch.cat(
-            (memory_query.reshape(shape=(memory_query.shape[0], self.num_head*self.args.state_embedding_size)), saved_key, saved_value, retrieved_brim_hidden1, retrieved_brim_hidden2), dim=-1)
-
-        for i in range(len(self.fc_layer)):
-            result = self.fc_before_controller[i](result)
-
-        _, self.controller_brim_hidden = self.controller(result.unsqueeze(0).detach(), self.controller_brim_hidden)
-        self.controller_brim_hidden = self.controller_brim_hidden[0][0]
-
-    def detach_hidden_state(self):
-        self.controller_brim_hidden = self.controller_brim_hidden.detach()
-
-    def read(self, query):
-        state, task_inf_latent, brim_hidden = query
-
-        if brim_hidden[0].dim() == 3:
-            brim_hidden1 = brim_hidden[0].detach().clone().squeeze(0).to(device)
-            brim_hidden2 = brim_hidden[1].detach().clone().squeeze(0).to(device)
-        else:
-            brim_hidden1 = brim_hidden[0].detach().clone().to(device)
-            brim_hidden2 = brim_hidden[1].detach().clone().to(device)
-
-        task_inf_latent = task_inf_latent.detach()
-        memory_query = self.query_encoder(torch.cat((state, task_inf_latent, brim_hidden1, brim_hidden2), dim=-1))
-        memory_query = memory_query.reshape(shape=(state.shape[0], self.num_head, self.args.state_embedding_size))
-        epi_result = self.episodic.read(memory_query).split(split_size=self.args.brim_hidden_size[0], dim=-1)
+    def read(self, state, task_inference_latent, rim_hidden_state):
+        state = self.state_encoder(state)
+        task_inference_latent = task_inference_latent.detach()
+        memory_query = self.query_encoder(torch.cat((state, task_inference_latent), dim=-1))
+        epi_result = self.episodic.read(memory_query)
 
         if self.args.use_hebb:
-            hebb_result = self.hebbian.read(memory_query).split(split_size=self.args.brim_hidden_size[0], dim=-1)
+            hebb_result = self.hebbian.read(memory_query)
 
-        if self.args.use_gen:
-            gen_result = self.generative.read(obs_embdd=memory_query, task_id=task_inf_latent)
-            gen_result = self.generative_linear_output(gen_result).split(split_size=self.args.brim_hidden_size[0], dim=-1)
+        ans = torch.stack((epi_result, hebb_result), dim=1)
 
-        controller = torch.split(F.relu(self.rim_hidden_state_to_key(self.controller_brim_hidden)), self.args.brim_hidden_size[0], dim=-1)
-        epi_controller = controller[0]
-        hebb_controller = None
-        gen_controller = None
+        q = self.final_att_layer_query(rim_hidden_state)
+        k = self.final_att_layer_key(ans)
+        v = self.final_att_layer_value(ans)
+        ans = self.mha(q, k, v)
+        return ans
 
-        if self.args.use_hebb:
-            hebb_controller = controller[1]
-
-        if self.args.use_gen:
-            gen_controller = controller[2]
-
-        brim_hidden1 = self.brim_hidden_state_to_query(brim_hidden1).reshape(self.batch_size, self.controller_num_head, self.args.brim_hidden_size[0])
-        brim_hidden2 = self.brim_hidden_state_to_query(brim_hidden2).reshape(self.batch_size, self.controller_num_head, self.args.brim_hidden_size[0])
-        brim1_weight = compute_weight(epi_controller, hebb_controller, gen_controller, F.relu(brim_hidden1))
-        brim2_weight = compute_weight(epi_controller, hebb_controller, gen_controller, F.relu(brim_hidden2))
-        value_brim1 = list()
-        value_brim2 = list()
-        value_brim1.append(epi_result[0].unsqueeze(0))
-        value_brim2.append(epi_result[1].unsqueeze(0))
-
-        if self.args.use_hebb:
-            value_brim1.append(hebb_result[0].unsqueeze(0))
-            value_brim2.append(hebb_result[1].unsqueeze(0))
-
-        if self.args.use_gen:
-            value_brim1.append(gen_result[0].unsqueeze(0))
-            value_brim2.append(gen_result[1].unsqueeze(0))
-
-        value_brim1 = torch.cat(value_brim1, dim=0)
-        value_brim2 = torch.cat(value_brim2, dim=0)
-        retrieved_brim_hidden1 = apply_alpha(brim1_weight, value_brim1).reshape(shape=(self.batch_size, self.controller_num_head*self.args.brim_hidden_size[0]))
-        retrieved_brim_hidden2 = apply_alpha(brim2_weight, value_brim2).reshape(shape=(self.batch_size, self.controller_num_head*self.args.brim_hidden_size[0]))
-        retrieved_brim_hidden1 = F.relu(self.linear_output(retrieved_brim_hidden1))
-        retrieved_brim_hidden2 = F.relu(self.linear_output(retrieved_brim_hidden2))
-
-        return memory_query, (retrieved_brim_hidden1, retrieved_brim_hidden2)
-
-    def write(self, key, value, RPE):
+    def write(self, key, value, rpe):
         state, task_inf_latent = key
         key_memory = self.key_encoder(torch.cat((state, task_inf_latent), dim=-1))
         value1_memory = value[0].detach().clone()
@@ -164,20 +126,12 @@ class Hippocampus(nn.Module):
         value1_memory = self.value_encoder(value1_memory).squeeze(0)
         value2_memory = self.value_encoder(value2_memory).squeeze(0)
         value_memory = torch.cat((value1_memory, value2_memory), dim=-1)
-        self.episodic.write(memory_key=key_memory, memory_val=value_memory, RPE=RPE)
+        self.episodic.write(memory_key=key_memory, memory_val=value_memory, rpe=rpe)
         self.last_task_inf_latent = task_inf_latent
 
-        return key_memory, value_memory
-
-    def memory_consolidation(self, done_episode, done_task, task_inf_latent):
+    def memory_consolidation(self, done_task):
         if torch.sum(done_episode) > 0 and self.args.use_hebb:
             done_process_info = self.episodic.get_done_process(done_episode.clone())
             self.hebbian.write(done_process_info[1], done_process_info[0], done_process_info[2], done_episode)
             self.episodic.reset(done_process_mdp=done_episode)
-
-        if torch.sum(done_task) > 0 and self.training and self.args.use_gen:
-            done_process_info = self.hebbian.get_done_process(done_task.int().clone())
-            self.generative.write(train_data=done_process_info, task_inference_id=task_inf_latent[done_task.nonzero(as_tuple=True)[0]])
-            self.hebbian.reset(done_task=done_task)
-
         return True

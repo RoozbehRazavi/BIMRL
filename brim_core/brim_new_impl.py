@@ -130,6 +130,7 @@ class BRIMCell(nn.Module):
         self.rnn_cell = rnn_cell
         self.key_size = input_key_size
         self.use_higher = use_higher
+        self.num_input_blocks = 2 + (1 if use_higher else 0)
         self.k = k
         self.num_input_heads = num_input_heads
         self.num_comm_heads = num_comm_heads
@@ -141,8 +142,9 @@ class BRIMCell(nn.Module):
         self.comm_query_size = comm_query_size
         self.comm_value_size = comm_value_size
 
-        self.key = nn.Linear(input_size, num_input_heads * input_query_size).to(self.device)
-        self.value = nn.Linear(input_size, num_input_heads * input_value_size).to(self.device)
+        # TODO check this change from Linear to GroupLinear by run
+        self.key = GroupLinearLayer(input_size, num_input_heads * input_query_size, self.num_input_blocks).to(self.device)
+        self.value = GroupLinearLayer(input_size, num_input_heads * input_value_size, self.num_input_blocks).to(self.device)
 
         if self.rnn_cell == 'GRU':
             self.rnn = GroupGRUCell(input_value_size, hidden_size, num_units)
@@ -182,7 +184,6 @@ class BRIMCell(nn.Module):
         attention_scores = torch.mean(attention_scores, dim=1)
         mask_ = torch.ones(x.size(0), self.num_units).to(self.device)
 
-        # TODO instead of not null score get null score
         null_scores = attention_scores[:, :, -1]
         topk1 = torch.topk(null_scores, self.num_units - self.k, dim=1)
         row_index = np.arange(x.size(0))
