@@ -71,7 +71,7 @@ class PPO:
         # otherwise, we update it after we update the policy
         if rlloss_through_encoder:
             # recompute embeddings (to build computation graph)
-            utl.recompute_embeddings(policy_storage, encoder, sample=False, update_idx=0,
+            utl.recompute_embeddings(self.actor_critic, policy_storage, encoder, sample=False, update_idx=0,
                                      detach_every=self.args.tbptt_stepsize if hasattr(self.args, 'tbptt_stepsize') else None,
                                      activated_branch=activated_branch)
 
@@ -89,7 +89,7 @@ class PPO:
 
                 state_batch, belief_batch, task_batch, \
                 actions_batch, latent_sample_batch, latent_mean_batch, latent_logvar_batch,\
-                brim_output_level1_batch, brim_output_level2_batch, brim_output_level3_batch,\
+                brim_output_level1_batch, brim_output_level2_batch, brim_output_level3_batch, policy_embedded_state_batch,\
                 value_preds_batch, return_batch, old_action_log_probs_batch, adv_targ = sample
 
                 if not rlloss_through_encoder:
@@ -108,7 +108,7 @@ class PPO:
 
                 # Reshape to do in a single forward pass for all steps
                 values, action_log_probs, dist_entropy, action_mean, action_logstd = \
-                    self.actor_critic.evaluate_actions(state=state_batch, latent=latent_batch, brim_output_level1=brim_output_level1_batch,
+                    self.actor_critic.evaluate_actions(embedded_state=policy_embedded_state_batch, latent=latent_batch, brim_output_level1=brim_output_level1_batch,
                                                        belief=belief_batch, task=task_batch,
                                                        action=actions_batch, return_action_mean=True
                                                        )
@@ -168,7 +168,7 @@ class PPO:
 
                 if rlloss_through_encoder:
                     # recompute embeddings (to build computation graph)
-                    utl.recompute_embeddings(policy_storage, encoder, sample=False, update_idx=e + 1,
+                    utl.recompute_embeddings(self.actor_critic, policy_storage, encoder, sample=False, update_idx=e + 1,
                                              detach_every=self.args.tbptt_stepsize if hasattr(self.args, 'tbptt_stepsize') else None,
                                              activated_branch=activated_branch)
 
@@ -190,5 +190,5 @@ class PPO:
 
         return value_loss_epoch, action_loss_epoch, dist_entropy_epoch, loss_epoch
 
-    def act(self, state, latent, brim_output_level1, belief, task, deterministic=False):
-        return self.actor_critic.act(state=state, latent=latent, brim_output_level1=brim_output_level1, belief=belief, task=task, deterministic=deterministic)
+    def act(self, embedded_state, latent, brim_output_level1, belief, task, deterministic=False):
+        return self.actor_critic.act(embedded_state=embedded_state, latent=latent, brim_output_level1=brim_output_level1, belief=belief, task=task, deterministic=deterministic)

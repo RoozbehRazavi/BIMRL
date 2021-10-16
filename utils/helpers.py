@@ -55,14 +55,14 @@ def env_step(env, action, args):
 def select_action(args,
                   policy,
                   deterministic,
-                  state=None,
                   belief=None,
                   task=None,
                   latent_sample=None, latent_mean=None, latent_logvar=None,
-                  brim_output_level1=None):
+                  brim_output_level1=None,
+                  policy_embedded_state=None):
     """ Select action using the policy. """
     latent = get_latent_for_policy(sample_embeddings=args.sample_embeddings, add_nonlinearity_to_latent=args.add_nonlinearity_to_latent, latent_sample=latent_sample, latent_mean=latent_mean, latent_logvar=latent_logvar)
-    action = policy.act(state=state, latent=latent, brim_output_level1=brim_output_level1, belief=belief, task=task, deterministic=deterministic)
+    action = policy.act(embedded_state=policy_embedded_state, latent=latent, brim_output_level1=brim_output_level1, belief=belief, task=task, deterministic=deterministic)
     if isinstance(action, list) or isinstance(action, tuple):
         value, action, action_log_prob = action
     else:
@@ -93,15 +93,15 @@ def get_latent_for_policy(sample_embeddings, add_nonlinearity_to_latent, latent_
     return latent
 
 
-def update_encoding(brim_core, next_obs, action, reward, done, task_inference_hidden_state, brim_hidden_state, activated_branch):
+def update_encoding(brim_core, policy, next_obs, action, reward, done, task_inference_hidden_state, brim_hidden_state, activated_branch):
     # reset hidden state of the recurrent net when we reset the task
     if done is not None:
-        task_inference_hidden_state, brim_hidden_state = brim_core.reset_hidden(task_inference_hidden_state, brim_hidden_state, done_task=done, done_episode=None)
+        task_inference_hidden_state, brim_hidden_state = brim_core.reset_hidden(policy, task_inference_hidden_state, brim_hidden_state, done_task=done, done_episode=None)
 
     with torch.no_grad():
         if activated_branch == 'exploration':
             brim_output1, brim_output3, brim_output5, brim_hidden_state,\
-            latent_sample, latent_mean, latent_logvar, task_inference_hidden_state = brim_core.forward_exploration_branch(
+            latent_sample, latent_mean, latent_logvar, task_inference_hidden_state, exploration_policy_embedded_state = brim_core.forward_exploration_branch(
                 actions=action.float(),
                 states=next_obs,
                 rewards=reward,
@@ -109,11 +109,12 @@ def update_encoding(brim_core, next_obs, action, reward, done, task_inference_hi
                 brim_hidden_state=brim_hidden_state,
                 sample=True,
                 return_prior=False,
-                detach_every=None)
-            return brim_output1, brim_output3, brim_output5, brim_hidden_state, latent_sample, latent_mean, latent_logvar, task_inference_hidden_state
+                detach_every=None,
+                policy=policy)
+            return brim_output1, brim_output3, brim_output5, brim_hidden_state, latent_sample, latent_mean, latent_logvar, task_inference_hidden_state, exploration_policy_embedded_state
         if activated_branch == 'exploitation':
             brim_output2, brim_output4, brim_output5, brim_hidden_state, \
-            latent_sample, latent_mean, latent_logvar, task_inference_hidden_state = brim_core.forward_exploitation_branch(
+            latent_sample, latent_mean, latent_logvar, task_inference_hidden_state, exploitation_policy_embedded_state = brim_core.forward_exploitation_branch(
                 actions=action.float(),
                 states=next_obs,
                 rewards=reward,
@@ -121,8 +122,9 @@ def update_encoding(brim_core, next_obs, action, reward, done, task_inference_hi
                 brim_hidden_state=brim_hidden_state,
                 sample=True,
                 return_prior=False,
-                detach_every=None)
-            return brim_output2, brim_output4, brim_output5, brim_hidden_state, latent_sample, latent_mean, latent_logvar, task_inference_hidden_state
+                detach_every=None,
+                policy=policy)
+            return brim_output2, brim_output4, brim_output5, brim_hidden_state, latent_sample, latent_mean, latent_logvar, task_inference_hidden_state, exploitation_policy_embedded_state
 
 
 def compute_intrinsic_reward(rew_raw,
@@ -185,6 +187,7 @@ def update_linear_schedule(optimizer, epoch, total_num_epochs, initial_lr):
 
 
 def recompute_embeddings(
+        policy,
         policy_storage,
         brim_core,
         sample,
@@ -204,23 +207,26 @@ def recompute_embeddings(
     brim_output_level1 = [policy_storage.brim_output_level1[0].detach().clone()]
     brim_output_level2 = [policy_storage.brim_output_level2[0].detach().clone()]
     brim_output_level3 = [policy_storage.brim_output_level3[0].detach().clone()]
+    policy_embedded_state = [policy_storage.policy_embedded_state[0].detach().clone()]
 
     brim_output_level1[0].requires_grad = True
     brim_output_level2[0].requires_grad = True
     brim_output_level3[0].requires_grad = True
+    policy_embedded_state[0].requires_grad = True
 
 
     # loop through experience and update hidden state
     # (we need to loop because we sometimes need to reset the hidden state)
     task_inference_hidden_state = policy_storage.task_inference_hidden_states[0].detach()
     brim_hidden_state = policy_storage.brim_hidden_states[0].detach()
+    policy.state_encoder.detach_hidden_state()
     for i in range(policy_storage.actions.shape[0]):
         # reset hidden state of the GRU when we reset the task
-        task_inference_hidden_state, brim_hidden_state = brim_core.reset_hidden(task_inference_hidden_state, brim_hidden_state, policy_storage.done[i + 1], None)
+        task_inference_hidden_state, brim_hidden_state = brim_core.reset_hidden(policy, task_inference_hidden_state, brim_hidden_state, policy_storage.done[i + 1], None)
 
         if activated_branch == 'exploration':
             brim_output1, brim_output3, brim_output5, brim_hidden_state, \
-            latent_sample_, latent_mean_, latent_logvar_, task_inference_hidden_state = brim_core.forward_exploration_branch(
+            latent_sample_, latent_mean_, latent_logvar_, task_inference_hidden_state, exploration_policy_embedded_state = brim_core.forward_exploration_branch(
                 actions=policy_storage.actions.float()[i:i + 1],
                 states=policy_storage.next_state[i:i + 1],
                 rewards=policy_storage.rewards_raw[i:i + 1],
@@ -228,7 +234,8 @@ def recompute_embeddings(
                 brim_hidden_state=brim_hidden_state,
                 sample=sample,
                 return_prior=False,
-                detach_every=detach_every)
+                detach_every=detach_every,
+                policy=policy)
             latent_sample.append(latent_sample_)
             latent_mean.append(latent_mean_)
             latent_logvar.append(latent_logvar_)
@@ -236,10 +243,11 @@ def recompute_embeddings(
             brim_output_level1.append(brim_output1)
             brim_output_level2.append(brim_output3)
             brim_output_level3.append(brim_output5)
+            policy_embedded_state.append(exploration_policy_embedded_state)
 
         if activated_branch == 'exploitation':
             brim_output2, brim_output4, brim_output5, brim_hidden_state, \
-            latent_sample_, latent_mean_, latent_logvar_, task_inference_hidden_state = brim_core.forward_exploitation_branch(
+            latent_sample_, latent_mean_, latent_logvar_, task_inference_hidden_state, exploitation_policy_embedded_state = brim_core.forward_exploitation_branch(
                 actions=policy_storage.actions.float()[i:i + 1],
                 states=policy_storage.next_state[i:i + 1],
                 rewards=policy_storage.rewards_raw[i:i + 1],
@@ -247,7 +255,8 @@ def recompute_embeddings(
                 brim_hidden_state=brim_hidden_state,
                 sample=sample,
                 return_prior=False,
-                detach_every=detach_every)
+                detach_every=detach_every,
+                policy=policy)
             latent_sample.append(latent_sample_)
             latent_mean.append(latent_mean_)
             latent_logvar.append(latent_logvar_)
@@ -255,6 +264,7 @@ def recompute_embeddings(
             brim_output_level1.append(brim_output2)
             brim_output_level2.append(brim_output4)
             brim_output_level3.append(brim_output5)
+            policy_embedded_state.append(exploitation_policy_embedded_state)
 
     if update_idx == 0:
         try:
@@ -272,6 +282,7 @@ def recompute_embeddings(
     policy_storage.brim_output_level1 = brim_output_level1
     policy_storage.brim_output_level2 = brim_output_level2
     policy_storage.brim_output_level3 = brim_output_level3
+    policy_storage.policy_embedded_state = policy_embedded_state
 
 
 class FeatureExtractor(nn.Module):
@@ -399,6 +410,9 @@ class SimpleVision(nn.Module):
         self.conv1 = nn.Conv2d(3, 8, 5)
         self.fc1 = nn.Linear(3 * 3 * 8, 64)
         self.fc2 = nn.Linear(64, state_embedding_size-1)
+
+    def detach_hidden_state(self):
+        pass
 
     def forward(self, x):
         x = x.permute(0, 3, 1, 2)

@@ -18,7 +18,7 @@ class BRIM(nn.Module):
                  memory_value_dim,
                  memory_query_dim,
                  # vision core
-                 use_stateless_vision_core,
+                 use_stateful_vision_core,
                  # brim
                  use_rim_level1,
                  use_rim_level2,
@@ -59,7 +59,8 @@ class BRIM(nn.Module):
                  reward_embed_size,
                  new_impl,
                  vae_loss_throughout_vae_encoder_from_rim_level3,
-                 residual_task_inference_latent
+                 residual_task_inference_latent,
+                 rim_output_size_to_vision_core
                  ):
         super(BRIM, self).__init__()
 
@@ -101,7 +102,9 @@ class BRIM(nn.Module):
                                             state_embed_dim=state_embed_dim,
                                             new_impl=new_impl,
                                             vae_loss_throughout_vae_encoder_from_rim_level3=vae_loss_throughout_vae_encoder_from_rim_level3,
-                                            residual_task_inference_latent=residual_task_inference_latent
+                                            residual_task_inference_latent=residual_task_inference_latent,
+                                            use_stateful_vision_core=use_stateful_vision_core,
+                                            rim_output_size_to_vision_core=rim_output_size_to_vision_core,
                                             )
 
         self.vae_encoder = self.initialise_vae_encoder(vae_encoder_layers_before_gru=vae_encoder_layers_before_gru,
@@ -152,7 +155,9 @@ class BRIM(nn.Module):
                           state_embed_dim,
                           new_impl,
                           vae_loss_throughout_vae_encoder_from_rim_level3,
-                          residual_task_inference_latent
+                          residual_task_inference_latent,
+                          use_stateful_vision_core,
+                          rim_output_size_to_vision_core,
                           ):
         blocks = Blocks(use_rim_level1=use_rim_level1,
                         use_rim_level2=use_rim_level2,
@@ -189,7 +194,9 @@ class BRIM(nn.Module):
                         state_embed_dim=state_embed_dim,
                         new_impl=new_impl,
                         vae_loss_throughout_vae_encoder_from_rim_level3=vae_loss_throughout_vae_encoder_from_rim_level3,
-                        residual_task_inference_latent=residual_task_inference_latent
+                        residual_task_inference_latent=residual_task_inference_latent,
+                        use_stateful_vision_core=use_stateful_vision_core,
+                        rim_output_size_to_vision_core=rim_output_size_to_vision_core,
                         ).to(device)
         return blocks
 
@@ -219,12 +226,12 @@ class BRIM(nn.Module):
         ).to(device)
         return vae_encoder
 
-    def prior(self, batch_size, sample):
+    def prior(self, state, state_process, batch_size, sample, embedd_state):
         latent_sample, latent_mean, latent_logvar, task_inference_hidden_state = self.vae_encoder.prior(batch_size, sample)
-        brim_output1, brim_output2, brim_output3, brim_output4, brim_output5, brim_hidden_state = self.model.prior(batch_size)
+        brim_output1, brim_output2, brim_output3, brim_output4, brim_output5, brim_hidden_state, policy_embedded_state = self.model.prior(batch_size, state, state_process, embedd_state)
 
         return (brim_output1, brim_output2, brim_output3, brim_output4, brim_output5, brim_hidden_state),\
-               (latent_sample, latent_mean, latent_logvar, task_inference_hidden_state)
+               (latent_sample, latent_mean, latent_logvar, task_inference_hidden_state), policy_embedded_state
 
     def reset(self, task_inference_hidden_state, brim_hidden_state, done_task, done_episode):
         task_inference_hidden_state = self.vae_encoder.reset_hidden(task_inference_hidden_state, done_task)
@@ -239,7 +246,9 @@ class BRIM(nn.Module):
                 task_inference_hidden_state,
                 activated_branch,
                 sample,
+                state_process
                 ):
+        extras_information = {}
         brim_outputs1 = []
         brim_outputs2 = []
         brim_outputs3 = []
@@ -280,20 +289,30 @@ class BRIM(nn.Module):
                                                                               latent_sample=latent_sample,
                                                                               latent_mean=latent_mean,
                                                                               latent_logvar=latent_logvar).detach().clone()
-            brim_output1, brim_output2, brim_output3, brim_output4, brim_output5, brim_hidden_state = self.model(action=actions[idx_step],
-                                                                                                                 state=states[idx_step],
-                                                                                                                 reward=rewards[idx_step],
-                                                                                                                 brim_hidden_state=brim_hidden_state,
-                                                                                                                 brim_level1_task_inference_latent=brim_level1_task_inference_latent,
-                                                                                                                 brim_level2_task_inference_latent=brim_level2_task_inference_latent,
-                                                                                                                 brim_level3_task_inference_latent=brim_level3_task_inference_latent,
-                                                                                                                 activated_branch=activated_branch)
+            brim_output1, brim_output2, brim_output3, brim_output4, brim_output5, brim_hidden_state, extra_information = self.model(
+                action=actions[idx_step],
+                state=states[idx_step],
+                reward=rewards[idx_step],
+                brim_hidden_state=brim_hidden_state,
+                brim_level1_task_inference_latent=brim_level1_task_inference_latent,
+                brim_level2_task_inference_latent=brim_level2_task_inference_latent,
+                brim_level3_task_inference_latent=brim_level3_task_inference_latent,
+                activated_branch=activated_branch,
+                state_process=state_process)
             brim_outputs1.append(brim_output1)
             brim_outputs2.append(brim_output2)
             brim_outputs3.append(brim_output3)
             brim_outputs4.append(brim_output4)
             brim_outputs5.append(brim_output5)
             brim_hidden_state_output.append(brim_hidden_state)
+            if 'exploration_policy_embedded_state' in extra_information:
+                if 'exploration_policy_embedded_state' not in extras_information:
+                    extras_information['exploration_policy_embedded_state'] = []
+                extras_information['exploration_policy_embedded_state'].append(extra_information['exploration_policy_embedded_state'])
+            if 'exploitation_policy_embedded_state' in extra_information:
+                if 'exploitation_policy_embedded_state' not in extras_information:
+                    extras_information['exploitation_policy_embedded_state'] = []
+                extras_information['exploitation_policy_embedded_state'].append(extra_information['exploitation_policy_embedded_state'])
 
             latent_sample_output.append(latent_sample)
             latent_mean_output.append(latent_mean)
@@ -308,6 +327,10 @@ class BRIM(nn.Module):
         brim_outputs4 = torch.stack(brim_outputs4)
         brim_outputs5 = torch.stack(brim_outputs5)
         brim_hidden_state_output = torch.stack(brim_hidden_state_output)
+        if 'exploration_policy_embedded_state' in extras_information:
+            extras_information['exploration_policy_embedded_state'] = torch.stack(extras_information['exploration_policy_embedded_state'])
+        if 'exploitation_policy_embedded_state' in extras_information:
+            extras_information['exploitation_policy_embedded_state'] = torch.stack(extras_information['exploitation_policy_embedded_state'])
 
         latent_sample_output = torch.stack(latent_sample_output)
         latent_mean_output = torch.stack(latent_mean_output)
@@ -315,6 +338,7 @@ class BRIM(nn.Module):
         task_inference_hidden_state_output = torch.stack(task_inference_hidden_state_output)
 
         return (brim_outputs1, brim_outputs2, brim_outputs3, brim_outputs4, brim_outputs5, brim_hidden_state_output), brim_hidden_state, \
-               (latent_sample_output, latent_mean_output, latent_logvar_output, task_inference_hidden_state_output), task_inference_hidden_state
+               (latent_sample_output, latent_mean_output, latent_logvar_output, task_inference_hidden_state_output), task_inference_hidden_state,\
+               extras_information
 
 

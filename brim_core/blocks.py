@@ -4,6 +4,7 @@ from torch.nn import functional as F
 from brim_core.blocks_core_all import BlocksCore
 from utils import helpers as utl
 from brim_core.brim_new_impl import BRIMCell
+from memory.memory import Hippocampus
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
@@ -44,7 +45,9 @@ class Blocks(nn.Module):
                  state_embed_dim,
                  new_impl,
                  vae_loss_throughout_vae_encoder_from_rim_level3,
-                 residual_task_inference_latent
+                 residual_task_inference_latent,
+                 use_stateful_vision_core,
+                 rim_output_size_to_vision_core,
                  ):
         super(Blocks, self).__init__()
         assert (rim_top_down_level2_level1 and use_rim_level2) or not rim_top_down_level2_level1
@@ -68,6 +71,8 @@ class Blocks(nn.Module):
         self.new_impl = new_impl
         self.vae_loss_throughout_vae_encoder_from_rim_level3 = vae_loss_throughout_vae_encoder_from_rim_level3
         self.residual_task_inference_latent = residual_task_inference_latent
+        self.use_memory = use_memory
+        self.use_stateful_vision_core = use_stateful_vision_core
 
         self.state_encoder = utl.SimpleVision(state_embed_dim)
         self.action_encoder = utl.FeatureExtractor(action_dim, action_embed_dim, F.relu)
@@ -178,6 +183,22 @@ class Blocks(nn.Module):
                                                                  use_rim_level2,
                                                                  use_rim_level3,
                                                                  )
+        self.output_layer_to_vision_core = nn.ModuleList([])
+        if self.use_stateful_vision_core:
+            self.output_layer_to_vision_core.append(nn.Sequential(
+                nn.Linear(self.rim_level1_hidden_size, 2*rim_output_size_to_vision_core),
+                nn.ReLU(),
+                nn.Linear(2 * rim_output_size_to_vision_core, rim_output_size_to_vision_core)
+            ))
+            self.output_layer_to_vision_core.append(nn.Sequential(
+                nn.Linear(self.rim_level1_hidden_size, 2 * rim_output_size_to_vision_core),
+                nn.ReLU(),
+                nn.Linear(2 * rim_output_size_to_vision_core, rim_output_size_to_vision_core)
+            ))
+        self.exploration_memory = None
+        self.exploitation = None
+        if self.use_memory:
+            self.exploration_memory, self.exploitation = self.initialise_memory()
 
     @staticmethod
     def initialise_rims(use_rim_level1,
@@ -462,7 +483,11 @@ class Blocks(nn.Module):
 
         return level1.to(device), level2.to(device), level3.to(device)
 
-    def prior(self, batch_size):
+    @staticmethod
+    def initialise_memory():
+        exploration_memory = Hippocampus()
+
+    def prior(self, batch_size, state, state_process, embedd_state):
         brim_hidden_state = []
         rim_hidden_size = max(self.rim_level1_hidden_size, self.rim_level2_hidden_size, self.rim_level3_hidden_size)
         brim_hidden_state.append(torch.zeros((1, batch_size, 1, rim_hidden_size), requires_grad=True, device=device))
@@ -479,9 +504,21 @@ class Blocks(nn.Module):
         h4 = brim_hidden_state[:, :, 3, :self.rim_level2_hidden_size]
         h5 = brim_hidden_state[:, :, 4, :self.rim_level3_hidden_size]
 
+        extra_information = {}
+
         if self.use_rim_level1:
             brim_output1 = self.output_layer_level1[0](h1)
             brim_output2 = self.output_layer_level1[1](h2)
+            if embedd_state:
+                if self.use_stateful_vision_core:
+                    rim_output1_to_vision_core = self.output_layer_to_vision_core[0](h1)
+                    rim_output2_to_vision_core = self.output_layer_to_vision_core[1](h2)
+                    extra_information['exploration_policy_embedded_state'] = state_process(state, rim_output1_to_vision_core)
+                    extra_information['exploitation_policy_embedded_state'] = state_process(state, rim_output2_to_vision_core)
+                else:
+                    extra_information['exploration_policy_embedded_state'] = state_process(state)
+                    extra_information['exploitation_policy_embedded_state'] = state_process(state)
+
         else:
             brim_output1 = torch.zeros(size=(1, batch_size, self.rim_level1_output_dim), device=device)
             brim_output2 = torch.zeros(size=(1, batch_size, self.rim_level1_output_dim), device=device)
@@ -498,7 +535,7 @@ class Blocks(nn.Module):
         else:
             brim_output5 = torch.zeros(size=(1, batch_size, self.rim_level3_output_dim), device=device)
 
-        return brim_output1, brim_output2, brim_output3, brim_output4, brim_output5, brim_hidden_state
+        return brim_output1, brim_output2, brim_output3, brim_output4, brim_output5, brim_hidden_state, extra_information
 
     @staticmethod
     def reset_hidden(brim_hidden_state, done):
@@ -519,7 +556,11 @@ class Blocks(nn.Module):
                 brim_level1_task_inference_latent,
                 brim_level2_task_inference_latent,
                 brim_level3_task_inference_latent,
-                activated_branch):
+                activated_branch,
+                state_process):
+        extra_information = {}
+
+        policy_state = state.clone()
         action = self.action_encoder(action)
         batch_size = state.shape[0]
         tmp_state = state.clone()
@@ -560,6 +601,11 @@ class Blocks(nn.Module):
                 else:
                     brim_hidden_state1 = self.bc_list[0][0](level1_input, brim_hidden_state1)
                 brim_output1 = self.output_layer_level1[0](brim_hidden_state1)
+                if self.use_stateful_vision_core:
+                    rim_output1_to_vision_core = self.output_layer_to_vision_core[0](brim_hidden_state1)
+                    extra_information['exploration_policy_embedded_state'] = state_process(policy_state, rim_output1_to_vision_core)
+                else:
+                    extra_information['exploration_policy_embedded_state'] = state_process(policy_state)
             else:
                 brim_output1 = torch.zeros(size=(*brim_hidden_state1.shape[:-1], self.rim_level1_output_dim), device=device)
 
@@ -629,6 +675,11 @@ class Blocks(nn.Module):
                 else:
                     brim_hidden_state2 = self.bc_list[0][1](level1_input, brim_hidden_state2)
                 brim_output2 = self.output_layer_level1[1](brim_hidden_state2)
+                if self.use_stateful_vision_core:
+                    rim_output2_to_vision_core = self.output_layer_to_vision_core[1](brim_hidden_state2)
+                    extra_information['exploitation_policy_embedded_state'] = state_process(policy_state, rim_output2_to_vision_core)
+                else:
+                    extra_information['exploitation_policy_embedded_state'] = state_process(policy_state)
             else:
                 brim_output2 = torch.zeros(size=(*brim_hidden_state2.shape[:-1], self.rim_level1_output_dim), device=device)
 
@@ -711,6 +762,6 @@ class Blocks(nn.Module):
         brim_hidden_state5 = torch.cat((brim_hidden_state5, torch.zeros(size=(*brim_hidden_state5.shape[:-1], rim_hidden_size - self.rim_level3_hidden_size), device=device)), dim=-1)
 
         brim_hidden_state = torch.stack((brim_hidden_state1, brim_hidden_state2, brim_hidden_state3, brim_hidden_state4, brim_hidden_state5), dim=1)
-        return brim_output1, brim_output2, brim_output3, brim_output4, brim_output5, brim_hidden_state
+        return brim_output1, brim_output2, brim_output3, brim_output4, brim_output5, brim_hidden_state, extra_information
 
 

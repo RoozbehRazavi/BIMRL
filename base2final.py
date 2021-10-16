@@ -176,7 +176,7 @@ class Base2Final:
             memory_key_dim=self.args.memory_key_dim,
             memory_value_dim=self.args.memory_value_dim,
             memory_query_dim=self.args.memory_query_dim,
-            use_stateless_vision_core=self.args.use_stateless_vision_core,
+            use_stateful_vision_core=self.args.use_stateful_vision_core,
             use_rim_level1=self.args.use_rim_level1,
             use_rim_level2=self.args.use_rim_level2,
             use_rim_level3=self.args.use_rim_level3,
@@ -217,7 +217,8 @@ class Base2Final:
             reward_embed_size=self.args.reward_embedding_size,
             new_impl=self.args.new_impl,
             vae_loss_throughout_vae_encoder_from_rim_level3=self.args.vae_loss_throughout_vae_encoder_from_rim_level3,
-            residual_task_inference_latent=self.args.residual_task_inference_latent
+            residual_task_inference_latent=self.args.residual_task_inference_latent,
+            rim_output_size_to_vision_core=self.args.rim_output_size_to_vision_core
         ).to(device)
         return brim_core
 
@@ -989,7 +990,8 @@ class Base2Final:
                                                                                  task_inference_hidden_state=None,
                                                                                  return_prior=True,
                                                                                  sample=True,
-                                                                                 detach_every=self.args.tbptt_stepsize if hasattr(self.args, 'tbptt_stepsize') else None)
+                                                                                 detach_every=self.args.tbptt_stepsize if hasattr(self.args, 'tbptt_stepsize') else None,
+                                                                                 prev_state=vae_prev_obs[0, :, :])
 
         losses = self.compute_loss(brim_output5, latent_mean, latent_logvar, vae_prev_obs, vae_next_obs, vae_actions,
                                    vae_rewards, vae_tasks, trajectory_lens)
@@ -1038,7 +1040,7 @@ class Base2Final:
             trajectory_lens = self.exploration_rollout_storage.get_batch(batchsize=self.args.vae_batch_num_trajs, value_prediction=True)
 
             brim_output_level1, brim_output_level2, brim_output_level3, _, \
-            latent_sample, latent_mean, latent_logvar, _ = self.brim_core.forward_exploration_branch(
+            latent_sample, latent_mean, latent_logvar, _, policy_embedded_state = self.brim_core.forward_exploration_branch(
                 actions=vae_actions,
                 states=vae_next_obs,
                 rewards=vae_rewards,
@@ -1046,7 +1048,9 @@ class Base2Final:
                 task_inference_hidden_state=None,
                 return_prior=True,
                 sample=True,
-                detach_every=None)
+                detach_every=None,
+                policy=policy,
+                prev_state=vae_prev_obs[0, :, :])
 
         elif activated_branch == 'exploitation':
             if not self.exploitation_rollout_storage.ready_for_update():
@@ -1055,7 +1059,7 @@ class Base2Final:
             trajectory_lens = self.exploitation_rollout_storage.get_batch(batchsize=self.args.vae_batch_num_trajs, value_prediction=True)
 
             brim_output_level1, brim_output_level2, brim_output_level3, _, \
-            latent_sample, latent_mean, latent_logvar, _ = self.brim_core.forward_exploitation_branch(
+            latent_sample, latent_mean, latent_logvar, _, policy_embedded_state = self.brim_core.forward_exploitation_branch(
                 actions=vae_actions,
                 states=vae_next_obs,
                 rewards=vae_rewards,
@@ -1063,7 +1067,9 @@ class Base2Final:
                 task_inference_hidden_state=None,
                 return_prior=True,
                 sample=True,
-                detach_every=None)
+                detach_every=None,
+                policy=policy,
+                prev_state=vae_prev_obs[0, :, :])
         else:
             raise NotImplementedError
 
@@ -1072,8 +1078,8 @@ class Base2Final:
                                                       latent_sample=latent_sample, latent_mean=latent_mean,
                                                       latent_logvar=latent_logvar)
 
-        states = torch.cat((vae_prev_obs[0:1], vae_next_obs))
-        value_states = policy.get_value(states.view(-1, self.args.state_dim),
+        states = policy_embedded_state.detach()#torch.cat((vae_prev_obs[0:1], vae_next_obs))
+        value_states = policy.get_value(states.view(-1, self.args.policy_state_embedding_dim),
                                         task_inference_latent.view(-1, self.args.task_inference_latent_dim*2),
                                         brim_output_level1.view(-1, self.args.rim_level1_output_dim),
                                         None, vae_tasks).detach()
@@ -1106,7 +1112,7 @@ class Base2Final:
                                                         value_next_state,
                                                         returns_next_state,
                                                         trajectory_lens,
-                                                        value_decoder=self.exploration_value_decoder if activated_branch=='exploration' else self.exploitation_value_decoder)
+                                                        value_decoder=self.exploration_value_decoder if activated_branch == 'exploration' else self.exploitation_value_decoder)
         self.log_value_prediction(n_step_value_pred_loss, policy_type=activated_branch)
         return n_step_value_pred_loss
 

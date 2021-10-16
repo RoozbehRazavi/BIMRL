@@ -1,0 +1,27 @@
+# pytorch
+torch==1.0.1.post2
+torchvision==0.2.2.post3
+torchtext==0.1.1
+visdom==0.1.8.8
+
+# data
+scipy
+scikit-learn
+numpy
+pillow
+
+# utils (debugging)
+pdbpp
+ipdb
+ipython
+jupyter
+jupyterthemes
+jupyter_contrib_nbextensions
+jupyter_nbextensions_configurator
+
+# utils (others)
+colorama
+tqdm
+lmdb
+requests
+fake-useragent

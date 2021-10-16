@@ -172,7 +172,7 @@ def get_args(rest_args):
     parser.add_argument('--vae_fill_with_exploration_experience', type=boolean_argument, default=False,
                         help='vae buffer fill just with exploration trajectory of with both exploration and exploitation')
 
-    parser.add_argument('--exploration_processes_portion', type=float, default=1.0,
+    parser.add_argument('--exploration_processes_portion', type=float, default=0.0,
                         help='what portion of process generate trajectory with exploration policy')
 
     # Disable Loss of Base2Final
@@ -326,7 +326,13 @@ def get_args(rest_args):
     parser.add_argument('--memory_key_dim', type=int, default=0)
     parser.add_argument('--memory_value_dim', type=int, default=0)
     parser.add_argument('--memory_query_dim', type=int, default=0)
-    # visoin core
-    parser.add_argument('--use_stateless_vision_core', type=boolean_argument, default=False,
+    # vision core
+    parser.add_argument('--use_stateful_vision_core', type=boolean_argument, default=False,
                         help='use attentional visual process unit')
+    parser.add_argument('--visual_attention_value_size', type=int, default=28)
+    parser.add_argument('--visual_attention_key_size', type=int, default=4)
+    parser.add_argument('--visual_attention_spatial', type=int, default=16)
+    parser.add_argument('--visual_attention_num_queries', type=int, default=4)
+    parser.add_argument('--rim_output_size_to_vision_core', type=int, default=16)
+
     return parser.parse_args(rest_args)

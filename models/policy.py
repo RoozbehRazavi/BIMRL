@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 
 from utils import helpers as utl
+from visual_attention import VisionCore
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -99,7 +100,18 @@ class Policy(nn.Module):
         # initialise encoders for separate inputs
         self.use_state_encoder = self.args.policy_state_embedding_dim is not None
         if self.pass_state_to_policy and self.use_state_encoder:
-            self.state_encoder = utl.SimpleVision(self.args.policy_state_embedding_dim)
+            if self.args.use_stateful_vision_core:
+                assert self.args.use_rim_level1
+                self.state_encoder = VisionCore(
+                    hidden_size=self.args.rim_output_size_to_vision_core,
+                    c_v=self.args.visual_attention_value_size,
+                    c_k=self.args.visual_attention_key_size,
+                    c_s=self.args.visual_attention_spatial,
+                    num_queries=self.args.visual_attention_num_queries,
+                    state_embedding_size=self.args.policy_state_embedding_dim)
+
+            else:
+                self.state_encoder = utl.SimpleVision(self.args.policy_state_embedding_dim)
             curr_input_dim = curr_input_dim - dim_state + self.args.policy_state_embedding_dim
 
         self.use_task_inference_latent_encoder = self.args.policy_task_inference_latent_embedding_dim is not None
@@ -167,10 +179,7 @@ class Policy(nn.Module):
             h = self.activation_function(h)
         return h
 
-    def forward(self, state, task_inference_latent, brim_output_level1, belief, task):
-
-        # handle inputs (normalise + embed)
-
+    def state_process(self, state, rim_output_to_vision_core=None):
         if self.pass_state_to_policy:
             # TODO: somehow don't normalise the "done" flag (if existing)
             if self.norm_state:
@@ -181,13 +190,20 @@ class Policy(nn.Module):
                 state = state.view(-1, state.shape[-1])
                 state = utl.image_obs(state)
 
-                hs = self.state_encoder(state)
+                if self.args.use_stateful_vision_core:
+                    hs = self.state_encoder(state, rim_output_to_vision_core)
+                else:
+                    hs = self.state_encoder(state)
 
                 tmp1 = hs.view(batch_size, self.args.policy_state_embedding_dim - 1)
                 tmp2 = tmp_state[:, -2:-1]
                 state = torch.cat((tmp1, tmp2), dim=-1)
         else:
             state = torch.zeros(0, ).to(device)
+        return state
+
+    def forward(self, embedded_state, task_inference_latent, brim_output_level1, belief, task):
+        state = embedded_state
         if self.pass_task_inference_latent_to_policy:
             if self.norm_task_inference_latent:
                 task_inference_latent = (task_inference_latent - self.task_inference_latent_rms.mean) / torch.sqrt(self.task_inference_latent_rms.var + 1e-8)
@@ -241,8 +257,8 @@ class Policy(nn.Module):
         hidden_actor = self.forward_actor(inputs)
         return self.critic_linear(hidden_critic), hidden_actor
 
-    def act(self, state, latent, brim_output_level1, belief, task, deterministic=False):
-        value, actor_features = self.forward(state=state, task_inference_latent=latent, brim_output_level1=brim_output_level1, belief=belief, task=task)
+    def act(self, embedded_state, latent, brim_output_level1, belief, task, deterministic=False):
+        value, actor_features = self.forward(embedded_state=embedded_state, task_inference_latent=latent, brim_output_level1=brim_output_level1, belief=belief, task=task)
         dist = self.dist(actor_features)
         if deterministic:
             action = dist.mode()
@@ -252,8 +268,8 @@ class Policy(nn.Module):
 
         return value, action, action_log_probs
 
-    def get_value(self, state, latent, brim_output_level1, belief, task):
-        value, _ = self.forward(state, latent, brim_output_level1, belief, task)
+    def get_value(self, embedded_state, latent, brim_output_level1, belief, task):
+        value, _ = self.forward(embedded_state, latent, brim_output_level1, belief, task)
         return value
 
     def update_rms(self, args, policy_storage):
@@ -275,9 +291,9 @@ class Policy(nn.Module):
         if self.pass_task_to_policy and self.norm_task:
             self.task_rms.update(policy_storage.tasks[:-1])
 
-    def evaluate_actions(self, state, latent, brim_output_level1, belief, task, action, return_action_mean=False):
+    def evaluate_actions(self, embedded_state, latent, brim_output_level1, belief, task, action, return_action_mean=False):
 
-        value, actor_features = self.forward(state, latent, brim_output_level1, belief, task)
+        value, actor_features = self.forward(embedded_state, latent, brim_output_level1, belief, task)
         dist = self.dist(actor_features)
 
         action_log_probs = dist.log_probs(action)

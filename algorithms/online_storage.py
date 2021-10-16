@@ -52,6 +52,8 @@ class OnlineStorage(object):
             self.brim_output_level2 = []
             self.brim_output_level3 = []
             self.brim_hidden_states = torch.zeros(num_steps + 1, num_processes, 5, brim_hidden_size)
+
+        self.policy_embedded_state = []
         if self.args.pass_belief_to_policy:
             self.beliefs = torch.zeros(num_steps + 1, num_processes, belief_dim)
         if self.args.pass_task_to_policy:
@@ -94,6 +96,8 @@ class OnlineStorage(object):
             self.brim_output_level3 = [t.to(device) for t in self.brim_output_level3]
             self.brim_hidden_states = self.brim_hidden_states.to(device)
             self.next_state = self.next_state.to(device)
+
+        self.policy_embedded_state = [t.to(device) for t in self.policy_embedded_state]
         if self.args.pass_belief_to_policy:
             self.beliefs = self.beliefs.to(device)
         if self.args.pass_task_to_policy:
@@ -126,6 +130,7 @@ class OnlineStorage(object):
                latent_mean=None,
                latent_logvar=None,
                brim_output_level1=None,
+               policy_embedded_state=None,
                brim_output_level2=None,
                brim_output_level3=None,
                brim_hidden_states=None
@@ -144,6 +149,8 @@ class OnlineStorage(object):
             self.brim_output_level2.append(brim_output_level2.detach().clone())
             self.brim_output_level3.append(brim_output_level3.detach().clone())
             self.brim_hidden_states[self.step + 1].copy_(brim_hidden_states.detach())
+
+        self.policy_embedded_state.append(policy_embedded_state.detach().clone())
         self.actions[self.step] = actions.detach().clone()
         if action_log_probs is not None:
             self.action_log_probs[self.step].copy_(action_log_probs.detach())
@@ -173,6 +180,7 @@ class OnlineStorage(object):
             self.brim_output_level1 = []
             self.brim_output_level2 = []
             self.brim_output_level3 = []
+        self.policy_embedded_state = []
         self.done[0].copy_(self.done[-1])
         self.masks[0].copy_(self.masks[-1])
         self.bad_masks[0].copy_(self.bad_masks[-1])
@@ -243,8 +251,10 @@ class OnlineStorage(object):
 
             if self.args.pass_state_to_policy:
                 state_batch = self.prev_state[:-1].reshape(-1, *self.prev_state.size()[2:])[indices]
+                policy_embedded_state_batch = torch.cat(self.policy_embedded_state[:-1])[indices]
             else:
                 state_batch = None
+                policy_embedded_state_batch = None
             if self.pass_task_inference_latent_to_policy:
                 latent_sample_batch = torch.cat(self.latent_samples[:-1])[indices]
                 latent_mean_batch = torch.cat(self.latent_mean[:-1])[indices]
@@ -254,7 +264,7 @@ class OnlineStorage(object):
             if self.args.use_rim_level1:
                 brim_output_level1_batch = torch.cat(self.brim_output_level1[:-1])[indices]
             else:
-                brim_output_level1_batch =None
+                brim_output_level1_batch = None
             if self.args.use_rim_level2:
                 brim_output_level2_batch = torch.cat(self.brim_output_level2[:-1])[indices]
             else:
@@ -286,5 +296,5 @@ class OnlineStorage(object):
             yield state_batch, belief_batch, task_batch, \
                   actions_batch, \
                   latent_sample_batch, latent_mean_batch, latent_logvar_batch,\
-                  brim_output_level1_batch, brim_output_level2_batch, brim_output_level3_batch,\
+                  brim_output_level1_batch, brim_output_level2_batch, brim_output_level3_batch, policy_embedded_state_batch, \
                   value_preds_batch, return_batch, old_action_log_probs_batch, adv_targ
