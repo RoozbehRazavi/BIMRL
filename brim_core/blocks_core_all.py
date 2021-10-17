@@ -38,11 +38,6 @@ class BlocksCore(nn.Module):
         self.use_higher = use_higher
         self.higher_separate_att = higher_separate_att
 
-        if self.use_higher:
-            self.ninp = nhid + ninp
-            if self.higher_separate_att:
-                self.ninp = self.ninp//2
-
         self.mha = MultiHeadAttention(n_head=4, d_model_read=self.block_size_out, d_model_write=self.block_size_out, d_model_out=self.block_size_out, d_k=16, d_v=32, num_blocks_read=self.num_blocks_out, num_blocks_write=self.num_blocks_out, topk=self.num_blocks_out, grad_sparse=False)
 
         self.att_out = self.block_size_out*4 * 1

@@ -891,6 +891,7 @@ class MetaLearner:
                 [self.base2final.action_decoder, 'action_decoder'],
                 [self.base2final.exploitation_value_decoder, 'exploitation_value_decoder'],
                 [self.base2final.exploration_value_decoder, 'exploration_value_decoder'],
+                [policy.actor_critic.state_encoder, f'state_encoder_{policy_type}'],
             ]
 
             for [model, name] in model_params:
