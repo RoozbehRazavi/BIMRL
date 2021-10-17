@@ -418,7 +418,6 @@ class MetaLearner:
                         [[0.0] if 'bad_transition' in info.keys() else [1.0] for info in exploration_infos]).to(device)
 
                 if train_exploitation:
-                    # TODO double check this part for mask generation - mask should create from done_task or done_episdoe
                     [exploitation_next_state, exploitation_belief, exploitation_task], \
                     (exploitation_rew_raw, exploitation_rew_normalised), \
                     exploitation_done, exploitation_infos = utl.env_step(self.exploitation_envs, exploitation_action, self.args)
@@ -438,6 +437,23 @@ class MetaLearner:
                 with torch.no_grad():
                     # compute next embedding (for next loop and/or value prediction bootstrap)
                     if train_exploration:
+                        # compute RPE
+                        if self.args.use_memory and self.args.use_rpe and self.args.decode_reward:
+                            reward_decoder = self.base2final.reward_decoder()
+                            latent = utl.get_latent_for_policy(sample_embeddings=True,
+                                                               add_nonlinearity_to_latent=self.args.add_nonlinearity_to_latent,
+                                                               latent_sample=exploration_latent_sample,
+                                                               latent_mean=exploration_latent_mean,
+                                                               latent_logvar=exploration_latent_logvar)
+                            if self.args.use_rim_level3:
+                                if self.args.residual_task_inference_latent:
+                                    latent = torch.cat((exploration_brim_output5.squeeze(0), latent), dim=-1)
+                                else:
+                                    latent = exploration_brim_output5
+
+                            rpe = exploration_rew_raw - reward_decoder(reward_decoder, latent, exploration_next_state, prev_state=exploration_prev_state, action=exploration_action, n_step_reward_prediction=False)
+                        else:
+                            rpe = 0.1 * torch.ones(size=(self.exploration_num_processes, 1))
                         brim_output1, brim_output3, brim_output5, exploration_brim_hidden_state, exploration_latent_sample, exploration_latent_mean, exploration_latent_logvar, \
                         exploration_task_inference_hidden_state, exploration_policy_embedded_state = utl.update_encoding(
                             policy=self.exploration_policy.actor_critic,
@@ -448,8 +464,29 @@ class MetaLearner:
                             done=exploration_done,
                             task_inference_hidden_state=exploration_task_inference_hidden_state,
                             brim_hidden_state=exploration_brim_hidden_state,
-                            activated_branch='exploration')
+                            activated_branch='exploration',
+                            rpe=rpe)
                     if train_exploitation:
+                        # compute RPE
+                        if self.args.use_memory and self.args.use_rpe and self.args.decode_reward:
+                            reward_decoder = self.base2final.reward_decoder()
+                            latent = utl.get_latent_for_policy(sample_embeddings=True,
+                                                               add_nonlinearity_to_latent=self.args.add_nonlinearity_to_latent,
+                                                               latent_sample=exploitation_latent_sample,
+                                                               latent_mean=exploitation_latent_mean,
+                                                               latent_logvar=exploitation_latent_logvar)
+                            if self.args.use_rim_level3:
+                                if self.args.residual_task_inference_latent:
+                                    latent = torch.cat((exploitation_brim_output5.squeeze(0), latent), dim=-1)
+                                else:
+                                    latent = exploitation_brim_output5
+
+                            rpe = exploitation_rew_raw - reward_decoder(reward_decoder, latent, exploitation_next_state,
+                                                                       prev_state=exploitation_prev_state,
+                                                                       action=exploitation_action,
+                                                                       n_step_reward_prediction=False)
+                        else:
+                            rpe = 0.1 * torch.ones(size=(self.exploitation_num_processes, 1))
                         brim_output2, brim_output4, brim_output5, exploitation_brim_hidden_state, exploitation_latent_sample, exploitation_latent_mean, exploitation_latent_logvar, \
                         exploitation_task_inference_hidden_state, exploitation_policy_embedded_state = utl.update_encoding(
                             brim_core=self.base2final.brim_core,
@@ -460,12 +497,14 @@ class MetaLearner:
                             done=exploitation_done,
                             task_inference_hidden_state=exploitation_task_inference_hidden_state,
                             brim_hidden_state=exploitation_brim_hidden_state,
-                            activated_branch='exploitation')
+                            activated_branch='exploitation',
+                            rpe=rpe)
 
                 # before resetting, update the embedding and add to vae buffer
                 # (last state might include useful task info)
                 if not (self.args.disable_decoder and self.args.disable_stochasticity_in_latent):
                     if train_exploration:
+
                         self.base2final.exploration_rollout_storage.insert(exploration_prev_state.clone(),
                                                                            exploration_action.detach().clone(),
                                                                            exploration_next_state.clone(),
@@ -754,9 +793,20 @@ class MetaLearner:
     def log(self, run_stats, train_stats, start_time, policy, policy_storage, envs, policy_type):
 
         # --- visualize policy ----
-        # if self.iter_idx % self.args.vis_interval == 0 and not policy_type == 'meta_policy':
-        #     ret_rms = envs.venv.ret_rms if self.args.norm_rew_for_policy else None
-        #     visualize_policy(policy, self.base2final, envs[0], policy_type)
+        if self.iter_idx % self.args.vis_interval == 0 and not policy_type == 'meta_policy':
+            ret_rms = envs.venv.ret_rms if self.args.norm_rew_for_policy else None
+            utl_eval.visualize_policy(
+                args=self.args,
+                policy=policy,
+                ret_rms=ret_rms,
+                brim_core=self.base2final.brim_core,
+                iter_idx=self.iter_idx,
+                policy_type=policy_type,
+                state_decoder=self.base2final.state_decoder,
+                action_decoder=self.base2final.action_decoder,
+                num_episodes=1,
+                state_prediction_running_normalizer=self.state_prediction_running_normalizer,
+                action_prediction_running_normalizer=self.action_prediction_running_normalizer)
 
         # --- evaluate policy ----
 

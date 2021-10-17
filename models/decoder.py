@@ -251,7 +251,6 @@ class RewardDecoder(nn.Module):
 
         self.n_step_reward_prediction = n_step_reward_prediction
         self.n_prediction = n_prediction
-        reward_simulator_hidden_size
         self.pred_type = pred_type
         self.multi_head = multi_head
         self.input_prev_state = input_prev_state
@@ -311,8 +310,10 @@ class RewardDecoder(nn.Module):
             if input_prev_state:
                 self.n_step_prev_state_encoder = utl.FeatureExtractor(state_dim, state_embed_dim, F.relu)
 
-    def forward(self, latent_state, next_state, prev_state=None, action=None, n_step_next_obs=None, n_step_actions=None):
-        assert (n_step_next_obs is not None and  n_step_actions is not None) or not self.n_step_reward_prediction
+    def forward(self, latent_state, next_state, prev_state=None, action=None, n_step_next_obs=None, n_step_actions=None, n_step_reward_prediction=None):
+        if n_step_reward_prediction is None:
+            n_step_reward_prediction = self.n_step_reward_prediction
+        assert (n_step_next_obs is not None and n_step_actions is not None) or not self.n_step_reward_prediction
 
         reward_prediction = []
         # if self.multi_head:
@@ -333,7 +334,7 @@ class RewardDecoder(nn.Module):
 
         reward_prediction.append(self.one_step_fc_out(h))
 
-        if self.n_step_reward_prediction:
+        if n_step_reward_prediction:
             h = self.h_to_hidden_state(h)
             for i in range(self.n_prediction):
                 nhs = self.n_step_next_state_encoder(n_step_next_obs[i])

@@ -154,11 +154,11 @@ def get_args(rest_args):
     # --- OTHERS ---
 
     # logging, saving, evaluation
-    parser.add_argument('--log_interval', type=int, default=1, help='log interval, one log per n updates')
+    parser.add_argument('--log_interval', type=int, default=5, help='log interval, one log per n updates')
     parser.add_argument('--save_interval', type=int, default=1000, help='save interval, one save per n updates')
     parser.add_argument('--save_intermediate_models', type=boolean_argument, default=False, help='save all models')
-    parser.add_argument('--eval_interval', type=int, default=1, help='eval interval, one eval per n updates')
-    parser.add_argument('--vis_interval', type=int, default=500, help='visualisation interval, one eval per n updates')
+    parser.add_argument('--eval_interval', type=int, default=5, help='eval interval, one eval per n updates')
+    parser.add_argument('--vis_interval', type=int, default=20, help='visualisation interval, one eval per n updates')
     parser.add_argument('--results_log_dir', default=None, help='directory to save results (None uses ./logs)')
 
     # general settings
@@ -336,6 +336,8 @@ def get_args(rest_args):
     parser.add_argument('--rim_hidden_state_to_query_layers', type=int, nargs='+', default=[])
     parser.add_argument('--read_memory_to_value_layer', type=int, nargs='+', default=[])
     parser.add_argument('--read_memory_to_key_layer', type=int, nargs='+', default=[])
+    parser.add_argument('--use_rpe', type=boolean_argument, default=False)
+    parser.add_argument('--reconstruction_memory_loss', type=boolean_argument, default=False)
 
     # vision core
     parser.add_argument('--use_stateful_vision_core', type=boolean_argument, default=False,

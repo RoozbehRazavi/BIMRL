@@ -3,7 +3,7 @@ import warnings
 import numpy as np
 import torch
 from torch.nn import functional as F
-
+from utils import helpers as utl
 from models.decoder import StateTransitionDecoder, RewardDecoder, TaskDecoder, ValueDecoder, ActionDecoder
 from brim_core.brim_core import BRIMCore
 from utils.storage_vae import RolloutStorageVAE
@@ -12,6 +12,9 @@ from utils.helpers import get_task_dim, get_num_tasks, get_latent_for_policy
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+
+def compute_memory_loss():
+    return
 
 def compute_returns(next_value, rewards, value_preds, returns, gamma, tau, use_gae, masks, bad_masks, use_proper_time_limits):
     if use_proper_time_limits:
@@ -1135,7 +1138,57 @@ class Base2Final:
         self.log_value_prediction(n_step_value_pred_loss, policy_type=activated_branch)
         return n_step_value_pred_loss
 
-    def compute_memory_loss(self):
+    def compute_memory_loss(self, policy, activated_branch):
+        if activated_branch == 'exploration':
+            exploration_rollout_storage_read = self.exploration_rollout_storage.ready_for_update()
+            if not exploration_rollout_storage_read:
+                return 0
+            vae_prev_obs, vae_next_obs, vae_actions, vae_rewards, vae_tasks, trajectory_lens = self.exploration_rollout_storage.get_batch(
+                batchsize=self.args.vae_batch_num_trajs)
+            max_len = max(trajectory_lens)
+
+            brim_output1, _, brim_output5, _, \
+            latent_sample, latent_mean, latent_logvar, _, _ = self.brim_core.forward_exploration_branch(
+                actions=vae_actions,
+                states=vae_next_obs,
+                policy=policy,
+                rewards=vae_rewards,
+                brim_hidden_state=None,
+                task_inference_hidden_state=None,
+                return_prior=True,
+                sample=True,
+                detach_every=self.args.tbptt_stepsize if hasattr(
+                     self.args,
+                     'tbptt_stepsize') else None,
+                prev_state=vae_prev_obs[0, :, :])
+
+            state = vae_next_obs[:max_len]
+            rim_output = brim_output1[1:max_len]
+            latent_sample = latent_sample[1:max_len]
+            latent_mean = latent_mean[1:max_len]
+            latent_logvar = latent_logvar[1:max_len]
+
+            latent = utl.get_latent_for_policy(
+                sample_embeddings=False,
+                add_nonlinearity_to_latent=False,
+                latent_sample=latent_sample,
+                latent_mean=latent_mean,
+                latent_logvar=latent_logvar).detach().clone()
+            self.brim_core.brim.model.memory.prior(exploration_batch_size=state.shape[0])
+            done = max_len/4
+            for i in range(max_len):
+                if i%done == 0:
+                    self.brim_core.brim.memory.reset(1)
+            self.brim_core.brim.model.memory.write()
+
+            res = []
+            for i in range(max_len):
+                if i%done == 0:
+                    self.brim_core.brim.memory.reset(1)
+                res.append(self.brim_core.brim.model.memory.read())
+            compute_memory_loss(res, rim_output)
+
+
         return 0
 
     def log(self, elbo_loss, rew_reconstruction_loss, state_reconstruction_loss, task_reconstruction_loss, action_reconstruction_loss, kl_loss):

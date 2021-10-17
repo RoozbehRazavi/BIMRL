@@ -4,7 +4,17 @@ import torch
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def visualize_policy(policy, base2final, env, policy_type):
+def visualize_policy(args,
+                     policy,
+                     ret_rms,
+                     brim_core,
+                     iter_idx,
+                     policy_type,
+                     state_decoder,
+                     action_decoder,
+                     state_prediction_running_normalizer,
+                     action_prediction_running_normalizer):
+
     env = utils.make_env(args.env, args.seed)
     for _ in range(args.shift):
         env.reset()

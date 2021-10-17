@@ -118,7 +118,7 @@ class BRIMCell(nn.Module):
                  device, input_size, hidden_size, num_units, k, rnn_cell, use_higher, input_key_size=16, input_value_size=32,
                  input_query_size=16,
                  num_input_heads=1, input_dropout=0.1, comm_key_size=8, comm_value_size=16, comm_query_size=8,
-                 num_comm_heads=3, comm_dropout=0.1
+                 num_comm_heads=4, comm_dropout=0.1
                  ):
         super().__init__()
         if comm_value_size != hidden_size:
@@ -143,8 +143,8 @@ class BRIMCell(nn.Module):
         self.comm_value_size = comm_value_size
 
         # TODO check this change from Linear to GroupLinear by run
-        self.key = GroupLinearLayer(input_size, num_input_heads * input_query_size, self.num_input_blocks).to(self.device)
-        self.value = GroupLinearLayer(input_size, num_input_heads * input_value_size, self.num_input_blocks).to(self.device)
+        self.key = nn.Linear(input_size, num_input_heads * input_query_size).to(self.device)
+        self.value = nn.Linear(input_size, num_input_heads * input_value_size).to(self.device)
 
         if self.rnn_cell == 'GRU':
             self.rnn = GroupGRUCell(input_value_size, hidden_size, num_units)
@@ -156,7 +156,6 @@ class BRIMCell(nn.Module):
         self.key_ = GroupLinearLayer(hidden_size, comm_key_size * num_comm_heads, self.num_units)
         self.value_ = GroupLinearLayer(hidden_size, comm_value_size * num_comm_heads, self.num_units)
         self.comm_attention_output = GroupLinearLayer(num_comm_heads * comm_value_size, comm_value_size, self.num_units)
-        self.inputs_attention_output = GroupLinearLayer(num_input_heads*input_value_size, input_value_size, self.num_units)
         self.comm_dropout = nn.Dropout(p=input_dropout)
         self.input_dropout = nn.Dropout(p=comm_dropout)
 
@@ -177,24 +176,23 @@ class BRIMCell(nn.Module):
         query_layer = self.query(h)
 
         key_layer = self.transpose_for_scores(key_layer, self.num_input_heads, self.input_key_size)
-        value_layer = self.transpose_for_scores(value_layer, self.num_input_heads, self.input_value_size)
+        value_layer = torch.mean(self.transpose_for_scores(value_layer, self.num_input_heads, self.input_value_size),
+                                 dim=1)
         query_layer = self.transpose_for_scores(query_layer, self.num_input_heads, self.input_query_size)
 
         attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2)) / math.sqrt(self.input_key_size)
-        attention_scores_ = torch.mean(attention_scores, dim=1)
+        attention_scores = torch.mean(attention_scores, dim=1)
         mask_ = torch.ones(x.size(0), self.num_units).to(self.device)
-        null_scores = attention_scores_[:, :, -1]
+
+        null_scores = attention_scores[:, :, -1]
         topk1 = torch.topk(null_scores, self.num_units - self.k, dim=1)
         row_index = np.arange(x.size(0))
         row_index = np.repeat(row_index, self.num_units - self.k)
+
         mask_[row_index, topk1.indices.view(-1)] = 0
+
         attention_probs = self.input_dropout(nn.Softmax(dim=-1)(attention_scores))
-        inputs = torch.matmul(attention_probs, value_layer)
-        inputs = inputs * mask_.unsqueeze(2).unsqueeze(1)
-        inputs = inputs.permute(0, 2, 1, 3).contiguous()
-        new_inputs_shape = inputs.size()[:-2] + (self.num_input_heads * self.input_value_size,)
-        inputs = inputs.view(*new_inputs_shape)
-        inputs = self.inputs_attention_output(inputs)
+        inputs = torch.matmul(attention_probs, value_layer) * mask_.unsqueeze(2)
 
         return inputs, mask_
 

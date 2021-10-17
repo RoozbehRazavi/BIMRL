@@ -93,7 +93,7 @@ def get_latent_for_policy(sample_embeddings, add_nonlinearity_to_latent, latent_
     return latent
 
 
-def update_encoding(brim_core, policy, next_obs, action, reward, done, task_inference_hidden_state, brim_hidden_state, activated_branch):
+def update_encoding(brim_core, policy, next_obs, action, reward, done, task_inference_hidden_state, brim_hidden_state, activated_branch, rpe):
     # reset hidden state of the recurrent net when we reset the task
     if done is not None:
         task_inference_hidden_state, brim_hidden_state = brim_core.reset_hidden(policy, task_inference_hidden_state, brim_hidden_state, done_task=done, done_episode=None)
@@ -110,7 +110,8 @@ def update_encoding(brim_core, policy, next_obs, action, reward, done, task_infe
                 sample=True,
                 return_prior=False,
                 detach_every=None,
-                policy=policy)
+                policy=policy,
+                rpe=rpe)
             return brim_output1, brim_output3, brim_output5, brim_hidden_state, latent_sample, latent_mean, latent_logvar, task_inference_hidden_state, exploration_policy_embedded_state
         if activated_branch == 'exploitation':
             brim_output2, brim_output4, brim_output5, brim_hidden_state, \
@@ -123,7 +124,8 @@ def update_encoding(brim_core, policy, next_obs, action, reward, done, task_infe
                 sample=True,
                 return_prior=False,
                 detach_every=None,
-                policy=policy)
+                policy=policy,
+                rpe=rpe)
             return brim_output2, brim_output4, brim_output5, brim_hidden_state, latent_sample, latent_mean, latent_logvar, task_inference_hidden_state, exploitation_policy_embedded_state
 
 

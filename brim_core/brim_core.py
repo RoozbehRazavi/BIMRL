@@ -262,7 +262,8 @@ class BRIMCore(nn.Module):
                 detach_every,
                 activated_branch,
                 policy,
-                prev_state
+                prev_state,
+                rpe
                 ):
         # shape should be: sequence_len x batch_size x hidden_size
         actions = actions.reshape((-1, *actions.shape[-2:]))
@@ -423,7 +424,8 @@ class BRIMCore(nn.Module):
                                    sample,
                                    detach_every,
                                    policy,
-                                   prev_state=None
+                                   prev_state=None,
+                                   rpe=None
                                    ):
         brim_output1, brim_output2, brim_output3, brim_output4, brim_output5, brim_hidden_states, \
         latent_sample, latent_mean, latent_logvar, task_inference_hidden_states, extras_information = self.forward(
@@ -437,7 +439,8 @@ class BRIMCore(nn.Module):
             detach_every,
             activated_branch='exploration',
             policy=policy,
-            prev_state=prev_state)
+            prev_state=prev_state,
+            rpe=rpe)
         exploration_policy_embedded_state = None
         if 'exploration_policy_embedded_state' in extras_information:
             exploration_policy_embedded_state = extras_information['exploration_policy_embedded_state']
@@ -455,7 +458,8 @@ class BRIMCore(nn.Module):
                                     sample,
                                     detach_every,
                                     policy,
-                                    prev_state=None
+                                    prev_state=None,
+                                    rpe=None
                                     ):
         brim_output1, brim_output2, brim_output3, brim_output4, brim_output5, brim_hidden_states, \
         latent_sample, latent_mean, latent_logvar, task_inference_hidden_states, extras_information = self.forward(
@@ -469,7 +473,8 @@ class BRIMCore(nn.Module):
             detach_every,
             activated_branch='exploitation',
             policy=policy,
-            prev_state=prev_state)
+            prev_state=prev_state,
+            rpe=rpe)
         exploitation_policy_embedded_state = None
         if 'exploitation_policy_embedded_state' in extras_information:
             exploitation_policy_embedded_state = extras_information['exploitation_policy_embedded_state']
@@ -501,6 +506,7 @@ class BRIMCore(nn.Module):
             detach_every,
             activated_branch='level3',
             policy=None,
-            prev_state=prev_state)
+            prev_state=prev_state,
+            rpe=None)
 
         return brim_output5, latent_mean, latent_logvar

@@ -150,7 +150,7 @@ class PPO:
                     if self.args.use_rim_level2:
                         value_prediction_loss = compute_n_step_value_prediction_loss(self.actor_critic, activated_branch)
                         loss += self.args.n_step_value_prediction_coeff * value_prediction_loss
-                    if self.args.use_memory:
+                    if self.args.use_memory and self.args.reconstruction_memory_loss:
                         loss += compute_memory_loss()
 
                 # compute gradients (will attach to all networks involved in this computation)
