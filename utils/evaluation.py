@@ -362,7 +362,6 @@ def visualize_policy(
     state, belief, task = utl.reset_env(envs, args)
     frames = []
 
-
     if brim_core is not None:
         # reset latent state to prior
         (brim_output1, brim_output2, brim_output3, brim_output4, brim_output5, brim_hidden_state), \
@@ -460,5 +459,4 @@ def visualize_policy(
 
             if sum(done_mdp) == 1:
                 break
-    write_gif(numpy.array(frames), f'name_{policy_type}_{iter_idx}' + ".gif")
-    print('done')
+    write_gif(numpy.array(frames), f'{policy_type}_policy_{iter_idx}' + ".gif")
