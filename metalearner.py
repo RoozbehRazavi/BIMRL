@@ -746,6 +746,7 @@ class MetaLearner:
             rlloss_through_encoder=self.args.rlloss_through_encoder,
             compute_vae_loss=self.base2final.compute_vae_loss,
             compute_n_step_value_prediction_loss=self.base2final.compute_n_step_value_prediction_loss,
+            compute_memory_loss=self.base2final.compute_memory_loss,
             activated_branch=activated_branch)
 
         return policy_train_stats
@@ -919,5 +920,5 @@ class MetaLearner:
                              max_exploration_episode):
         for i in range(max_exploration_episode):
             pass
-            # TODO add counter and ...
+
 

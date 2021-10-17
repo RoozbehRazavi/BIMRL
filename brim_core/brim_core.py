@@ -12,11 +12,6 @@ class BRIMCore(nn.Module):
                  use_memory,
                  use_hebb,
                  use_gen,
-                 memory_controller_hidden_size,
-                 memory_controller_rim_or_gru,
-                 memory_key_dim,
-                 memory_value_dim,
-                 memory_query_dim,
                  use_stateful_vision_core,
                  use_rim_level1,
                  use_rim_level2,
@@ -59,7 +54,8 @@ class BRIMCore(nn.Module):
                  new_impl,
                  vae_loss_throughout_vae_encoder_from_rim_level3,
                  residual_task_inference_latent,
-                 rim_output_size_to_vision_core
+                 rim_output_size_to_vision_core,
+                 memory_params,
                  ):
         super(BRIMCore, self).__init__()
         assert (not use_memory and not use_hebb and not use_gen) or use_memory
@@ -71,13 +67,7 @@ class BRIMCore(nn.Module):
         self.use_stateful_vision_core = use_stateful_vision_core
 
         self.brim = self.initialise_brim(use_memory,
-                                         use_hebb,
-                                         use_gen,
-                                         memory_controller_hidden_size,
-                                         memory_controller_rim_or_gru,
-                                         memory_key_dim,
-                                         memory_value_dim,
-                                         memory_query_dim,
+                                         memory_params,
                                          use_stateful_vision_core,
                                          use_rim_level1,
                                          use_rim_level2,
@@ -130,13 +120,7 @@ class BRIMCore(nn.Module):
 
     @staticmethod
     def initialise_brim(use_memory,
-                        use_hebb,
-                        use_gen,
-                        memory_controller_hidden_size,
-                        memory_controller_rim_or_gru,
-                        memory_key_dim,
-                        memory_value_dim,
-                        memory_query_dim,
+                        memory_params,
                         use_stateful_vision_core,
                         use_rim_level1,
                         use_rim_level2,
@@ -182,13 +166,7 @@ class BRIMCore(nn.Module):
                         rim_output_size_to_vision_core
                         ):
         brim = BRIM(use_memory=use_memory,
-                    use_hebb=use_hebb,
-                    use_gen=use_gen,
-                    memory_controller_hidden_size=memory_controller_hidden_size,
-                    memory_controller_rim_or_gru=memory_controller_rim_or_gru,
-                    memory_key_dim=memory_key_dim,
-                    memory_value_dim=memory_value_dim,
-                    memory_query_dim=memory_query_dim,
+                    memory_params=memory_params,
                     use_stateful_vision_core=use_stateful_vision_core,
                     use_rim_level1=use_rim_level1,
                     use_rim_level2=use_rim_level2,

@@ -6,7 +6,6 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 class Hebbian(nn.Module):
     def __init__(self, num_head, w_max, key_size, value_size, key_encoder_layer, value_encoder_layer):
         super(Hebbian, self).__init__()
-        self.saved_keys_num = 100
         self.key_size = key_size
         self.num_head = num_head
         self.value_size = value_size
@@ -34,26 +33,32 @@ class Hebbian(nn.Module):
         self.query_encoder = nn.Linear(key_size, num_head * key_size)
         self.value_aggregator = nn.Linear(num_head * value_size, value_size)
 
-        self.saved_keys = self.w_assoc = self.rec_loss = self.batch_size = None
+        self.exploitation_w_assoc = self.exploitation_batch_size = self.exploration_w_assoc = self.exploration_batch_size =None
 
-    def prior(self, batch_size):
-        self.batch_size = batch_size
-        self.saved_keys = [[] for i in range(self.batch_size)]
-        self.rec_loss = 0.0
-        self.w_assoc = torch.zeros((self.batch_size, self.key_size, self.value_size), requires_grad=False, device=device)
-        torch.nn.init.normal_(self.w_assoc, mean=0, std=0.1)
+    def prior(self, exploration_batch_size, exploitation_batch_size):
+        self.exploitation_batch_size = exploitation_batch_size
+        self.exploration_batch_size = exploration_batch_size
+        self.exploration_w_assoc = torch.zeros((self.batch_size, self.key_size, self.value_size), requires_grad=False, device=device)
+        self.exploitation_w_assoc = torch.zeros((self.batch_size, self.key_size, self.value_size), requires_grad=False, device=device)
+        torch.nn.init.normal_(self.exploration_w_assoc, mean=0, std=0.1)
+        torch.nn.init.normal_(self.exploitation_w_assoc, mean=0, std=0.1)
 
-    def reset(self, done_task):
+    def reset(self, done_task, activated_branch):
         done_task_idx = done_task.view(len(done_task)).nonzero(as_tuple=True)[0]
         tmp = torch.zeros(
             size=(len(done_task_idx), self.key_size, self.value_size),
             requires_grad=False, device=device)
         torch.nn.init.normal_(tmp, mean=0, std=0.1)
-        self.w_assoc[done_task_idx] = tmp
+        if activated_branch == 'exploration':
+            self.exploration_w_assoc[done_task_idx] = tmp
+        elif activated_branch == 'exploitation':
+            self.exploitation_w_assoc[done_task_idx] = tmp
+        else:
+            raise NotImplementedError
 
-    def write(self, brim_hidden, obs, modulation, done_process_mdp):
-        key = self.key_encoder(obs)
-        value = self.value_encoder(brim_hidden)
+    def write(self, value, key, modulation, done_process_mdp):
+        key = self.key_encoder(key)
+        value = self.value_encoder(value)
 
         done_process_mdp = done_process_mdp.view(-1).nonzero(as_tuple=True)[0]
         value = modulation * value
@@ -61,13 +66,6 @@ class Hebbian(nn.Module):
         regularization = torch.matmul(key, key)
         delta_w = self.A * (self.w_max - self.w_assoc) * correlation - self.B * self.w_assoc * regularization
         self.w_assoc[done_process_mdp] = self.w_assoc[done_process_mdp].clone() + delta_w
-        avg_modulation = modulation.mean()
-
-        for i in range(len(done_process_mdp)):
-            idx = (modulation[i] >= avg_modulation).nonzero(as_tuple=True)[0]
-            task_obs = obs[i]
-            tmp = list(task_obs[idx.long()])
-            self.saved_keys[i].extend(tmp)
 
     def read(self, query):
         query = self.query_encoder(query).reshape(-1, self.num_head, self.key_size)
@@ -77,19 +75,3 @@ class Hebbian(nn.Module):
         value = self.value_aggregator(value)
         return value
 
-    def get_done_process(self, done_task):
-        samples_query = list()
-        done_task = done_task.nonzero(as_tuple=True)[0]
-        for i in range(len(done_task)):
-            samples_query.append(torch.stack(self.saved_keys[i]))
-        key = []
-        value = []
-
-        for i in range(len(done_task)):
-            done_task_idx = done_task[i]
-            with torch.no_grad():
-                result = torch.matmul(samples_query[i].unsqueeze(0), self.w_assoc[done_task_idx].unsqueeze(0))
-            key.append(samples_query[i].detach().clone())
-            value.append(result.squeeze(0).detach().clone())
-
-        return key, value

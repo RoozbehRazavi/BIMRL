@@ -318,14 +318,25 @@ def get_args(rest_args):
                         help='whatever or not use hebbian memory in memory module')
     parser.add_argument('--use_gen', type=boolean_argument, default=False,
                         help='whatever or not use generative memory in memory module')
+    parser.add_argument('--read_num_head', type=int, default=4)
+    parser.add_argument('--combination_num_head', type=int, default=1)
+    parser.add_argument('--key_size', type=int, default=16)
+    parser.add_argument('--memory_state_embedding', type=int, default=16)
+    parser.add_argument('--w_max', type=float, default=0.5)
+    parser.add_argument('--general_key_encoder_layer', type=int, nargs='+', default=[])
+    parser.add_argument('--general_value_encoder_layer', type=int, nargs='+', default=[])
 
-    parser.add_argument('--memory_controller_hidden_size', type=int, default=0,
-                        help='hidden size of memory controller')
-    parser.add_argument('--memory_controller_rim_or_gru', type=str, default='GRU',
-                        help='as RNN network for memory controller use GRU of RIM')
-    parser.add_argument('--memory_key_dim', type=int, default=0)
-    parser.add_argument('--memory_value_dim', type=int, default=0)
-    parser.add_argument('--memory_query_dim', type=int, default=0)
+    parser.add_argument('--general_query_encoder_layer', type=int, nargs='+', default=[])
+    parser.add_argument('--episodic_key_encoder_layer', type=int, nargs='+', default=[])
+    parser.add_argument('--episodic_value_encoder_layer', type=int, nargs='+', default=[])
+    parser.add_argument('--hebbian_key_encoder_layer', type=int, nargs='+', default=[])
+    parser.add_argument('--hebbian_value_encoder_layer', type=int, nargs='+', default=[])
+
+    parser.add_argument('--rim_query_size', type=int, default=16)
+    parser.add_argument('--rim_hidden_state_to_query_layers', type=int, nargs='+', default=[])
+    parser.add_argument('--read_memory_to_value_layer', type=int, nargs='+', default=[])
+    parser.add_argument('--read_memory_to_key_layer', type=int, nargs='+', default=[])
+
     # vision core
     parser.add_argument('--use_stateful_vision_core', type=boolean_argument, default=False,
                         help='use attentional visual process unit')

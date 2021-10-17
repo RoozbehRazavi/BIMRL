@@ -117,7 +117,7 @@ class BRIMCell(nn.Module):
     def __init__(self,
                  device, input_size, hidden_size, num_units, k, rnn_cell, use_higher, input_key_size=16, input_value_size=32,
                  input_query_size=16,
-                 num_input_heads=2, input_dropout=0.1, comm_key_size=8, comm_value_size=16, comm_query_size=8,
+                 num_input_heads=1, input_dropout=0.1, comm_key_size=8, comm_value_size=16, comm_query_size=8,
                  num_comm_heads=3, comm_dropout=0.1
                  ):
         super().__init__()

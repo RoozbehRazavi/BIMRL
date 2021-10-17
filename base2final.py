@@ -121,8 +121,31 @@ class Base2Final:
         self.task_dim = get_task_dim(self.args)
         self.num_tasks = get_num_tasks(self.args)
 
-        # initialise the brim core
-        self.brim_core = self.initialise_brim_core()
+        memory_params = \
+            self.args.use_hebb,\
+            self.args.use_gen,\
+            self.args.read_num_head,\
+            self.args.combination_num_head, \
+            self.args.memory_state_embedding + 2*self.args.task_inference_latent_dim,\
+            self.args.rim_level1_output_dim,\
+            self.args.policy_num_steps,\
+            self.args.max_rollouts_per_task,\
+            self.args.w_max,\
+            self.args.memory_state_embedding,\
+            self.args.general_key_encoder_layer,\
+            self.args.general_value_encoder_layer,\
+            self.args.general_query_encoder_layer,\
+            self.args.episodic_key_encoder_layer,\
+            self.args.episodic_value_encoder_layer,\
+            self.args.hebbian_key_encoder_layer,\
+            self.args.hebbian_value_encoder_layer,\
+            self.args.state_dim,\
+            self.args.rim_query_size,\
+            self.args.rim_hidden_state_to_query_layers,\
+            self.args.read_memory_to_value_layer,\
+            self.args.read_memory_to_key_layer\
+
+        self.brim_core = self.initialise_brim_core(memory_params=memory_params)
 
         # initialise the decoders (returns None for unused decoders)
         self.state_decoder, self.reward_decoder, self.task_decoder, self.exploration_value_decoder, self.exploitation_value_decoder, self.action_decoder = self.initialise_decoder()
@@ -165,17 +188,12 @@ class Base2Final:
 
         self.optimiser_vae = torch.optim.Adam([*self.brim_core.parameters(), *decoder_params], lr=self.args.lr_vae)
 
-    def initialise_brim_core(self):
+    def initialise_brim_core(self, memory_params):
         """ Initialises and returns an Brim Core """
         brim_core = BRIMCore(
             use_memory=self.args.use_memory,
             use_hebb=self.args.use_hebb,
             use_gen=self.args.use_gen,
-            memory_controller_hidden_size=self.args.memory_controller_hidden_size,
-            memory_controller_rim_or_gru=self.args.memory_controller_rim_or_gru,
-            memory_key_dim=self.args.memory_key_dim,
-            memory_value_dim=self.args.memory_value_dim,
-            memory_query_dim=self.args.memory_query_dim,
             use_stateful_vision_core=self.args.use_stateful_vision_core,
             use_rim_level1=self.args.use_rim_level1,
             use_rim_level2=self.args.use_rim_level2,
@@ -218,7 +236,8 @@ class Base2Final:
             new_impl=self.args.new_impl,
             vae_loss_throughout_vae_encoder_from_rim_level3=self.args.vae_loss_throughout_vae_encoder_from_rim_level3,
             residual_task_inference_latent=self.args.residual_task_inference_latent,
-            rim_output_size_to_vision_core=self.args.rim_output_size_to_vision_core
+            rim_output_size_to_vision_core=self.args.rim_output_size_to_vision_core,
+            memory_params=memory_params,
         ).to(device)
         return brim_core
 
@@ -1078,7 +1097,7 @@ class Base2Final:
                                                       latent_sample=latent_sample, latent_mean=latent_mean,
                                                       latent_logvar=latent_logvar)
 
-        states = policy_embedded_state.detach()#torch.cat((vae_prev_obs[0:1], vae_next_obs))
+        states = policy_embedded_state.detach()
         value_states = policy.get_value(states.view(-1, self.args.policy_state_embedding_dim),
                                         task_inference_latent.view(-1, self.args.task_inference_latent_dim*2),
                                         brim_output_level1.view(-1, self.args.rim_level1_output_dim),
@@ -1115,6 +1134,9 @@ class Base2Final:
                                                         value_decoder=self.exploration_value_decoder if activated_branch == 'exploration' else self.exploitation_value_decoder)
         self.log_value_prediction(n_step_value_pred_loss, policy_type=activated_branch)
         return n_step_value_pred_loss
+
+    def compute_memory_loss(self):
+        return 0
 
     def log(self, elbo_loss, rew_reconstruction_loss, state_reconstruction_loss, task_reconstruction_loss, action_reconstruction_loss, kl_loss):
 

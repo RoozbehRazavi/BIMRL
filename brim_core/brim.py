@@ -10,13 +10,7 @@ class BRIM(nn.Module):
     def __init__(self,
                  # memory
                  use_memory,
-                 use_hebb,
-                 use_gen,
-                 memory_controller_hidden_size,
-                 memory_controller_rim_or_gru,
-                 memory_key_dim,
-                 memory_value_dim,
-                 memory_query_dim,
+                 memory_params,
                  # vision core
                  use_stateful_vision_core,
                  # brim
@@ -105,7 +99,7 @@ class BRIM(nn.Module):
                                             residual_task_inference_latent=residual_task_inference_latent,
                                             use_stateful_vision_core=use_stateful_vision_core,
                                             rim_output_size_to_vision_core=rim_output_size_to_vision_core,
-                                            )
+                                            memory_params=memory_params)
 
         self.vae_encoder = self.initialise_vae_encoder(vae_encoder_layers_before_gru=vae_encoder_layers_before_gru,
                                                        vae_encoder_hidden_size=vae_encoder_hidden_size,
@@ -158,6 +152,7 @@ class BRIM(nn.Module):
                           residual_task_inference_latent,
                           use_stateful_vision_core,
                           rim_output_size_to_vision_core,
+                          memory_params
                           ):
         blocks = Blocks(use_rim_level1=use_rim_level1,
                         use_rim_level2=use_rim_level2,
@@ -197,6 +192,7 @@ class BRIM(nn.Module):
                         residual_task_inference_latent=residual_task_inference_latent,
                         use_stateful_vision_core=use_stateful_vision_core,
                         rim_output_size_to_vision_core=rim_output_size_to_vision_core,
+                        memory_params=memory_params,
                         ).to(device)
         return blocks
 

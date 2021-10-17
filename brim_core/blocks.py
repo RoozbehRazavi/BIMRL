@@ -48,6 +48,7 @@ class Blocks(nn.Module):
                  residual_task_inference_latent,
                  use_stateful_vision_core,
                  rim_output_size_to_vision_core,
+                 memory_params
                  ):
         super(Blocks, self).__init__()
         assert (rim_top_down_level2_level1 and use_rim_level2) or not rim_top_down_level2_level1
@@ -198,7 +199,52 @@ class Blocks(nn.Module):
         self.exploration_memory = None
         self.exploitation = None
         if self.use_memory:
-            self.exploration_memory, self.exploitation = self.initialise_memory()
+            use_hebb,\
+            use_gen,\
+            read_num_head,\
+            combination_num_head,\
+            key_size,\
+            value_size,\
+            policy_num_steps,\
+            max_rollouts_per_task,\
+            w_max,\
+            memory_state_embedding,\
+            general_key_encoder_layer,\
+            general_value_encoder_layer,\
+            general_query_encoder_layer,\
+            episodic_key_encoder_layer,\
+            episodic_value_encoder_layer,\
+            hebbian_key_encoder_layer,\
+            hebbian_value_encoder_layer,\
+            state_dim,\
+            rim_query_size,\
+            rim_hidden_state_to_query_layers,\
+            read_memory_to_value_layer,\
+            read_memory_to_key_layer = memory_params
+            self.memory = self.initialise_memory(
+                use_hebb,
+                use_gen,
+                read_num_head,
+                combination_num_head,
+                key_size,
+                value_size,
+                policy_num_steps,
+                max_rollouts_per_task,
+                w_max,
+                memory_state_embedding,
+                general_key_encoder_layer,
+                general_value_encoder_layer,
+                general_query_encoder_layer,
+                episodic_key_encoder_layer,
+                episodic_value_encoder_layer,
+                hebbian_key_encoder_layer,
+                hebbian_value_encoder_layer,
+                state_dim,
+                rim_query_size,
+                rim_hidden_state_to_query_layers,
+                read_memory_to_value_layer,
+                read_memory_to_key_layer,
+                rim_level1_hidden_size)
 
     @staticmethod
     def initialise_rims(use_rim_level1,
@@ -484,8 +530,56 @@ class Blocks(nn.Module):
         return level1.to(device), level2.to(device), level3.to(device)
 
     @staticmethod
-    def initialise_memory():
-        exploration_memory = Hippocampus()
+    def initialise_memory(
+            use_hebb,
+            use_gen,
+            read_num_head,
+            combination_num_head,
+            key_size,
+            value_size,
+            policy_num_steps,
+            max_rollouts_per_task,
+            w_max,
+            memory_state_embedding,
+            general_key_encoder_layer,
+            general_value_encoder_layer,
+            general_query_encoder_layer,
+            episodic_key_encoder_layer,
+            episodic_value_encoder_layer,
+            hebbian_key_encoder_layer,
+            hebbian_value_encoder_layer,
+            state_dim,
+            rim_query_size,
+            rim_hidden_state_to_query_layers,
+            read_memory_to_value_layer,
+            read_memory_to_key_layer,
+            rim_level1_hidden_size):
+
+        memory = Hippocampus(
+            use_hebb,
+            use_gen,
+            read_num_head,
+            combination_num_head,
+            key_size,
+            value_size,
+            policy_num_steps,
+            max_rollouts_per_task,
+            w_max,
+            memory_state_embedding,
+            general_key_encoder_layer,
+            general_value_encoder_layer,
+            general_query_encoder_layer,
+            episodic_key_encoder_layer,
+            episodic_value_encoder_layer,
+            hebbian_key_encoder_layer,
+            hebbian_value_encoder_layer,
+            state_dim,
+            rim_query_size,
+            rim_hidden_state_to_query_layers,
+            read_memory_to_value_layer,
+            read_memory_to_key_layer,
+            rim_level1_hidden_size)
+        return memory
 
     def prior(self, batch_size, state, state_process, embedd_state):
         brim_hidden_state = []
@@ -537,8 +631,7 @@ class Blocks(nn.Module):
 
         return brim_output1, brim_output2, brim_output3, brim_output4, brim_output5, brim_hidden_state, extra_information
 
-    @staticmethod
-    def reset_hidden(brim_hidden_state, done):
+    def reset_hidden(self, brim_hidden_state, done):
         # brim_hidden_state dim should like (length, batch_size, num_layer, hidden_size)
         if brim_hidden_state.dim() != done.dim():
             if done.dim() == 2:
@@ -557,10 +650,12 @@ class Blocks(nn.Module):
                 brim_level2_task_inference_latent,
                 brim_level3_task_inference_latent,
                 activated_branch,
-                state_process):
+                state_process,
+                rpe=0.1):
         extra_information = {}
 
         policy_state = state.clone()
+        memory_state = state.clone()
         action = self.action_encoder(action)
         batch_size = state.shape[0]
         tmp_state = state.clone()
@@ -585,6 +680,9 @@ class Blocks(nn.Module):
                 level1_input = self.input_embedding_layer_level1[0](brim_input)
                 if self.rim_level1_condition_on_task_inference_latent:
                     level1_input = torch.cat((level1_input, brim_level1_task_inference_latent), dim=-1)
+                if self.use_memory:
+                    read_rim_output1 = self.memory.read((memory_state, brim_level1_task_inference_latent), brim_hidden_state1, activated_branch)
+                    level1_input = torch.cat((level1_input, read_rim_output1), dim=-1)
                 if self.use_fix_dim_level1:
                     brim_hidden_state3_ = self.rim1_input_fix_dim[0](brim_hidden_state3.detach())
                 else:
@@ -601,6 +699,8 @@ class Blocks(nn.Module):
                 else:
                     brim_hidden_state1 = self.bc_list[0][0](level1_input, brim_hidden_state1)
                 brim_output1 = self.output_layer_level1[0](brim_hidden_state1)
+                if self.use_memory:
+                    self.memory.write((memory_state, brim_level1_task_inference_latent), brim_output1, rpe, activated_branch)
                 if self.use_stateful_vision_core:
                     rim_output1_to_vision_core = self.output_layer_to_vision_core[0](brim_hidden_state1)
                     extra_information['exploration_policy_embedded_state'] = state_process(policy_state, rim_output1_to_vision_core)
@@ -659,6 +759,9 @@ class Blocks(nn.Module):
                 level1_input = self.input_embedding_layer_level1[1](brim_input)
                 if self.rim_level1_condition_on_task_inference_latent:
                     level1_input = torch.cat((level1_input, brim_level1_task_inference_latent), dim=-1)
+                if self.use_memory:
+                    read_rim_output2 = self.memory.read((memory_state, brim_level1_task_inference_latent), brim_hidden_state2, activated_branch)
+                    level1_input = torch.cat((level1_input, read_rim_output2), dim=-1)
                 if self.use_fix_dim_level1:
                     brim_hidden_state4_ = self.rim1_input_fix_dim[1](brim_hidden_state4.detach())
                 else:
@@ -675,6 +778,8 @@ class Blocks(nn.Module):
                 else:
                     brim_hidden_state2 = self.bc_list[0][1](level1_input, brim_hidden_state2)
                 brim_output2 = self.output_layer_level1[1](brim_hidden_state2)
+                if self.use_memory:
+                    self.memory.write((memory_state, brim_level1_task_inference_latent), brim_output2, rpe, activated_branch)
                 if self.use_stateful_vision_core:
                     rim_output2_to_vision_core = self.output_layer_to_vision_core[1](brim_hidden_state2)
                     extra_information['exploitation_policy_embedded_state'] = state_process(policy_state, rim_output2_to_vision_core)
