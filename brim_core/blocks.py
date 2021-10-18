@@ -191,14 +191,14 @@ class Blocks(nn.Module):
             self.output_layer_to_vision_core.append(nn.Sequential(
                 nn.Linear(self.rim_level1_hidden_size, 4 * rim_output_size_to_vision_core),
                 nn.ReLU(),
-                nn.Linear(4 * self.rim_level1_hidden_size, 2 * rim_output_size_to_vision_core),
+                nn.Linear(4 * rim_output_size_to_vision_core, 2 * rim_output_size_to_vision_core),
                 nn.ReLU(),
                 nn.Linear(2 * rim_output_size_to_vision_core, rim_output_size_to_vision_core)
             ))
             self.output_layer_to_vision_core.append(nn.Sequential(
                 nn.Linear(self.rim_level1_hidden_size, 4 * rim_output_size_to_vision_core),
                 nn.ReLU(),
-                nn.Linear(4 * self.rim_level1_hidden_size, 2 * rim_output_size_to_vision_core),
+                nn.Linear(4 * rim_output_size_to_vision_core, 2 * rim_output_size_to_vision_core),
                 nn.ReLU(),
                 nn.Linear(2 * rim_output_size_to_vision_core, rim_output_size_to_vision_core)
             ))

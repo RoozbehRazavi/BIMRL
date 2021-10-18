@@ -312,7 +312,7 @@ def get_args(rest_args):
     parser.add_argument('--rim_top_down_level2_level1', type=boolean_argument, default=True,
                         help='rim level 1 get information from level 2')
     # memory
-    parser.add_argument('--use_memory', type=boolean_argument, default=False,
+    parser.add_argument('--use_memory', type=boolean_argument, default=True,
                         help='whatever or not use memory in model')
     parser.add_argument('--use_hebb', type=boolean_argument, default=False,
                         help='whatever or not use hebbian memory in memory module')
