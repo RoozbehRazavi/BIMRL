@@ -4,7 +4,8 @@ import torch
 from environments.parallel_envs import make_vec_envs
 from utils import helpers as utl
 from array2gif import write_gif
-import gym
+import os
+
 import numpy
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -348,7 +349,8 @@ def visualize_policy(
         action_decoder,
         num_episodes,
         state_prediction_running_normalizer,
-        action_prediction_running_normalizer):
+        action_prediction_running_normalizer,
+        full_output_folder):
 
     env_name = args.env_name
     envs = make_vec_envs(env_name, seed=args.seed * 42 + iter_idx, num_processes=1,
@@ -460,4 +462,5 @@ def visualize_policy(
             if sum(done_mdp) == 1:
                 break
     envs.close()
-    write_gif(numpy.array(frames), f'{policy_type}_policy_{iter_idx}' + ".gif")
+    save_path = os.path.join(full_output_folder, 'gif', f'{policy_type}_policy_{iter_idx}.gif')
+    write_gif(numpy.array(frames), save_path)

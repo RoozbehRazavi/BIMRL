@@ -806,7 +806,8 @@ class MetaLearner:
                 action_decoder=self.base2final.action_decoder,
                 num_episodes=4,
                 state_prediction_running_normalizer=self.state_prediction_running_normalizer,
-                action_prediction_running_normalizer=self.action_prediction_running_normalizer)
+                action_prediction_running_normalizer=self.action_prediction_running_normalizer,
+                full_output_folder=self.logger.full_output_folder)
 
         # --- evaluate policy ----
 
