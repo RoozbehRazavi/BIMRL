@@ -10,7 +10,7 @@ def get_args(rest_args):
     parser.add_argument('--num_frames', type=int, default=1e8, help='number of frames to train')
     parser.add_argument('--max_rollouts_per_task', type=int, default=4, help='number of MDP episodes for adaptation')
     parser.add_argument('--exp_label', default='varibad', help='label (typically name of method)')
-    parser.add_argument('--env_name', default='MiniGrid-Empty-8x8-v0', help='environment to train on')
+    parser.add_argument('--env_name', default='MiniGrid-Empty-5x5-v0', help='environment to train on')
 
     # --- POLICY ---
 
@@ -53,7 +53,7 @@ def get_args(rest_args):
 
     # other hyperparameters
     parser.add_argument('--lr_policy', type=float, default=0.0007, help='learning rate (default: 7e-4)')
-    parser.add_argument('--num_processes', type=int, default=4,
+    parser.add_argument('--num_processes', type=int, default=2,
                         help='how many training CPU processes / parallel environments to use (default: 16)')
     parser.add_argument('--policy_num_steps', type=int, default=400,
                         help='number of env steps to do (per process) before updating')
@@ -106,7 +106,7 @@ def get_args(rest_args):
     parser.add_argument('--vae_encoder_layers_before_gru', nargs='+', type=int, default=[])
     parser.add_argument('--vae_encoder_gru_hidden_size', type=int, default=64, help='dimensionality of RNN hidden state')
     parser.add_argument('--vae_encoder_layers_after_gru', nargs='+', type=int, default=[])
-    parser.add_argument('--task_inference_latent_dim', type=int, default=10, help='dimensionality of latent space')
+    parser.add_argument('--task_inference_latent_dim', type=int, default=8, help='dimensionality of latent space')
 
     # - decoder: rewards
     parser.add_argument('--decode_reward', type=boolean_argument, default=True, help='use reward decoder')
@@ -172,7 +172,7 @@ def get_args(rest_args):
     parser.add_argument('--vae_fill_with_exploration_experience', type=boolean_argument, default=False,
                         help='vae buffer fill just with exploration trajectory of with both exploration and exploitation')
 
-    parser.add_argument('--exploration_processes_portion', type=float, default=0.5,
+    parser.add_argument('--exploration_processes_portion', type=float, default=0.0,
                         help='what portion of process generate trajectory with exploration policy')
 
     # Disable Loss of Base2Final
@@ -319,20 +319,21 @@ def get_args(rest_args):
     parser.add_argument('--use_gen', type=boolean_argument, default=False,
                         help='whatever or not use generative memory in memory module')
     parser.add_argument('--read_num_head', type=int, default=4)
-    parser.add_argument('--combination_num_head', type=int, default=1)
+    parser.add_argument('--combination_num_head', type=int, default=2)
     parser.add_argument('--key_size', type=int, default=16)
-    parser.add_argument('--memory_state_embedding', type=int, default=16)
+    parser.add_argument('--memory_state_embedding', type=int, default=32)
     parser.add_argument('--w_max', type=float, default=0.5)
     parser.add_argument('--general_key_encoder_layer', type=int, nargs='+', default=[])
     parser.add_argument('--general_value_encoder_layer', type=int, nargs='+', default=[])
-
     parser.add_argument('--general_query_encoder_layer', type=int, nargs='+', default=[])
+
     parser.add_argument('--episodic_key_encoder_layer', type=int, nargs='+', default=[])
     parser.add_argument('--episodic_value_encoder_layer', type=int, nargs='+', default=[])
+
     parser.add_argument('--hebbian_key_encoder_layer', type=int, nargs='+', default=[])
     parser.add_argument('--hebbian_value_encoder_layer', type=int, nargs='+', default=[])
 
-    parser.add_argument('--rim_query_size', type=int, default=16)
+    parser.add_argument('--rim_query_size', type=int, default=8)
     parser.add_argument('--rim_hidden_state_to_query_layers', type=int, nargs='+', default=[])
     parser.add_argument('--read_memory_to_value_layer', type=int, nargs='+', default=[])
     parser.add_argument('--read_memory_to_key_layer', type=int, nargs='+', default=[])
@@ -347,6 +348,7 @@ def get_args(rest_args):
     parser.add_argument('--visual_attention_spatial', type=int, default=16)
     parser.add_argument('--visual_attention_num_queries', type=int, default=4)
     parser.add_argument('--rim_output_size_to_vision_core', type=int, default=16)
+    parser.add_argument('--pass_gradient_to_rim_from_state_encoder', type=boolean_argument, default=True)
 
     ####
     parser.add_argument('--exploration_num_episodes', type=int, default=4)

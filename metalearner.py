@@ -80,7 +80,7 @@ class MetaLearner:
             self.args.action_dim = envs.action_space.shape[0]
 
         # initialise VAE and policy
-        self.base2final = Base2Final(self.args, self.logger, lambda: self.iter_idx)
+        self.base2final = Base2Final(self.args, self.logger, lambda: self.iter_idx, self.exploration_num_processes, self.exploitation_num_processes)
         self.exploration_policy_storage = self.initialise_policy_storage(self.exploration_num_processes)
         self.exploitation_policy_storage = self.initialise_policy_storage(self.exploitation_num_processes)
         self.exploration_policy = None
@@ -268,22 +268,22 @@ class MetaLearner:
             self.exploitation_policy_storage.prev_state[0].copy_(exploitation_prev_state)
 
         # log once before training
-        with torch.no_grad():
-            if train_exploration:
-                self.log(None, None, start_time,
-                         self.exploration_policy,
-                         self.exploration_policy_storage,
-                         self.exploration_envs,
-                         'exploration',
-                         meta_eval=train_exploration and train_exploitation)
-
-            if train_exploitation:
-                self.log(None, None, start_time,
-                         self.exploitation_policy,
-                         self.exploitation_policy_storage,
-                         self.exploitation_envs,
-                         'exploitation',
-                         meta_eval=train_exploration and train_exploitation)
+        # with torch.no_grad():
+        #     if train_exploration:
+        #         self.log(None, None, start_time,
+        #                  self.exploration_policy,
+        #                  self.exploration_policy_storage,
+        #                  self.exploration_envs,
+        #                  'exploration',
+        #                  meta_eval=train_exploration and train_exploitation)
+        #
+        #     if train_exploitation:
+        #         self.log(None, None, start_time,
+        #                  self.exploitation_policy,
+        #                  self.exploitation_policy_storage,
+        #                  self.exploitation_envs,
+        #                  'exploitation',
+        #                  meta_eval=train_exploration and train_exploitation)
 
         vae_is_pretrained = False
         for self.iter_idx in range(self.start_idx, self.num_updates):
@@ -631,7 +631,6 @@ class MetaLearner:
                             policy_storage=self.exploration_policy_storage,
                             activated_branch='exploration')
                     if train_exploitation:
-                        #with torch.autograd.set_detect_anomaly(True):
                         exploitation_train_stats = self.update(
                             belief=exploitation_belief,
                             task=exploitation_task,
@@ -672,9 +671,10 @@ class MetaLearner:
 
             # clean up after update
             if train_exploration:
+                # TODO cat action_errors and state_errors
                 self.exploration_policy_storage.after_update()
-                self.state_prediction_running_normalizer.update(state_errors)
-                self.action_prediction_running_normalizer.update(action_errors)
+                self.state_prediction_running_normalizer.update(torch.cat(state_errors))
+                self.action_prediction_running_normalizer.update(torch.cat(action_errors))
                 state_errors = []
                 action_errors = []
             if train_exploitation:
@@ -958,7 +958,8 @@ class MetaLearner:
                 [self.base2final.exploration_value_decoder, 'exploration_value_decoder'],
                 [policy.actor_critic.state_encoder, f'state_encoder_{policy_type}'],
             ]
-
+            if self.args.use_memory:
+                model_params.append([self.base2final.brim_core.brim.model.memory, 'memory'])
             for [model, name] in model_params:
                 if model is not None:
                     param_list = list(model.named_parameters())

@@ -163,6 +163,7 @@ class PPO:
                 self.optimiser.step()
                 if rlloss_through_encoder:
                     self.optimiser_vae.step()
+                    pass
 
                 value_loss_epoch += value_loss.item()
                 action_loss_epoch += action_loss.item()
@@ -173,7 +174,7 @@ class PPO:
                     # recompute embeddings (to build computation graph)
                     utl.recompute_embeddings(self.actor_critic, policy_storage, encoder, sample=False, update_idx=e + 1,
                                              detach_every=self.args.tbptt_stepsize if hasattr(self.args, 'tbptt_stepsize') else None,
-                                             activated_branch=activated_branch)
+                                             activated_branch=activated_branch,)
 
         if (not rlloss_through_encoder) and (self.optimiser_vae is not None):
             for _ in range(self.args.num_vae_updates):

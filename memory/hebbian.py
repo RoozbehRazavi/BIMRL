@@ -16,7 +16,7 @@ class Hebbian(nn.Module):
 
         self.key_encoder = nn.ModuleList([])
         curr_dim = key_size
-        for i in range(key_encoder_layer):
+        for i in range(len(key_encoder_layer)):
             self.key_encoder.append(nn.Linear(curr_dim, key_encoder_layer[i]))
             self.key_encoder.append(nn.ReLU())
         self.key_encoder.append(nn.Linear(curr_dim, key_size))
@@ -24,7 +24,7 @@ class Hebbian(nn.Module):
 
         self.value_encoder = nn.ModuleList([])
         curr_dim = value_size
-        for i in range(value_encoder_layer):
+        for i in range(len(value_encoder_layer)):
             self.value_encoder.append(nn.Linear(curr_dim, value_encoder_layer[i]))
             self.value_encoder.append(nn.ReLU())
         self.value_encoder.append(nn.Linear(curr_dim, value_size))
@@ -35,13 +35,17 @@ class Hebbian(nn.Module):
 
         self.exploitation_w_assoc = self.exploitation_batch_size = self.exploration_w_assoc = self.exploration_batch_size =None
 
-    def prior(self, exploration_batch_size, exploitation_batch_size):
-        self.exploitation_batch_size = exploitation_batch_size
-        self.exploration_batch_size = exploration_batch_size
-        self.exploration_w_assoc = torch.zeros((self.batch_size, self.key_size, self.value_size), requires_grad=False, device=device)
-        self.exploitation_w_assoc = torch.zeros((self.batch_size, self.key_size, self.value_size), requires_grad=False, device=device)
-        torch.nn.init.normal_(self.exploration_w_assoc, mean=0, std=0.1)
-        torch.nn.init.normal_(self.exploitation_w_assoc, mean=0, std=0.1)
+    def prior(self, batch_size, activated_branch):
+        if activated_branch == 'exploitation':
+            self.exploitation_batch_size = batch_size
+            self.exploitation_w_assoc = torch.zeros((self.batch_size, self.key_size, self.value_size), requires_grad=False, device=device)
+            torch.nn.init.normal_(self.exploitation_w_assoc, mean=0, std=0.1)
+        elif activated_branch == 'exploration':
+            self.exploration_batch_size = batch_size
+            self.exploration_w_assoc = torch.zeros((self.batch_size, self.key_size, self.value_size), requires_grad=False, device=device)
+            torch.nn.init.normal_(self.exploration_w_assoc, mean=0, std=0.1)
+        else:
+            raise NotImplementedError
 
     def reset(self, done_task, activated_branch):
         done_task_idx = done_task.view(len(done_task)).nonzero(as_tuple=True)[0]

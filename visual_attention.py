@@ -168,7 +168,7 @@ class QueryNetwork(nn.Module):
         super(QueryNetwork, self).__init__()
         # TODO: Add proper non-linearity.
         self.model = nn.Sequential(
-            nn.Linear(hidden_state_size, 128), nn.ReLU(), nn.Linear(128, 80), nn.ReLU(), nn.Linear(80, 80)
+            nn.Linear(hidden_state_size, 64), nn.ReLU(), nn.Linear(64, 80), nn.ReLU(), nn.Linear(80, 80)
         )
 
     def forward(self, query):

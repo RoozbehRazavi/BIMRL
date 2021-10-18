@@ -96,7 +96,7 @@ def get_latent_for_policy(sample_embeddings, add_nonlinearity_to_latent, latent_
 def update_encoding(brim_core, policy, next_obs, action, reward, done, task_inference_hidden_state, brim_hidden_state, activated_branch, rpe):
     # reset hidden state of the recurrent net when we reset the task
     if done is not None:
-        task_inference_hidden_state, brim_hidden_state = brim_core.reset_hidden(policy, task_inference_hidden_state, brim_hidden_state, done_task=done, done_episode=None)
+        task_inference_hidden_state, brim_hidden_state = brim_core.reset_hidden(policy, task_inference_hidden_state, brim_hidden_state, done_task=done, done_episode=None, activated_branch=activated_branch)
 
     with torch.no_grad():
         if activated_branch == 'exploration':
@@ -222,9 +222,12 @@ def recompute_embeddings(
     brim_hidden_state = policy_storage.brim_hidden_states[0].detach()
     policy.state_encoder.prior(policy_storage.actions.shape[1])
     policy.state_encoder.detach_hidden_state()
+    memory = brim_core.brim.model.memory
+    if memory is not None:
+        memory.prior(policy_storage.actions.shape[1], activated_branch)
     for i in range(policy_storage.actions.shape[0]):
         # reset hidden state of the GRU when we reset the task
-        task_inference_hidden_state, brim_hidden_state = brim_core.reset_hidden(policy, task_inference_hidden_state, brim_hidden_state, policy_storage.done[i + 1], None)
+        task_inference_hidden_state, brim_hidden_state = brim_core.reset_hidden(policy, task_inference_hidden_state, brim_hidden_state, policy_storage.done[i + 1], None, activated_branch=activated_branch)
 
         if activated_branch == 'exploration':
             brim_output1, brim_output3, brim_output5, brim_hidden_state, \
@@ -268,7 +271,7 @@ def recompute_embeddings(
             brim_output_level3.append(brim_output5)
             policy_embedded_state.append(exploitation_policy_embedded_state)
 
-    if update_idx == 0:
+    if update_idx == 0 and activated_branch == 'exploration':
         try:
             assert (torch.cat(policy_storage.latent_mean) - torch.cat(latent_mean)).sum() == 0
             assert (torch.cat(policy_storage.latent_logvar) - torch.cat(latent_logvar)).sum() == 0
@@ -415,6 +418,7 @@ class SimpleVision(nn.Module):
 
     def detach_hidden_state(self):
         pass
+
     def prior(self, batch_size):
         pass
 

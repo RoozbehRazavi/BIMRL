@@ -48,7 +48,8 @@ class Blocks(nn.Module):
                  residual_task_inference_latent,
                  use_stateful_vision_core,
                  rim_output_size_to_vision_core,
-                 memory_params
+                 memory_params,
+                 pass_gradient_to_rim_from_state_encoder
                  ):
         super(Blocks, self).__init__()
         assert (rim_top_down_level2_level1 and use_rim_level2) or not rim_top_down_level2_level1
@@ -74,6 +75,7 @@ class Blocks(nn.Module):
         self.residual_task_inference_latent = residual_task_inference_latent
         self.use_memory = use_memory
         self.use_stateful_vision_core = use_stateful_vision_core
+        self.pass_gradient_to_rim_from_state_encoder = pass_gradient_to_rim_from_state_encoder
 
         self.state_encoder = utl.SimpleVision(state_embed_dim)
         self.action_encoder = utl.FeatureExtractor(action_dim, action_embed_dim, F.relu)
@@ -89,7 +91,7 @@ class Blocks(nn.Module):
                 rim_level1_input_dim = brim_input_dim
 
             if use_memory:
-                rim_level1_input_dim = brim_input_dim + rim_level1_hidden_size
+                rim_level1_input_dim += rim_level1_output_dim
 
             if rim_level1_condition_on_task_inference_latent:
                 rim_level1_input_dim += task_inference_latent_dim * 2
@@ -187,17 +189,22 @@ class Blocks(nn.Module):
         self.output_layer_to_vision_core = nn.ModuleList([])
         if self.use_stateful_vision_core:
             self.output_layer_to_vision_core.append(nn.Sequential(
-                nn.Linear(self.rim_level1_hidden_size, 2*rim_output_size_to_vision_core),
+                nn.Linear(self.rim_level1_hidden_size, 4 * rim_output_size_to_vision_core),
+                nn.ReLU(),
+                nn.Linear(4 * self.rim_level1_hidden_size, 2 * rim_output_size_to_vision_core),
                 nn.ReLU(),
                 nn.Linear(2 * rim_output_size_to_vision_core, rim_output_size_to_vision_core)
             ))
             self.output_layer_to_vision_core.append(nn.Sequential(
-                nn.Linear(self.rim_level1_hidden_size, 2 * rim_output_size_to_vision_core),
+                nn.Linear(self.rim_level1_hidden_size, 4 * rim_output_size_to_vision_core),
+                nn.ReLU(),
+                nn.Linear(4 * self.rim_level1_hidden_size, 2 * rim_output_size_to_vision_core),
                 nn.ReLU(),
                 nn.Linear(2 * rim_output_size_to_vision_core, rim_output_size_to_vision_core)
             ))
         self.exploration_memory = None
         self.exploitation = None
+        self.memory = None
         if self.use_memory:
             use_hebb,\
             use_gen,\
@@ -605,8 +612,12 @@ class Blocks(nn.Module):
             brim_output2 = self.output_layer_level1[1](h2)
             if embedd_state:
                 if self.use_stateful_vision_core:
-                    rim_output1_to_vision_core = self.output_layer_to_vision_core[0](h1)
-                    rim_output2_to_vision_core = self.output_layer_to_vision_core[1](h2)
+                    if self.pass_gradient_to_rim_from_state_encoder:
+                        rim_output1_to_vision_core = self.output_layer_to_vision_core[0](h1)
+                        rim_output2_to_vision_core = self.output_layer_to_vision_core[1](h2)
+                    else:
+                        rim_output1_to_vision_core = self.output_layer_to_vision_core[0](h1.detach())
+                        rim_output2_to_vision_core = self.output_layer_to_vision_core[1](h2.detach())
                     extra_information['exploration_policy_embedded_state'] = state_process(state, rim_output1_to_vision_core)
                     extra_information['exploitation_policy_embedded_state'] = state_process(state, rim_output2_to_vision_core)
                 else:
@@ -702,7 +713,10 @@ class Blocks(nn.Module):
                 if self.use_memory:
                     self.memory.write((memory_state, brim_level1_task_inference_latent), brim_output1, rpe, activated_branch)
                 if self.use_stateful_vision_core:
-                    rim_output1_to_vision_core = self.output_layer_to_vision_core[0](brim_hidden_state1)
+                    if self.pass_gradient_to_rim_from_state_encoder:
+                        rim_output1_to_vision_core = self.output_layer_to_vision_core[0](brim_hidden_state1)
+                    else:
+                        rim_output1_to_vision_core = self.output_layer_to_vision_core[0](brim_hidden_state1.detach())
                     extra_information['exploration_policy_embedded_state'] = state_process(policy_state, rim_output1_to_vision_core)
                 else:
                     extra_information['exploration_policy_embedded_state'] = state_process(policy_state)
@@ -781,7 +795,10 @@ class Blocks(nn.Module):
                 if self.use_memory:
                     self.memory.write((memory_state, brim_level1_task_inference_latent), brim_output2, rpe, activated_branch)
                 if self.use_stateful_vision_core:
-                    rim_output2_to_vision_core = self.output_layer_to_vision_core[1](brim_hidden_state2)
+                    if self.pass_gradient_to_rim_from_state_encoder:
+                        rim_output2_to_vision_core = self.output_layer_to_vision_core[1](brim_hidden_state2)
+                    else:
+                        rim_output2_to_vision_core = self.output_layer_to_vision_core[1](brim_hidden_state2.detach())
                     extra_information['exploitation_policy_embedded_state'] = state_process(policy_state, rim_output2_to_vision_core)
                 else:
                     extra_information['exploitation_policy_embedded_state'] = state_process(policy_state)

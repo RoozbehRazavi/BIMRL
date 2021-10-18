@@ -56,6 +56,7 @@ class BRIMCore(nn.Module):
                  residual_task_inference_latent,
                  rim_output_size_to_vision_core,
                  memory_params,
+                 pass_gradient_to_rim_from_state_encoder
                  ):
         super(BRIMCore, self).__init__()
         assert (not use_memory and not use_hebb and not use_gen) or use_memory
@@ -65,6 +66,7 @@ class BRIMCore(nn.Module):
         self.use_rim_level2 = use_rim_level2
         self.use_rim_level3 = use_rim_level3
         self.use_stateful_vision_core = use_stateful_vision_core
+        self.use_memory = use_memory
 
         self.brim = self.initialise_brim(use_memory,
                                          memory_params,
@@ -110,7 +112,8 @@ class BRIMCore(nn.Module):
                                          new_impl,
                                          vae_loss_throughout_vae_encoder_from_rim_level3,
                                          residual_task_inference_latent,
-                                         rim_output_size_to_vision_core
+                                         rim_output_size_to_vision_core,
+                                         pass_gradient_to_rim_from_state_encoder
                                          )
         for name, param in self.brim.named_parameters():
             if 'bias' in name:
@@ -163,7 +166,8 @@ class BRIMCore(nn.Module):
                         new_impl,
                         vae_loss_throughout_vae_encoder_from_rim_level3,
                         residual_task_inference_latent,
-                        rim_output_size_to_vision_core
+                        rim_output_size_to_vision_core,
+                        pass_gradient_to_rim_from_state_encoder
                         ):
         brim = BRIM(use_memory=use_memory,
                     memory_params=memory_params,
@@ -209,8 +213,8 @@ class BRIMCore(nn.Module):
                     new_impl=new_impl,
                     vae_loss_throughout_vae_encoder_from_rim_level3=vae_loss_throughout_vae_encoder_from_rim_level3,
                     residual_task_inference_latent=residual_task_inference_latent,
-                    rim_output_size_to_vision_core=rim_output_size_to_vision_core
-                    ).to(device)
+                    rim_output_size_to_vision_core=rim_output_size_to_vision_core,
+                    pass_gradient_to_rim_from_state_encoder=pass_gradient_to_rim_from_state_encoder).to(device)
         return brim
 
     def _sample_gaussian(self, mu, logvar, num=None):
@@ -230,10 +234,13 @@ class BRIMCore(nn.Module):
                      task_inference_hidden_state,
                      brim_hidden_state,
                      done_task,
-                     done_episode
+                     done_episode,
+                     activated_branch
                      ):
         if self.use_stateful_vision_core:
             policy_state_encoder.state_encoder.reset(done_task)
+        if self.use_memory:
+            self.brim.model.memory.reset(done_episode=done_episode, activated_branch=activated_branch)
         return self.brim.reset(task_inference_hidden_state, brim_hidden_state, done_task, done_episode)
 
     def prior(self,
@@ -249,6 +256,8 @@ class BRIMCore(nn.Module):
             state_process = policy_network.state_process
         else:
             state_process = None
+        if self.use_memory and not activated_branch == 'level3':
+            self.brim.model.memory.prior(batch_size, activated_branch)
         return self.brim.prior(batch_size=batch_size, sample=sample, state=state, state_process=state_process, embedd_state=embedd_state)
 
     def forward(self,

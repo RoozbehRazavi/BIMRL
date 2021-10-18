@@ -54,7 +54,8 @@ class BRIM(nn.Module):
                  new_impl,
                  vae_loss_throughout_vae_encoder_from_rim_level3,
                  residual_task_inference_latent,
-                 rim_output_size_to_vision_core
+                 rim_output_size_to_vision_core,
+                 pass_gradient_to_rim_from_state_encoder
                  ):
         super(BRIM, self).__init__()
 
@@ -99,7 +100,8 @@ class BRIM(nn.Module):
                                             residual_task_inference_latent=residual_task_inference_latent,
                                             use_stateful_vision_core=use_stateful_vision_core,
                                             rim_output_size_to_vision_core=rim_output_size_to_vision_core,
-                                            memory_params=memory_params)
+                                            memory_params=memory_params,
+                                            pass_gradient_to_rim_from_state_encoder=pass_gradient_to_rim_from_state_encoder)
 
         self.vae_encoder = self.initialise_vae_encoder(vae_encoder_layers_before_gru=vae_encoder_layers_before_gru,
                                                        vae_encoder_hidden_size=vae_encoder_hidden_size,
@@ -152,7 +154,8 @@ class BRIM(nn.Module):
                           residual_task_inference_latent,
                           use_stateful_vision_core,
                           rim_output_size_to_vision_core,
-                          memory_params
+                          memory_params,
+                          pass_gradient_to_rim_from_state_encoder
                           ):
         blocks = Blocks(use_rim_level1=use_rim_level1,
                         use_rim_level2=use_rim_level2,
@@ -193,6 +196,7 @@ class BRIM(nn.Module):
                         use_stateful_vision_core=use_stateful_vision_core,
                         rim_output_size_to_vision_core=rim_output_size_to_vision_core,
                         memory_params=memory_params,
+                        pass_gradient_to_rim_from_state_encoder=pass_gradient_to_rim_from_state_encoder
                         ).to(device)
         return blocks
 

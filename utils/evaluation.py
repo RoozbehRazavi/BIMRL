@@ -170,11 +170,13 @@ def evaluate(args,
 def plot_meta_eval(returns, save_path, iter_idx):
     plt.figure(figsize=(12, 5))
     plt.subplot(1, 2, 1)
-    plt.plot(range(returns.shape[0]), returns, '-', alpha=0.5)
+    plt.plot(range(returns.shape[1]), returns[0], '-', alpha=0.5)
     plt.xlabel('exploration episode', fontsize=15)
     plt.ylabel('exploitation mean return', fontsize=15)
     plt.tight_layout()
     if save_path is not None:
+        if os.path.isfile(os.path.join(save_path, f'meta_eval_{iter_idx}.png')):
+            os.remove(os.path.join(save_path, f'meta_eval_{iter_idx}.png'))
         plt.savefig(os.path.join(save_path, f'meta_eval_{iter_idx}'))
         plt.close()
     else:
@@ -311,7 +313,9 @@ def evaluate_meta_policy(
                                                        latent_logvar=latent_logvar)
                     if args.use_rim_level3:
                         if args.residual_task_inference_latent:
-                            latent = torch.cat((brim_output_level3.squeeze(0), latent), dim=-1)
+                            if brim_output_level3.dim() == 3:
+                                brim_output_level3 = brim_output_level3.squeeze(0)
+                            latent = torch.cat((brim_output_level3, latent), dim=-1)
                         else:
                             latent = brim_output_level3
 
@@ -349,7 +353,7 @@ def evaluate_meta_policy(
 
                 # add rewards
                 if episode_idx == i:
-                    returns_per_episode[0, i] += rew_raw.view(-1)
+                    returns_per_episode[:, i] += rew_raw.view(-1)
                 if sum(done_mdp) > 0:
                     break
         envs.close()

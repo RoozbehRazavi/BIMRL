@@ -116,7 +116,7 @@ class Base2Final:
     - can compute the ELBO loss
     - can update the VAE (encoder+decoder)
     """
-    def __init__(self, args, logger, get_iter_idx):
+    def __init__(self, args, logger, get_iter_idx, exploration_num_processes, exploitation_num_processes):
 
         self.args = args
         self.logger = logger
@@ -155,7 +155,7 @@ class Base2Final:
 
         # initialise rollout storage for the VAE update
         # (this differs from the data that the on-policy RL algorithm uses)
-        self.exploration_rollout_storage = RolloutStorageVAE(num_processes=self.args.num_processes,
+        self.exploration_rollout_storage = RolloutStorageVAE(num_processes=exploration_num_processes,
                                                              max_trajectory_len=self.args.max_trajectory_len,
                                                              zero_pad=True,
                                                              max_num_rollouts=self.args.size_vae_buffer,
@@ -165,7 +165,7 @@ class Base2Final:
                                                              task_dim=self.task_dim,
                                                              save_intrinsic_reward=True
                                                              )
-        self.exploitation_rollout_storage = RolloutStorageVAE(num_processes=self.args.num_processes,
+        self.exploitation_rollout_storage = RolloutStorageVAE(num_processes=exploitation_num_processes,
                                                               max_trajectory_len=self.args.max_trajectory_len,
                                                               zero_pad=True,
                                                               max_num_rollouts=self.args.size_vae_buffer,
@@ -241,6 +241,7 @@ class Base2Final:
             residual_task_inference_latent=self.args.residual_task_inference_latent,
             rim_output_size_to_vision_core=self.args.rim_output_size_to_vision_core,
             memory_params=memory_params,
+            pass_gradient_to_rim_from_state_encoder=self.args.pass_gradient_to_rim_from_state_encoder
         ).to(device)
         return brim_core
 
