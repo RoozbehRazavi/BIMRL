@@ -794,6 +794,7 @@ class MetaLearner:
 
         # --- visualize policy ----
         if self.iter_idx % self.args.vis_interval == 0 and not policy_type == 'meta_policy':
+            print('visualize ...')
             ret_rms = envs.venv.ret_rms if self.args.norm_rew_for_policy else None
             utl_eval.visualize_policy(
                 args=self.args,
@@ -812,7 +813,7 @@ class MetaLearner:
         # --- evaluate policy ----
 
         if self.iter_idx % self.args.eval_interval == 0:
-
+            print('evaluate ...')
             ret_rms = envs.venv.ret_rms if self.args.norm_rew_for_policy else None
 
             returns_per_episode = utl_eval.evaluate(args=self.args,
@@ -847,8 +848,8 @@ class MetaLearner:
                   f"\n Mean return {policy_type} (train): {returns_avg[-1].item()} \n")
 
         # --- save models ---
-
         if self.iter_idx % self.args.save_interval == 0:
+            print('save ...')
             save_path = os.path.join(self.logger.full_output_folder, 'models')
             if not os.path.exists(save_path):
                 os.mkdir(save_path)
