@@ -220,7 +220,7 @@ def recompute_embeddings(
     # (we need to loop because we sometimes need to reset the hidden state)
     task_inference_hidden_state = policy_storage.task_inference_hidden_states[0].detach()
     brim_hidden_state = policy_storage.brim_hidden_states[0].detach()
-    policy.state_encoder.prior()
+    policy.state_encoder.prior(policy_storage.actions.shape[1])
     policy.state_encoder.detach_hidden_state()
     for i in range(policy_storage.actions.shape[0]):
         # reset hidden state of the GRU when we reset the task
