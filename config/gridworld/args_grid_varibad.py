@@ -53,7 +53,7 @@ def get_args(rest_args):
 
     # other hyperparameters
     parser.add_argument('--lr_policy', type=float, default=0.0007, help='learning rate (default: 7e-4)')
-    parser.add_argument('--num_processes', type=int, default=2,
+    parser.add_argument('--num_processes', type=int, default=4,
                         help='how many training CPU processes / parallel environments to use (default: 16)')
     parser.add_argument('--policy_num_steps', type=int, default=400,
                         help='number of env steps to do (per process) before updating')
@@ -172,7 +172,7 @@ def get_args(rest_args):
     parser.add_argument('--vae_fill_with_exploration_experience', type=boolean_argument, default=False,
                         help='vae buffer fill just with exploration trajectory of with both exploration and exploitation')
 
-    parser.add_argument('--exploration_processes_portion', type=float, default=0.0,
+    parser.add_argument('--exploration_processes_portion', type=float, default=0.5,
                         help='what portion of process generate trajectory with exploration policy')
 
     # Disable Loss of Base2Final
@@ -347,5 +347,9 @@ def get_args(rest_args):
     parser.add_argument('--visual_attention_spatial', type=int, default=16)
     parser.add_argument('--visual_attention_num_queries', type=int, default=4)
     parser.add_argument('--rim_output_size_to_vision_core', type=int, default=16)
+
+    ####
+    parser.add_argument('--exploration_num_episodes', type=int, default=4)
+    parser.add_argument('--meta_evaluate_interval', type=int, default=20)
 
     return parser.parse_args(rest_args)

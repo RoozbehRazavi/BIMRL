@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-
+import matplotlib.pyplot as plt
 from environments.parallel_envs import make_vec_envs
 from utils import helpers as utl
 from array2gif import write_gif
@@ -167,6 +167,20 @@ def evaluate(args,
     return returns_per_episode[:, :num_episodes]
 
 
+def plot_meta_eval(returns, save_path, iter_idx):
+    plt.figure(figsize=(12, 5))
+    plt.subplot(1, 2, 1)
+    plt.plot(range(returns.shape[0]), returns, '-', alpha=0.5)
+    plt.xlabel('exploration episode', fontsize=15)
+    plt.ylabel('exploitation mean return', fontsize=15)
+    plt.tight_layout()
+    if save_path is not None:
+        plt.savefig(os.path.join(save_path, f'meta_eval_{iter_idx}'))
+        plt.close()
+    else:
+        plt.show()
+
+
 def evaluate_meta_policy(
         args,
         exploration_policy,
@@ -178,7 +192,8 @@ def evaluate_meta_policy(
         state_prediction_running_normalizer,
         action_prediction_running_normalizer,
         brim_core=None,
-        exploration_num_episodes=None):
+        exploration_num_episodes=None,
+        save_path=None):
 
     env_name = args.env_name
     if hasattr(args, 'test_env_name'):
@@ -199,7 +214,8 @@ def evaluate_meta_policy(
 
         # reset environments
         state, belief, task = utl.reset_env(envs, args)
-
+        if state.shape[-1] == 147:
+            state = torch.cat((state, torch.zeros((1, 1), device=device)), dim=-1)
         # this counts how often an agent has done the same task already
         task_count = torch.zeros(1).long().to(device)
 
@@ -283,6 +299,8 @@ def evaluate_meta_policy(
 
                 # observe reward and next obs
                 [state, belief, task], (rew_raw, rew_normalised), done, infos = utl.env_step(envs, action, args)
+                if state.shape[-1] == 147:
+                    state = torch.cat((state, torch.zeros((1, 1), device=device)), dim=-1)
 
                 # replace intrinsic reward instead extrinsic reward
                 if activated_branch == 'exploration':
@@ -326,7 +344,8 @@ def evaluate_meta_policy(
                         done=None,
                         task_inference_hidden_state=task_inference_hidden_state,
                         brim_hidden_state=brim_hidden_state,
-                        activated_branch=activated_branch)
+                        activated_branch=activated_branch,
+                        rpe=None)
 
                 # add rewards
                 if episode_idx == i:
@@ -335,7 +354,7 @@ def evaluate_meta_policy(
                     break
         envs.close()
 
-    return returns_per_episode
+    plot_meta_eval(returns_per_episode, save_path, iter_idx)
 
 
 def visualize_policy(

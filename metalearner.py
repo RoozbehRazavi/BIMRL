@@ -274,14 +274,16 @@ class MetaLearner:
                          self.exploration_policy,
                          self.exploration_policy_storage,
                          self.exploration_envs,
-                         'exploration')
+                         'exploration',
+                         meta_eval=train_exploration and train_exploitation)
 
             if train_exploitation:
                 self.log(None, None, start_time,
                          self.exploitation_policy,
                          self.exploitation_policy_storage,
                          self.exploitation_envs,
-                         'exploitation')
+                         'exploitation',
+                         meta_eval=train_exploration and train_exploitation)
 
         vae_is_pretrained = False
         for self.iter_idx in range(self.start_idx, self.num_updates):
@@ -652,7 +654,8 @@ class MetaLearner:
                                      policy=self.exploration_policy,
                                      policy_storage=self.exploration_policy_storage,
                                      envs=self.exploration_envs,
-                                     policy_type='exploration'
+                                     policy_type='exploration',
+                                     meta_eval=train_exploration and train_exploitation
                                      )
                         if train_exploitation:
                             exploitation_run_stats = [exploitation_action, exploitation_action_log_prob,
@@ -663,15 +666,9 @@ class MetaLearner:
                                      policy=self.exploitation_policy,
                                      policy_storage=self.exploitation_policy_storage,
                                      envs=self.exploitation_envs,
-                                     policy_type='exploitation'
+                                     policy_type='exploitation',
+                                     meta_eval=train_exploration and train_exploitation
                                      )
-                        if train_exploration and train_exploitation:
-                            self.evaluate_meta_policy(
-                                                      self.base2final,
-                                                      self.exploration_policy,
-                                                      self.exploitation_policy,
-                                                      self.exploration_envs,
-                                                      self.args.max_exploration_episdoe)
 
             # clean up after update
             if train_exploration:
@@ -790,7 +787,22 @@ class MetaLearner:
 
         return policy_train_stats
 
-    def log(self, run_stats, train_stats, start_time, policy, policy_storage, envs, policy_type):
+    def log(self, run_stats, train_stats, start_time, policy, policy_storage, envs, policy_type, meta_eval):
+
+        if (self.iter_idx % self.args.meta_evaluate_interval == 0) and meta_eval and policy_type=='exploitation':
+            utl_eval.evaluate_meta_policy(
+                self.args,
+                self.exploration_policy,
+                self.exploitation_policy,
+                envs.venv.ret_rms,
+                self.iter_idx,
+                self.base2final.state_decoder,
+                self.base2final.action_decoder,
+                self.state_prediction_running_normalizer,
+                self.action_prediction_running_normalizer,
+                self.base2final.brim_core,
+                self.args.exploration_num_episodes,
+                save_path=self.logger.full_output_folder)
 
         # --- visualize policy ----
         if self.iter_idx % self.args.vis_interval == self.args.vis_interval-1 and not policy_type == 'meta_policy':
@@ -964,13 +976,5 @@ class MetaLearner:
                         param_grad_mean = np.mean(param_grad_mean)
                         self.logger.add('gradients/{}'.format(name), param_grad_mean, self.iter_idx)
 
-    def evaluate_meta_policy(self,
-                             base2final,
-                             exploration_policy,
-                             exploitation_policy,
-                             exploration_envs,
-                             max_exploration_episode):
-        for i in range(max_exploration_episode):
-            pass
 
 
