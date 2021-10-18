@@ -415,6 +415,8 @@ class SimpleVision(nn.Module):
 
     def detach_hidden_state(self):
         pass
+    def prior(self, batch_size):
+        pass
 
     def forward(self, x):
         x = x.permute(0, 3, 1, 2)
