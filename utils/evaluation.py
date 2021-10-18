@@ -462,5 +462,5 @@ def visualize_policy(
             if sum(done_mdp) == 1:
                 break
     envs.close()
-    save_path = os.path.join(full_output_folder, 'gif', f'{policy_type}_policy_{iter_idx}.gif')
+    save_path = os.path.join(full_output_folder, f'{policy_type}_policy_{iter_idx}.gif')
     write_gif(numpy.array(frames), save_path)
