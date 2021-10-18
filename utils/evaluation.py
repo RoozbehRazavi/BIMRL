@@ -394,7 +394,7 @@ def visualize_policy(
     for episode_idx in range(num_episodes):
 
         for step_idx in range(num_steps):
-            a = envs.render("rgb_array")
+            a = envs.render("rgb_array", True)
             frames.append(numpy.moveaxis(a, 2, 0))
             with torch.no_grad():
                 _, action, _ = utl.select_action(args=args,
@@ -459,4 +459,5 @@ def visualize_policy(
 
             if sum(done_mdp) == 1:
                 break
+    envs.close()
     write_gif(numpy.array(frames), f'{policy_type}_policy_{iter_idx}' + ".gif")

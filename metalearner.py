@@ -793,7 +793,7 @@ class MetaLearner:
     def log(self, run_stats, train_stats, start_time, policy, policy_storage, envs, policy_type):
 
         # --- visualize policy ----
-        if False and self.iter_idx % self.args.vis_interval == 0 and not policy_type == 'meta_policy':
+        if self.iter_idx % self.args.vis_interval == 0 and not policy_type == 'meta_policy':
             ret_rms = envs.venv.ret_rms if self.args.norm_rew_for_policy else None
             utl_eval.visualize_policy(
                 args=self.args,
