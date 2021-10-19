@@ -314,7 +314,7 @@ def get_args(rest_args):
     # memory
     parser.add_argument('--use_memory', type=boolean_argument, default=True,
                         help='whatever or not use memory in model')
-    parser.add_argument('--use_hebb', type=boolean_argument, default=True,
+    parser.add_argument('--use_hebb', type=boolean_argument, default=False,
                         help='whatever or not use hebbian memory in memory module')
     parser.add_argument('--use_gen', type=boolean_argument, default=False,
                         help='whatever or not use generative memory in memory module')

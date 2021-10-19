@@ -44,14 +44,14 @@ class DND(nn.Module):
             self.exploration_keys = torch.zeros(size=(self.episode_len, batch_size, self.key_size), device=device)
             self.exploration_vals = torch.zeros(size=(self.episode_len, batch_size, self.value_size), device=device)
             self.exploration_referenced_times = torch.zeros(size=(self.episode_len, batch_size, 1), device=device)
-            self.exploration_RPE_read_modulation = 0.1 * torch.ones(size=(self.episode_len, batch_size, 1), device=device)
+            self.exploration_RPE_read_modulation = 1.0 * torch.ones(size=(self.episode_len, batch_size, 1), device=device)
             self.exploration_step = torch.zeros(size=(batch_size, 1), dtype=torch.long, device=device)
         elif activated_branch == 'exploitation':
             self.exploitation_batch_size = batch_size
             self.exploitation_keys = torch.zeros(size=(self.episode_len, batch_size, self.key_size), device=device)
             self.exploitation_vals = torch.zeros(size=(self.episode_len, batch_size, self.value_size), device=device)
             self.exploitation_referenced_times = torch.zeros(size=(self.episode_len, batch_size, 1), device=device)
-            self.exploitation_RPE_read_modulation = 0.1 * torch.ones(size=(self.episode_len, batch_size, 1), device=device)
+            self.exploitation_RPE_read_modulation = 1.0 * torch.ones(size=(self.episode_len, batch_size, 1), device=device)
             self.exploitation_step = torch.zeros(size=(batch_size, 1), dtype=torch.long, device=device)
         else:
             raise NotImplementedError
