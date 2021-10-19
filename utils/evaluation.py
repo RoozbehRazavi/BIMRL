@@ -106,6 +106,7 @@ def evaluate(args,
 
             # observe reward and next obs
             [state, belief, task], (rew_raw, rew_normalised), done, infos = utl.env_step(envs, action, args)
+            done_ = torch.from_numpy(np.array(done, dtype=int)).to(device).float().view((-1, 1))
 
             # replace intrinsic reward instead extrinsic reward
             if policy_type == 'exploration':
@@ -135,7 +136,10 @@ def evaluate(args,
                                                                              action_prediction_intrinsic_reward_coef=args.action_prediction_intrinsic_reward_coef,
                                                                              extrinsic_reward_intrinsic_reward_coef=args.extrinsic_reward_intrinsic_reward_coef)
 
-            done_mdp = [info['done_mdp'] for info in infos]
+            done_mdp = list()
+            for i in range(num_processes):
+                done_mdp.append(1.0 if infos[i]['done_mdp'] else 0.0)
+            done_mdp = torch.Tensor(done_mdp).float().to(device).unsqueeze(1)
 
             if brim_core is not None:
                 # update the hidden state
@@ -146,15 +150,17 @@ def evaluate(args,
                     next_obs=state,
                     action=action,
                     reward=rew_raw,
-                    done=None,
+                    done=done_,
                     task_inference_hidden_state=task_inference_hidden_state,
                     brim_hidden_state=brim_hidden_state,
                     activated_branch=policy_type,
+                    done_episode=done_mdp,
                     rpe=None)
 
             # add rewards
             returns_per_episode[range(num_processes), task_count] += rew_raw.view(-1)
 
+            done_mdp = [info['done_mdp'] for info in infos]
             for i in np.argwhere(done_mdp).flatten():
                 # count task up, but cap at num_episodes + 1
                 task_count[i] = min(task_count[i] + 1, num_episodes)  # zero-indexed, so no +1
@@ -202,11 +208,11 @@ def evaluate_meta_policy(
         env_name = args.test_env_name
 
     # only for last episode
-    returns_per_episode = torch.zeros((1, exploration_num_episodes)).to(device)
-
+    num_processes = args.num_processes
+    returns_per_episode = torch.zeros((num_processes, exploration_num_episodes)).to(device)
     # --- initialise environments and latents ---
     for i in range(exploration_num_episodes):
-        envs = make_vec_envs(env_name, seed=args.seed * 42 + iter_idx, num_processes=1,
+        envs = make_vec_envs(env_name, seed=args.seed * 42 + iter_idx, num_processes=num_processes,
                              gamma=args.policy_gamma,
                              device=device,
                              rank_offset=2,  # to use diff tmp folders than main processes
@@ -217,9 +223,8 @@ def evaluate_meta_policy(
         # reset environments
         state, belief, task = utl.reset_env(envs, args)
         if state.shape[-1] == 147:
-            state = torch.cat((state, torch.zeros((1, 1), device=device)), dim=-1)
+            state = torch.cat((state, torch.zeros((num_processes, 1), device=device)), dim=-1)
         # this counts how often an agent has done the same task already
-        task_count = torch.zeros(1).long().to(device)
 
         activated_branch = 'exploration'
         policy = exploration_policy
@@ -228,7 +233,7 @@ def evaluate_meta_policy(
             (brim_output1, brim_output2, brim_output3, brim_output4, brim_output5, brim_hidden_state),\
             (latent_sample, latent_mean, latent_logvar, task_inference_hidden_state), policy_embedded_state = brim_core.prior(
                 policy_network=policy.actor_critic,
-                batch_size=1,
+                batch_size=num_processes,
                 state=state,
                 sample=True,
                 activated_branch=activated_branch)
@@ -262,7 +267,7 @@ def evaluate_meta_policy(
                     (latent_sample, latent_mean, latent_logvar,
                      task_inference_hidden_state), policy_embedded_state = brim_core.prior(
                         policy_network=policy.actor_critic,
-                        batch_size=1,
+                        batch_size=num_processes,
                         state=state,
                         sample=True,
                         activated_branch=activated_branch)
@@ -301,8 +306,9 @@ def evaluate_meta_policy(
 
                 # observe reward and next obs
                 [state, belief, task], (rew_raw, rew_normalised), done, infos = utl.env_step(envs, action, args)
+                done_ = torch.from_numpy(np.array(done, dtype=int)).to(device).float().view((-1, 1))
                 if state.shape[-1] == 147:
-                    state = torch.cat((state, torch.zeros((1, 1), device=device)), dim=-1)
+                    state = torch.cat((state, torch.zeros((num_processes, 1), device=device)), dim=-1)
 
                 # replace intrinsic reward instead extrinsic reward
                 if activated_branch == 'exploration':
@@ -334,7 +340,10 @@ def evaluate_meta_policy(
                                                                                  action_prediction_intrinsic_reward_coef=args.action_prediction_intrinsic_reward_coef,
                                                                                  extrinsic_reward_intrinsic_reward_coef=args.extrinsic_reward_intrinsic_reward_coef)
 
-                done_mdp = [info['done_mdp'] for info in infos]
+                done_mdp = list()
+                for i in range(num_processes):
+                    done_mdp.append(1.0 if infos[i]['done_mdp'] else 0.0)
+                done_mdp = torch.Tensor(done_mdp).float().to(device).unsqueeze(1)
 
                 if brim_core is not None:
                     # update the hidden state
@@ -345,20 +354,21 @@ def evaluate_meta_policy(
                         next_obs=state,
                         action=action,
                         reward=rew_raw,
-                        done=None,
+                        done=done_,
                         task_inference_hidden_state=task_inference_hidden_state,
                         brim_hidden_state=brim_hidden_state,
                         activated_branch=activated_branch,
+                        done_episode=done_mdp,
                         rpe=None)
 
                 # add rewards
                 if episode_idx == i:
-                    returns_per_episode[:, i] += rew_raw.view(-1)
+                    returns_per_episode[:, i] += rew_raw
                 if sum(done_mdp) > 0:
                     break
         envs.close()
 
-    plot_meta_eval(returns_per_episode, save_path, iter_idx)
+    plot_meta_eval(returns_per_episode.mean(0).unsqueeze(0), save_path, iter_idx)
 
 
 def visualize_policy(
@@ -436,6 +446,7 @@ def visualize_policy(
 
             # observe reward and next obs
             [state, belief, task], (rew_raw, rew_normalised), done, infos = utl.env_step(envs, action, args)
+            done_ = torch.from_numpy(np.array(done, dtype=int)).to(device).float().view((-1, 1))
 
             # replace intrinsic reward instead extrinsic reward
             if policy_type == 'exploration':
@@ -465,7 +476,10 @@ def visualize_policy(
                                                                              action_prediction_intrinsic_reward_coef=args.action_prediction_intrinsic_reward_coef,
                                                                              extrinsic_reward_intrinsic_reward_coef=args.extrinsic_reward_intrinsic_reward_coef)
 
-            done_mdp = [info['done_mdp'] for info in infos]
+            done_mdp = list()
+            for i in range(1):
+                done_mdp.append(1.0 if infos[i]['done_mdp'] else 0.0)
+            done_mdp = torch.Tensor(done_mdp).float().to(device).unsqueeze(1)
 
             if brim_core is not None:
                 # update the hidden state
@@ -476,10 +490,11 @@ def visualize_policy(
                     next_obs=state,
                     action=action,
                     reward=rew_raw,
-                    done=None,
+                    done=done_,
                     task_inference_hidden_state=task_inference_hidden_state,
                     brim_hidden_state=brim_hidden_state,
                     activated_branch=policy_type,
+                    done_episode=done_mdp,
                     rpe=None)
 
             if sum(done_mdp) == 1:

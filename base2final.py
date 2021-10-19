@@ -146,7 +146,8 @@ class Base2Final:
             self.args.rim_query_size,\
             self.args.rim_hidden_state_to_query_layers,\
             self.args.read_memory_to_value_layer,\
-            self.args.read_memory_to_key_layer\
+            self.args.read_memory_to_key_layer, \
+            self.args.hebb_learning_rate
 
         self.brim_core = self.initialise_brim_core(memory_params=memory_params)
 
@@ -1144,53 +1145,77 @@ class Base2Final:
             exploration_rollout_storage_read = self.exploration_rollout_storage.ready_for_update()
             if not exploration_rollout_storage_read:
                 return 0
-            vae_prev_obs, vae_next_obs, vae_actions, vae_rewards, vae_tasks, trajectory_lens = self.exploration_rollout_storage.get_batch(
-                batchsize=self.args.vae_batch_num_trajs)
+            vae_prev_obs, vae_next_obs, vae_actions, vae_rewards, vae_tasks, done_task, done_episode, trajectory_lens = self.exploration_rollout_storage.get_batch(
+                batchsize=self.args.vae_batch_num_trajs, memory_batch=True)
             max_len = max(trajectory_lens)
 
-            brim_output1, _, brim_output5, _, \
-            latent_sample, latent_mean, latent_logvar, _, _ = self.brim_core.forward_exploration_branch(
+            brim_output_level1, brim_output_level2, brim_output_level3, _, \
+            latent_sample, latent_mean, latent_logvar, _, policy_embedded_state = self.brim_core.forward_exploration_branch(
                 actions=vae_actions,
                 states=vae_next_obs,
-                policy=policy,
                 rewards=vae_rewards,
                 brim_hidden_state=None,
                 task_inference_hidden_state=None,
                 return_prior=True,
                 sample=True,
-                detach_every=self.args.tbptt_stepsize if hasattr(
-                     self.args,
-                     'tbptt_stepsize') else None,
+                detach_every=None,
+                policy=policy,
                 prev_state=vae_prev_obs[0, :, :])
+        elif activated_branch == 'exploitation':
+            exploitation_rollout_storage_read = self.exploitation_rollout_storage.ready_for_update()
+            if not exploitation_rollout_storage_read:
+                return 0
+            vae_prev_obs, vae_next_obs, vae_actions, vae_rewards, vae_tasks, done_task, done_episode, trajectory_lens = self.exploitation_rollout_storage.get_batch(
+                batchsize=self.args.vae_batch_num_trajs, memory_batch=True)
+            max_len = max(trajectory_lens)
 
-            state = vae_next_obs[:max_len]
-            rim_output = brim_output1[1:max_len]
-            latent_sample = latent_sample[1:max_len]
-            latent_mean = latent_mean[1:max_len]
-            latent_logvar = latent_logvar[1:max_len]
+            brim_output_level1, brim_output_level2, brim_output_level3, brim_hidden_states, \
+            latent_sample, latent_mean, latent_logvar, _, policy_embedded_state = self.brim_core.forward_exploitation_branch(
+                actions=vae_actions,
+                states=vae_next_obs,
+                rewards=vae_rewards,
+                brim_hidden_state=None,
+                task_inference_hidden_state=None,
+                return_prior=True,
+                sample=True,
+                detach_every=None,
+                policy=policy,
+                prev_state=vae_prev_obs[0, :, :])
+        else:
+            raise NotImplementedError
 
-            latent = utl.get_latent_for_policy(
-                sample_embeddings=False,
-                add_nonlinearity_to_latent=False,
-                latent_sample=latent_sample,
-                latent_mean=latent_mean,
-                latent_logvar=latent_logvar).detach().clone()
-            self.brim_core.brim.model.memory.prior(exploration_batch_size=state.shape[0])
-            done = max_len/4
-            for i in range(max_len):
-                if i%done == 0:
-                    self.brim_core.brim.memory.reset(1)
-            self.brim_core.brim.model.memory.write()
+        state = vae_next_obs[:max_len]  # 399
 
-            res = []
-            for i in range(max_len):
-                if i%done == 0:
-                    self.brim_core.brim.memory.reset(1)
-                res.append(self.brim_core.brim.model.memory.read())
-            compute_memory_loss(res, rim_output)
+        rim_output = brim_output_level1[1:max_len+1]  # 399
+        latent_sample = latent_sample[1:max_len+1]
+        latent_mean = latent_mean[1:max_len+1]
+        latent_logvar = latent_logvar[1:max_len+1]
+        done_task = done_task[1:max_len+1]
+        done_episode = done_episode[1:max_len+1]
 
+        latent = utl.get_latent_for_policy(
+            sample_embeddings=False,
+            add_nonlinearity_to_latent=False,
+            latent_sample=latent_sample,
+            latent_mean=latent_mean,
+            latent_logvar=latent_logvar).detach().clone()
 
-        return 0
+        self.brim_core.brim.model.memory.prior(batch_size=state.shape[1], activated_branch=activated_branch)
+
+        for i in range(max_len):
+            self.brim_core.brim.model.memory.reset(done_task[i], done_episode[i], activated_branch)
+            self.brim_core.brim.model.memory.write(key=(state[i], latent[i]), value=rim_output[i], rpe=None, activated_branch=activated_branch)
+        res = []
+        idx = torch.randperm(state.shape[0])
+        target = rim_output[idx, :, :]
+        level = 0 if activated_branch == 'exploration' else 1
+        brim_hidden_states = brim_hidden_states[1:max_len+1, :, level, :]
+        for i in range(len(idx)):
+            res.append(self.brim_core.brim.model.memory.read(query=(state[idx[i]], latent[idx[i]]), rim_hidden_state=brim_hidden_states[idx[i]], activated_branch=activated_branch))
+        res = torch.stack(res)
+        memory_loss = (res - target).pow(2).sum()
+        self.log_memory_loss(memory_loss, activated_branch)
+        return memory_loss
 
     def log(self, elbo_loss, rew_reconstruction_loss, state_reconstruction_loss, task_reconstruction_loss, action_reconstruction_loss, kl_loss):
 
@@ -1214,3 +1239,8 @@ class Base2Final:
         curr_iter_idx = self.get_iter_idx()
         if curr_iter_idx % self.args.log_interval == 0:
             self.logger.add(f'n_step_value_pred_loss/value_reconstr_err_{policy_type}', value_reconstruction_loss.mean(), curr_iter_idx)
+
+    def log_memory_loss(self, memory_reconstruction_loss, policy_type):
+        curr_iter_idx = self.get_iter_idx()
+        if curr_iter_idx % self.args.log_interval == 0:
+            self.logger.add(f'memory_loss_{policy_type}', memory_reconstruction_loss.mean(), curr_iter_idx)

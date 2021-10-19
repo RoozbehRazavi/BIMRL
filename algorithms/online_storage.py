@@ -63,6 +63,7 @@ class OnlineStorage(object):
         self.rewards_raw = torch.zeros(num_steps, num_processes, 1)
         self.rewards_normalised = torch.zeros(num_steps, num_processes, 1)
         self.done = torch.zeros(num_steps + 1, num_processes, 1)
+        self.done_episode = torch.zeros(num_steps + 1, num_processes, 1)
         self.masks = torch.ones(num_steps + 1, num_processes, 1)
         # masks that indicate whether it's a true terminal state (false) or time limit end state (true)
         self.bad_masks = torch.ones(num_steps + 1, num_processes, 1)
@@ -105,6 +106,7 @@ class OnlineStorage(object):
         self.rewards_raw = self.rewards_raw.to(device)
         self.rewards_normalised = self.rewards_normalised.to(device)
         self.done = self.done.to(device)
+        self.done_episode = self.done_episode.to(device)
         self.masks = self.masks.to(device)
         self.bad_masks = self.bad_masks.to(device)
         self.value_preds = self.value_preds.to(device)
@@ -124,6 +126,7 @@ class OnlineStorage(object):
                masks,
                bad_masks,
                done,
+               done_episode,
                #
                task_inference_hidden_states=None,
                latent_sample=None,
@@ -163,6 +166,7 @@ class OnlineStorage(object):
         self.masks[self.step + 1].copy_(masks)
         self.bad_masks[self.step + 1].copy_(bad_masks)
         self.done[self.step + 1].copy_(done)
+        self.done_episode[self.step + 1].copy_(done_episode)
         self.step = (self.step + 1) % self.num_steps
 
     def after_update(self):
@@ -182,6 +186,7 @@ class OnlineStorage(object):
             self.brim_output_level3 = []
         self.policy_embedded_state = []
         self.done[0].copy_(self.done[-1])
+        self.done_episode[0].copy_(self.done_episode[-1])
         self.masks[0].copy_(self.masks[-1])
         self.bad_masks[0].copy_(self.bad_masks[-1])
 

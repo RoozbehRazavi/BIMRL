@@ -35,6 +35,8 @@ class RolloutStorageVAE(object):
             self.rewards = torch.zeros((self.max_traj_len, self.max_buffer_size, 1))
             self.masks = torch.zeros((self.max_traj_len, self.max_buffer_size, 1))
             self.bad_masks = torch.zeros((self.max_traj_len, self.max_buffer_size, 1))
+            self.done_task = torch.zeros((self.max_traj_len, self.max_buffer_size, 1))
+            self.done_episode = torch.zeros((self.max_traj_len, self.max_buffer_size, 1))
             if self.save_intrinsic_reward:
                 self.intrinsic_rewards = torch.zeros((self.max_traj_len, self.max_buffer_size, 1))
             if task_dim is not None:
@@ -54,6 +56,8 @@ class RolloutStorageVAE(object):
         if self.save_intrinsic_reward:
             self.running_intrinsic_rewards = torch.zeros((self.max_traj_len, num_processes, 1)).to(device)
         self.running_actions = torch.zeros((self.max_traj_len, num_processes, action_dim)).to(device)
+        self.running_done_task = torch.zeros((self.max_traj_len, num_processes, 1)).to(device)
+        self.running_done_episode = torch.zeros((self.max_traj_len, num_processes, 1)).to(device)
         if task_dim is not None:
             self.running_tasks = torch.zeros((num_processes, task_dim)).to(device)
         else:
@@ -68,7 +72,7 @@ class RolloutStorageVAE(object):
         rewards = self.running_intrinsic_rewards if self.save_intrinsic_reward else self.running_rewards
         return self.running_prev_state, self.running_next_state, self.running_actions, rewards, self.curr_timestep
 
-    def insert(self, prev_state, actions, next_state, rewards, done, task, masks, bad_masks, intrinsic_rewards):
+    def insert(self, prev_state, actions, next_state, rewards, done, task, masks, bad_masks, intrinsic_rewards, done_task, done_episode):
 
         # add to temporary buffer
 
@@ -82,6 +86,8 @@ class RolloutStorageVAE(object):
             if self.save_intrinsic_reward:
                 self.running_intrinsic_rewards[self.curr_timestep[0]] = intrinsic_rewards
             self.running_actions[self.curr_timestep[0]] = actions
+            self.running_done_task[self.curr_timestep[0]] = done_task
+            self.running_done_episode[self.curr_timestep[0]] = done_episode
             if task is not None:
                 self.running_tasks = task
             self.curr_timestep += 1
@@ -107,6 +113,8 @@ class RolloutStorageVAE(object):
                     self.prev_state[:, self.insert_idx:self.insert_idx + self.num_processes] = self.running_prev_state
                     self.next_state[:, self.insert_idx:self.insert_idx + self.num_processes] = self.running_next_state
                     self.actions[:, self.insert_idx:self.insert_idx+self.num_processes] = self.running_actions
+                    self.done_task[:, self.insert_idx:self.insert_idx+self.num_processes] = self.running_done_task
+                    self.done_episode[:, self.insert_idx:self.insert_idx + self.num_processes] = self.running_done_episode
                     self.rewards[:, self.insert_idx:self.insert_idx+self.num_processes] = self.running_rewards
                     self.masks[:, self.insert_idx:self.insert_idx+self.num_processes] = self.running_mask
                     self.bad_masks[:, self.insert_idx:self.insert_idx+self.num_processes] = self.running_bad_masks
@@ -127,6 +135,8 @@ class RolloutStorageVAE(object):
             if self.save_intrinsic_reward:
                 self.running_intrinsic_rewards *= 0
             self.running_actions *= 0
+            self.running_done_task *= 0
+            self.running_done_episode *= 0
             if self.running_tasks is not None:
                 self.running_tasks *= 0
             self.curr_timestep *= 0
@@ -146,6 +156,8 @@ class RolloutStorageVAE(object):
                     if self.save_intrinsic_reward:
                         self.running_intrinsic_rewards[self.curr_timestep[i], i] = intrinsic_rewards[i]
                     self.running_actions[self.curr_timestep[i], i] = actions[i]
+                    self.running_done_task[self.curr_timestep[i], i] = done_task[i]
+                    self.running_done_episode[self.curr_timestep[i], i] = done_task[i]
 
                     if self.running_tasks[i] is None:
                         self.running_tasks[i] = task[i]
@@ -172,6 +184,8 @@ class RolloutStorageVAE(object):
                                 self.prev_state[:, self.insert_idx] = self.running_prev_state[:, i].to('cpu')
                                 self.next_state[:, self.insert_idx] = self.running_next_state[:, i].to('cpu')
                                 self.actions[:, self.insert_idx] = self.running_actions[:, i].to('cpu')
+                                self.done_task[:, self.insert_idx] = self.running_done_task[:, i].to('cpu')
+                                self.done_episode[:, self.insert_idx] = self.running_done_episode[:, i].to('cpu')
                                 self.rewards[:, self.insert_idx] = self.running_rewards[:, i].to('cpu')
                                 self.masks[:, self.insert_idx] = self.running_mask[:, i].to('cpu')
                                 self.bad_masks[:, self.insert_idx] = self.running_bad_masks[:, i].to('cpu')
@@ -191,6 +205,8 @@ class RolloutStorageVAE(object):
                         if self.save_intrinsic_reward:
                             self.running_intrinsic_rewards[:, i] *= 0
                         self.running_actions[:, i] *= 0
+                        self.running_done_task[:, i] *= 0
+                        self.running_done_episode[:, i] *= 0
                         if self.running_tasks is not None:
                             self.running_tasks[i] *= 0
                         self.curr_timestep[i] = 0
@@ -201,7 +217,7 @@ class RolloutStorageVAE(object):
     def __len__(self):
         return self.buffer_len
 
-    def get_batch(self, batchsize=5, replace=False, value_prediction=False):
+    def get_batch(self, batchsize=5, replace=False, value_prediction=False, memory_batch=False):
 
         batchsize = min(self.buffer_len, batchsize)
 
@@ -228,5 +244,10 @@ class RolloutStorageVAE(object):
             bad_masks = torch.cat((torch.zeros(size=(1, batchsize, 1)), bad_masks), dim=0)
             return prev_obs.to(device), next_obs.to(device), actions.to(device), \
             rewards.to(device), tasks, masks.to(device), bad_masks.to(device), trajectory_lens
+        if memory_batch:
+            done_tasks = self.done_task[:, rollout_indices, :]
+            done_episodes = self.done_episode[:, rollout_indices, :]
+            return prev_obs.to(device), next_obs.to(device), actions.to(device), rewards.to(device), tasks.to(device), done_tasks.to(device),\
+            done_episodes.to(device), trajectory_lens
         return prev_obs.to(device), next_obs.to(device), actions.to(device), \
                rewards.to(device), tasks, trajectory_lens

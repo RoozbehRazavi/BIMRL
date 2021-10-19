@@ -268,22 +268,22 @@ class MetaLearner:
             self.exploitation_policy_storage.prev_state[0].copy_(exploitation_prev_state)
 
         # log once before training
-        # with torch.no_grad():
-        #     if train_exploration:
-        #         self.log(None, None, start_time,
-        #                  self.exploration_policy,
-        #                  self.exploration_policy_storage,
-        #                  self.exploration_envs,
-        #                  'exploration',
-        #                  meta_eval=train_exploration and train_exploitation)
-        #
-        #     if train_exploitation:
-        #         self.log(None, None, start_time,
-        #                  self.exploitation_policy,
-        #                  self.exploitation_policy_storage,
-        #                  self.exploitation_envs,
-        #                  'exploitation',
-        #                  meta_eval=train_exploration and train_exploitation)
+        with torch.no_grad():
+            if train_exploration:
+                self.log(None, None, start_time,
+                         self.exploration_policy,
+                         self.exploration_policy_storage,
+                         self.exploration_envs,
+                         'exploration',
+                         meta_eval=train_exploration and train_exploitation)
+
+            if train_exploitation:
+                self.log(None, None, start_time,
+                         self.exploitation_policy,
+                         self.exploitation_policy_storage,
+                         self.exploitation_envs,
+                         'exploitation',
+                         meta_eval=train_exploration and train_exploitation)
 
         vae_is_pretrained = False
         for self.iter_idx in range(self.start_idx, self.num_updates):
@@ -409,7 +409,8 @@ class MetaLearner:
 
                     exploration_done_episode = list()
                     for i in range(self.exploration_num_processes):
-                        exploration_done_episode.append(exploration_infos[i]['done_mdp'])
+                        exploration_done_episode.append(1.0 if exploration_infos[i]['done_mdp'] else 0.0)
+                    exploration_done_episode = torch.Tensor(exploration_done_episode).float().to(device).unsqueeze(1)
 
                     exploration_done = torch.from_numpy(np.array(exploration_done, dtype=int)).to(device).float().view((-1, 1))
                     # create mask for episode ends
@@ -426,7 +427,8 @@ class MetaLearner:
 
                     exploitation_done_episode = list()
                     for i in range(self.exploitation_num_processes):
-                        exploitation_done_episode.append(exploitation_infos[i]['done_mdp'])
+                        exploitation_done_episode.append(1.0 if exploitation_infos[i]['done_mdp'] else 0.0)
+                    exploitation_done_episode = torch.Tensor(exploitation_done_episode).float().to(device).unsqueeze(1)
 
                     exploitation_done = torch.from_numpy(np.array(exploitation_done, dtype=int)).to(device).float().view((-1, 1))
                     # create mask for episode ends
@@ -467,6 +469,7 @@ class MetaLearner:
                             task_inference_hidden_state=exploration_task_inference_hidden_state,
                             brim_hidden_state=exploration_brim_hidden_state,
                             activated_branch='exploration',
+                            done_episode=exploration_done_episode,
                             rpe=rpe)
                     if train_exploitation:
                         # compute RPE
@@ -500,6 +503,7 @@ class MetaLearner:
                             task_inference_hidden_state=exploitation_task_inference_hidden_state,
                             brim_hidden_state=exploitation_brim_hidden_state,
                             activated_branch='exploitation',
+                            done_episode=exploitation_done_episode,
                             rpe=rpe)
 
                 # before resetting, update the embedding and add to vae buffer
@@ -515,7 +519,9 @@ class MetaLearner:
                                                                            exploration_task.clone() if exploration_task is not None else None,
                                                                            exploration_masks_done,
                                                                            exploration_bad_masks,
-                                                                           intrinsic_rewards=exploration_intrinsic_rew_normalised if self.args.norm_rew_for_policy else exploration_intrinsic_rew_raw)
+                                                                           intrinsic_rewards=exploration_intrinsic_rew_normalised if self.args.norm_rew_for_policy else exploration_intrinsic_rew_raw,
+                                                                           done_task=exploration_done.clone(),
+                                                                           done_episode=exploration_done_episode.clone())
                     if train_exploitation:
                         self.base2final.exploitation_rollout_storage.insert(exploitation_prev_state.clone(),
                                                                             exploitation_action.detach().clone(),
@@ -525,7 +531,9 @@ class MetaLearner:
                                                                             exploitation_task.clone() if exploitation_task is not None else None,
                                                                             exploitation_masks_done,
                                                                             exploitation_bad_masks,
-                                                                            intrinsic_rewards=None)
+                                                                            intrinsic_rewards=None,
+                                                                            done_task=exploitation_done.clone(),
+                                                                            done_episode=exploitation_done_episode)
 
                 if self.args.rlloss_through_encoder:
                     # add the obs before reset to the policy storage
@@ -567,6 +575,7 @@ class MetaLearner:
                         masks=exploration_masks_done,
                         bad_masks=exploration_bad_masks,
                         done=exploration_done,
+                        done_episode=exploration_done_episode,
                         task_inference_hidden_states=exploration_task_inference_hidden_state.squeeze(0),
                         latent_sample=exploration_latent_sample,
                         latent_mean=exploration_latent_mean,
@@ -591,6 +600,7 @@ class MetaLearner:
                         masks=exploitation_masks_done,
                         bad_masks=exploitation_bad_masks,
                         done=exploitation_done,
+                        done_episode=exploitation_done_episode,
                         task_inference_hidden_states=exploitation_task_inference_hidden_state.squeeze(0),
                         latent_sample=exploitation_latent_sample,
                         latent_mean=exploitation_latent_mean,
@@ -631,17 +641,18 @@ class MetaLearner:
                             policy_storage=self.exploration_policy_storage,
                             activated_branch='exploration')
                     if train_exploitation:
-                        exploitation_train_stats = self.update(
-                            belief=exploitation_belief,
-                            task=exploitation_task,
-                            latent_sample=exploitation_latent_sample,
-                            latent_mean=exploitation_latent_mean,
-                            latent_logvar=exploitation_latent_logvar,
-                            brim_output_level1=brim_output2,
-                            policy_embedded_state=exploitation_policy_embedded_state,
-                            policy=self.exploitation_policy,
-                            policy_storage=self.exploitation_policy_storage,
-                            activated_branch='exploitation')
+                        #with torch.autograd.set_detect_anomaly(True):
+                            exploitation_train_stats = self.update(
+                                belief=exploitation_belief,
+                                task=exploitation_task,
+                                latent_sample=exploitation_latent_sample,
+                                latent_mean=exploitation_latent_mean,
+                                latent_logvar=exploitation_latent_logvar,
+                                brim_output_level1=brim_output2,
+                                policy_embedded_state=exploitation_policy_embedded_state,
+                                policy=self.exploitation_policy,
+                                policy_storage=self.exploitation_policy_storage,
+                                activated_branch='exploitation')
 
                     # log
                     with torch.no_grad():

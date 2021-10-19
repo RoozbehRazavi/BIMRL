@@ -30,7 +30,8 @@ class Hippocampus(nn.Module):
                  rim_hidden_state_to_query_layers,
                  read_memory_to_value_layer,
                  read_memory_to_key_layer,
-                 rim_level1_hidden_size
+                 rim_level1_hidden_size,
+                 hebb_learning_rate
                  ):
         super(Hippocampus, self).__init__()
         assert policy_num_steps is not None and max_rollouts_per_task is not None
@@ -49,9 +50,11 @@ class Hippocampus(nn.Module):
             episodic_key_encoder_layer,
             episodic_value_encoder_layer,
             policy_num_steps//max_rollouts_per_task,
+            policy_num_steps,
             w_max,
             hebbian_key_encoder_layer,
-            hebbian_value_encoder_layer)
+            hebbian_value_encoder_layer,
+            hebb_learning_rate)
 
         self.key_encoder, self.value_encoder, self.query_encoder = self.initialise_encoder(
             key_size,
@@ -121,9 +124,11 @@ class Hippocampus(nn.Module):
                             episodic_key_encoder_layer,
                             episodic_value_encoder_layer,
                             episode_len,
+                            policy_num_steps,
                             w_max,
                             hebbian_key_encoder_layer,
-                            hebbian_value_encoder_layer
+                            hebbian_value_encoder_layer,
+                            hebb_learning_rate
                             ):
 
         episodic = DND(
@@ -132,7 +137,8 @@ class Hippocampus(nn.Module):
             value_size=value_size,
             key_encoder_layer=episodic_key_encoder_layer,
             value_encoder_layer=episodic_value_encoder_layer,
-            episode_len=episode_len).to(device)
+            episode_len=episode_len,
+            policy_num_steps=policy_num_steps).to(device)
 
         hebbian = None
         if use_hebb:
@@ -142,7 +148,8 @@ class Hippocampus(nn.Module):
                 key_size,
                 value_size,
                 hebbian_key_encoder_layer,
-                hebbian_value_encoder_layer)
+                hebbian_value_encoder_layer,
+                hebb_learning_rate)
         return episodic, hebbian
 
     @staticmethod
@@ -184,8 +191,8 @@ class Hippocampus(nn.Module):
         if self.use_hebb:
             self.hebbian.prior(batch_size, activated_branch)
 
-    def reset(self, done_episode, activated_branch):
-        self.memory_consolidation(done_episode=done_episode, activated_branch=activated_branch)
+    def reset(self, done_task, done_episode, activated_branch):
+        self.memory_consolidation(done_task=done_task, done_episode=done_episode, activated_branch=activated_branch)
 
     def read(self, query, rim_hidden_state, activated_branch):
         state, task_inference_latent = query
@@ -213,9 +220,12 @@ class Hippocampus(nn.Module):
         value = self.value_encoder(value).squeeze(0)
         self.episodic.write(memory_key=key_memory, memory_val=value, rpe=rpe, activated_branch=activated_branch)
 
-    def memory_consolidation(self, done_episode, activated_branch):
-        if torch.sum(done_episode) > 0 and self.use_hebb:
-            done_process_info = self.episodic.get_done_process(done_episode.clone(), activated_branch)
-            self.hebbian.write(done_process_info[1], done_process_info[0], done_process_info[2], done_episode, activated_branch)
-            self.episodic.reset(done_process_mdp=done_episode, activated_branch=activated_branch)
+    def memory_consolidation(self, done_task, done_episode, activated_branch):
+        if torch.sum(done_task) > 0 and self.use_hebb:
+            self.hebbian.reset(done_task, activated_branch)
+        if torch.sum(done_episode) > 0:
+            if self.use_hebb:
+                done_process_info = self.episodic.get_done_process(done_episode.clone(), activated_branch)
+                self.hebbian.write(done_process_info[1], done_process_info[0], done_process_info[2], done_episode, activated_branch)
+            self.episodic.reset(done_task=done_task, done_process_mdp=done_episode, activated_branch=activated_branch)
         return True

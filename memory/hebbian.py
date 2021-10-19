@@ -4,15 +4,20 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 class Hebbian(nn.Module):
-    def __init__(self, num_head, w_max, key_size, value_size, key_encoder_layer, value_encoder_layer):
+    def __init__(self, num_head, w_max, key_size, value_size, key_encoder_layer, value_encoder_layer, hebb_learning_rate):
         super(Hebbian, self).__init__()
+        self.learning_rate = hebb_learning_rate
         self.key_size = key_size
         self.num_head = num_head
         self.value_size = value_size
         self.w_max = w_max
         # hebbian parameters
-        self.A = nn.Linear(key_size, value_size, bias=False)
-        self.B = nn.Linear(value_size, value_size, bias=False)
+        A = torch.zeros(size=(1, key_size, value_size), device=device)
+        torch.nn.init.normal_(A, mean=0, std=0.01)
+        B = torch.zeros(size=(1, value_size, value_size), device=device)
+        torch.nn.init.normal_(B, mean=0, std=0.01)
+        self.A = nn.Parameter(A)
+        self.B = nn.Parameter(B)
 
         self.key_encoder = nn.ModuleList([])
         curr_dim = key_size
@@ -33,16 +38,16 @@ class Hebbian(nn.Module):
         self.query_encoder = nn.Linear(key_size, num_head * key_size)
         self.value_aggregator = nn.Linear(num_head * value_size, value_size)
 
-        self.exploitation_w_assoc = self.exploitation_batch_size = self.exploration_w_assoc = self.exploration_batch_size =None
+        self.exploitation_w_assoc = self.exploitation_batch_size = self.exploration_w_assoc = self.exploration_batch_size = None
 
     def prior(self, batch_size, activated_branch):
         if activated_branch == 'exploitation':
             self.exploitation_batch_size = batch_size
-            self.exploitation_w_assoc = torch.zeros((self.batch_size, self.key_size, self.value_size), requires_grad=False, device=device)
+            self.exploitation_w_assoc = torch.zeros((self.exploitation_batch_size, self.key_size, self.value_size), requires_grad=False, device=device)
             torch.nn.init.normal_(self.exploitation_w_assoc, mean=0, std=0.1)
         elif activated_branch == 'exploration':
             self.exploration_batch_size = batch_size
-            self.exploration_w_assoc = torch.zeros((self.batch_size, self.key_size, self.value_size), requires_grad=False, device=device)
+            self.exploration_w_assoc = torch.zeros((self.exploration_batch_size, self.key_size, self.value_size), requires_grad=False, device=device)
             torch.nn.init.normal_(self.exploration_w_assoc, mean=0, std=0.1)
         else:
             raise NotImplementedError
@@ -60,22 +65,46 @@ class Hebbian(nn.Module):
         else:
             raise NotImplementedError
 
-    def write(self, value, key, modulation, done_process_mdp):
+    def write(self, value, key, modulation, done_process_mdp, activated_branch):
         key = self.key_encoder(key)
         value = self.value_encoder(value)
 
         done_process_mdp = done_process_mdp.view(-1).nonzero(as_tuple=True)[0]
+        batch_size = len(done_process_mdp)
         value = modulation * value
-        correlation = torch.matmul(key.permute(0, 2, 1), value)
-        regularization = torch.matmul(key, key)
-        delta_w = self.A * (self.w_max - self.w_assoc) * correlation - self.B * self.w_assoc * regularization
-        self.w_assoc[done_process_mdp] = self.w_assoc[done_process_mdp].clone() + delta_w
+        correlation = torch.bmm(key.permute(0, 2, 1), value)
+        regularization = torch.bmm(key.permute(0, 2, 1), key)
+        if activated_branch == 'exploration':
+            A = self.A.expand(batch_size, -1, -1)
+            B = self.B.expand(batch_size, -1, -1)
+            a1 = torch.bmm(A, (self.w_max - self.exploration_w_assoc).permute(0, 2, 1))
+            a2 = torch.bmm(a1, correlation)
+            a3 = torch.bmm(B, self.exploration_w_assoc.permute(0, 2, 1))
+            a4 = torch.bmm(a3, regularization).permute(0, 2, 1)
+            delta_w = a2 - a4
+            self.exploration_w_assoc[done_process_mdp] = self.exploration_w_assoc[done_process_mdp].clone() + self.learning_rate * delta_w
+        elif activated_branch == 'exploitation':
+            A = self.A.expand(batch_size, -1, -1)
+            B = self.B.expand(batch_size, -1, -1)
+            a1 = torch.bmm(A, (self.w_max - self.exploitation_w_assoc).permute(0, 2, 1))
+            a2 = torch.bmm(a1, correlation)
+            a3 = torch.bmm(B, self.exploitation_w_assoc.permute(0, 2, 1))
+            a4 = torch.bmm(a3, regularization).permute(0, 2, 1)
+            delta_w = a2 - a4
+            self.exploitation_w_assoc[done_process_mdp] = self.exploitation_w_assoc[done_process_mdp].clone() + self.learning_rate * delta_w
 
-    def read(self, query):
+    def read(self, query, activated_branch):
         query = self.query_encoder(query).reshape(-1, self.num_head, self.key_size)
-        w_assoc = self.w_assoc.clone()
+        if activated_branch == 'exploration':
+            w_assoc = self.exploration_w_assoc.clone()
+            batch_size = self.exploration_batch_size
+        elif activated_branch == 'exploitation':
+            w_assoc = self.exploitation_w_assoc.clone()
+            batch_size = self.exploitation_batch_size
+        else:
+            raise NotImplementedError
         value = torch.bmm(query, w_assoc)
-        value = value.reshape(self.batch_size, self.num_head*self.value_size)
+        value = value.reshape(batch_size, self.num_head*self.value_size)
         value = self.value_aggregator(value)
         return value
 

@@ -179,11 +179,11 @@ def get_args(rest_args):
 
     parser.add_argument('--rlloss_through_encoder', type=boolean_argument, default=True,
                         help='backprop rl loss through encoder')
-    parser.add_argument('--n_step_state_prediction', type=boolean_argument, default=True,
+    parser.add_argument('--n_step_state_prediction', type=boolean_argument, default=False,
                         help='state prediction for n step forward not just next state')
     parser.add_argument('--n_step_reward_prediction', type=boolean_argument, default=False,
                         help='reward prediction for n step forward not just next reward')
-    parser.add_argument('--n_step_action_prediction', type=boolean_argument, default=True,
+    parser.add_argument('--n_step_action_prediction', type=boolean_argument, default=False,
                         help='action prediction for n step forward not just next reward')
 
     parser.add_argument('--n_prediction', type=int, default=2,
@@ -210,7 +210,7 @@ def get_args(rest_args):
     parser.add_argument('--extrinsic_reward_intrinsic_reward_coef', type=float, default=0.1,
                         help='coefficient for action pred error in intrinsic reward')
 
-    parser.add_argument('--residual_task_inference_latent', type=boolean_argument, default=True)
+    parser.add_argument('--residual_task_inference_latent', type=boolean_argument, default=None)
 
     # Coefficient in Base2Final
     parser.add_argument('--add_extrinsic_reward_to_intrinsic', type=boolean_argument, default=True,
@@ -257,10 +257,10 @@ def get_args(rest_args):
     parser.add_argument('--use_rim_level1', type=boolean_argument, default=True,
                         help='whatever create rim level1 (use for policy) or not')
 
-    parser.add_argument('--use_rim_level2', type=boolean_argument, default=True,
+    parser.add_argument('--use_rim_level2', type=boolean_argument, default=False,
                         help='whatever create rim level2 (use for n step value prediction) or not')
 
-    parser.add_argument('--use_rim_level3', type=boolean_argument, default=True,
+    parser.add_argument('--use_rim_level3', type=boolean_argument, default=False,
                         help='whatever create rim level3 (use for decode VAE terms) or not')
 
     parser.add_argument('--rim_level1_hidden_size', type=int, default=32,
@@ -307,17 +307,18 @@ def get_args(rest_args):
                         help='rim level 1 get information from task inference output')
     parser.add_argument('--rim_level2_condition_on_task_inference_latent', type=boolean_argument, default=True,
                         help='rim level 2 get information from task inference output')
-    parser.add_argument('--rim_top_down_level3_level2', type=boolean_argument, default=True,
+    parser.add_argument('--rim_top_down_level3_level2', type=boolean_argument, default=False,
                         help='rim level 2 get information from level 3')
-    parser.add_argument('--rim_top_down_level2_level1', type=boolean_argument, default=True,
+    parser.add_argument('--rim_top_down_level2_level1', type=boolean_argument, default=False,
                         help='rim level 1 get information from level 2')
     # memory
     parser.add_argument('--use_memory', type=boolean_argument, default=True,
                         help='whatever or not use memory in model')
-    parser.add_argument('--use_hebb', type=boolean_argument, default=False,
+    parser.add_argument('--use_hebb', type=boolean_argument, default=True,
                         help='whatever or not use hebbian memory in memory module')
     parser.add_argument('--use_gen', type=boolean_argument, default=False,
                         help='whatever or not use generative memory in memory module')
+
     parser.add_argument('--read_num_head', type=int, default=4)
     parser.add_argument('--combination_num_head', type=int, default=2)
     parser.add_argument('--key_size', type=int, default=16)
@@ -338,7 +339,10 @@ def get_args(rest_args):
     parser.add_argument('--read_memory_to_value_layer', type=int, nargs='+', default=[])
     parser.add_argument('--read_memory_to_key_layer', type=int, nargs='+', default=[])
     parser.add_argument('--use_rpe', type=boolean_argument, default=False)
+    parser.add_argument('--hebb_learning_rate', type=float, default=0.0001)
     parser.add_argument('--reconstruction_memory_loss', type=boolean_argument, default=False)
+    parser.add_argument('--reconstruction_memory_loss_coef', type=float, default=0.5,
+                        help='RL vs Recons loss for memory training')
 
     # vision core
     parser.add_argument('--use_stateful_vision_core', type=boolean_argument, default=False,

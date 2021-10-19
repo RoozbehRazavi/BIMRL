@@ -93,10 +93,10 @@ def get_latent_for_policy(sample_embeddings, add_nonlinearity_to_latent, latent_
     return latent
 
 
-def update_encoding(brim_core, policy, next_obs, action, reward, done, task_inference_hidden_state, brim_hidden_state, activated_branch, rpe):
+def update_encoding(brim_core, policy, next_obs, action, reward, done, task_inference_hidden_state, brim_hidden_state, activated_branch, done_episode, rpe):
     # reset hidden state of the recurrent net when we reset the task
     if done is not None:
-        task_inference_hidden_state, brim_hidden_state = brim_core.reset_hidden(policy, task_inference_hidden_state, brim_hidden_state, done_task=done, done_episode=None, activated_branch=activated_branch)
+        task_inference_hidden_state, brim_hidden_state = brim_core.reset_hidden(policy, task_inference_hidden_state, brim_hidden_state, done_task=done, done_episode=done_episode, activated_branch=activated_branch)
 
     with torch.no_grad():
         if activated_branch == 'exploration':
@@ -227,7 +227,7 @@ def recompute_embeddings(
         memory.prior(policy_storage.actions.shape[1], activated_branch)
     for i in range(policy_storage.actions.shape[0]):
         # reset hidden state of the GRU when we reset the task
-        task_inference_hidden_state, brim_hidden_state = brim_core.reset_hidden(policy, task_inference_hidden_state, brim_hidden_state, policy_storage.done[i + 1], None, activated_branch=activated_branch)
+        task_inference_hidden_state, brim_hidden_state = brim_core.reset_hidden(policy, task_inference_hidden_state, brim_hidden_state, policy_storage.done[i + 1], done_episode=policy_storage.done_episode[i + 1], activated_branch=activated_branch)
 
         if activated_branch == 'exploration':
             brim_output1, brim_output3, brim_output5, brim_hidden_state, \

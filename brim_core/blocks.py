@@ -227,7 +227,8 @@ class Blocks(nn.Module):
             rim_query_size,\
             rim_hidden_state_to_query_layers,\
             read_memory_to_value_layer,\
-            read_memory_to_key_layer = memory_params
+            read_memory_to_key_layer,\
+            hebb_learning_rate = memory_params
             self.memory = self.initialise_memory(
                 use_hebb,
                 use_gen,
@@ -251,7 +252,8 @@ class Blocks(nn.Module):
                 rim_hidden_state_to_query_layers,
                 read_memory_to_value_layer,
                 read_memory_to_key_layer,
-                rim_level1_hidden_size)
+                rim_level1_hidden_size,
+                hebb_learning_rate)
 
     @staticmethod
     def initialise_rims(use_rim_level1,
@@ -560,7 +562,8 @@ class Blocks(nn.Module):
             rim_hidden_state_to_query_layers,
             read_memory_to_value_layer,
             read_memory_to_key_layer,
-            rim_level1_hidden_size):
+            rim_level1_hidden_size,
+            hebb_learning_rate):
 
         memory = Hippocampus(
             use_hebb,
@@ -585,7 +588,8 @@ class Blocks(nn.Module):
             rim_hidden_state_to_query_layers,
             read_memory_to_value_layer,
             read_memory_to_key_layer,
-            rim_level1_hidden_size)
+            rim_level1_hidden_size,
+            hebb_learning_rate)
         return memory
 
     def prior(self, batch_size, state, state_process, embedd_state):
@@ -693,6 +697,7 @@ class Blocks(nn.Module):
                     level1_input = torch.cat((level1_input, brim_level1_task_inference_latent), dim=-1)
                 if self.use_memory:
                     read_rim_output1 = self.memory.read((memory_state, brim_level1_task_inference_latent), brim_hidden_state1, activated_branch)
+                    extra_information['read_rim_output1'] = read_rim_output1
                     level1_input = torch.cat((level1_input, read_rim_output1), dim=-1)
                 if self.use_fix_dim_level1:
                     brim_hidden_state3_ = self.rim1_input_fix_dim[0](brim_hidden_state3.detach())

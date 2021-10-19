@@ -2,17 +2,17 @@ import torch
 import torch.nn.functional as F
 import torch.nn as nn
 from memory.helpers import spatial_softmax, apply_alpha
+import math
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 class DND(nn.Module):
-    def __init__(self, num_head, key_size, value_size, key_encoder_layer, value_encoder_layer, episode_len):
+    def __init__(self, num_head, key_size, value_size, key_encoder_layer, value_encoder_layer, episode_len, policy_num_steps):
         super(DND, self).__init__()
         self.key_size = key_size
         self.value_size = value_size
         self.num_head = num_head
         self.episode_len = episode_len
-        self.kernel = 'l2'
         self.exploration_batch_size = self.exploitation_batch_size = self.exploration_keys = \
             self.exploitation_keys = self.exploration_vals = self.exploitation_vals = \
             self.exploration_referenced_times = self.exploitation_referenced_times = self.exploration_RPE_read_modulation = self.exploitation_RPE_read_modulation =\
@@ -56,11 +56,12 @@ class DND(nn.Module):
         else:
             raise NotImplementedError
 
-    def reset(self, done_process_mdp, activated_branch):
+    def reset(self, done_task, done_process_mdp, activated_branch):
+        done_episode_idx = done_process_mdp.view(len(done_process_mdp)).nonzero(as_tuple=True)[0]
         if activated_branch == 'exploration':
-            self.exploration_step[done_process_mdp.view(len(done_process_mdp)).nonzero(as_tuple=True)[0]] *= 0
+            self.exploration_step[done_episode_idx] *= 0
         elif activated_branch == 'exploitation':
-            self.exploitation_step[done_process_mdp.view(len(done_process_mdp)).nonzero(as_tuple=True)[0]] *= 0
+            self.exploitation_step[done_episode_idx] *= 0
         else:
             raise NotImplementedError
 
@@ -88,18 +89,21 @@ class DND(nn.Module):
             if len(self.exploration_step.nonzero(as_tuple=True)[0]) < self.exploration_batch_size:
                 return torch.zeros((self.exploration_batch_size, self.value_size), device=device)
             keys = self.exploration_keys
+            vals = self.exploration_vals
             RPE_read_modulation = self.exploration_RPE_read_modulation
             step = self.exploration_step
             batch_size = self.exploration_batch_size
-
+            referenced_times = self.exploration_referenced_times
         elif activated_branch == 'exploitation':
             assert query.shape[0] == self.exploitation_batch_size
             if len(self.exploitation_step.nonzero(as_tuple=True)[0]) < self.exploitation_batch_size:
                 return torch.zeros((self.exploitation_batch_size, self.value_size), device=device)
-            keys = self.exploration_keys
-            RPE_read_modulation = self.exploration_RPE_read_modulation
-            step = self.exploration_step
+            keys = self.exploitation_keys
+            vals = self.exploitation_vals
+            RPE_read_modulation = self.exploitation_RPE_read_modulation
+            step = self.exploitation_step
             batch_size = self.exploitation_batch_size
+            referenced_times = self.exploitation_referenced_times
         else:
             raise NotImplementedError
 
@@ -108,20 +112,25 @@ class DND(nn.Module):
         for i in range(batch_size):
             key_ = keys[:step[i], i, :].clone() * RPE_read_modulation[:step[i], i, :]
             query_ = query[i]
-            key_ = key_.permute(1, 0, 2)
-            query_ = query_.permute(0, 2, 1)
-            a = torch.bmm(key_, query_)
-            weight = F.softmax(a, dim=1)
-            result = self._get_memory(weight, step[i], i)
+            # 1 = b, n = 7 , m = 48 . b = 1, m = 48, p = 4 - > b * n * p
+            query_ = query_.permute(1, 0).unsqueeze(0)
+            key_ = key_.unsqueeze(0)
+            score = torch.bmm(key_, query_) / math.sqrt(self.key_size)
+            prob = F.softmax(score, dim=1)
+            tmp = prob.mean(-1).squeeze(0).unsqueeze(-1)
+            referenced_times[:step[i], i, :] += tmp
+            # b=1, n=4, m=7 . b=1 m=7 p=48 -> b*n*p
+            prob = prob.permute(0, 2, 1)
+            vals_ = vals[:step[i], i, :].clone().unsqueeze(0)
+            result = torch.bmm(prob, vals_)
             result = self.value_aggregator(result.reshape(-1, self.num_head * self.value_size))
             results.append(result)
-        results = torch.stack(results, dim=0)
+        if activated_branch == 'exploration':
+            self.exploration_referenced_times = referenced_times
+        if activated_branch == 'exploitation':
+            self.exploitation_referenced_times = referenced_times
+        results = torch.cat(results, dim=0)
         return results
-
-    def _get_memory(self, weight, step, i):
-        self.referenced_times[:step, i, :] += weight
-        res = apply_alpha(weight.clone(), self.vals[:step, i, :].clone())
-        return res
 
     def get_done_process(self, done_process_mdp, activated_branch):
         if activated_branch == 'exploration':
@@ -143,18 +152,18 @@ class DND(nn.Module):
         idx_base = 0
         done_process_mdp_ = done_process_mdp.nonzero(as_tuple=True)[0]
 
-        for i in range(sum(done_process_mdp)):
-            _, idx_tmp = torch.topk(referenced_times[:, done_process_mdp_[i], :].view(-1), dim=-1, k=(self.episode_len // 2))
+        for i in range(len(done_process_mdp_)):
+            _, idx_tmp = torch.topk(referenced_times[:, done_process_mdp_[i].item(), :].view(-1), dim=-1, k=(self.episode_len // 2))
             idx.append(idx_tmp + idx_base)
             idx_base += self.episode_len
 
         idx = torch.cat(idx, dim=-1)
         tmp_keys = keys[:, done_process_mdp.nonzero(as_tuple=True)[0], :]
-        ret_keys = tmp_keys.view(-1, self.key_size)[idx].view(torch.sum(done_process_mdp), self.episode_len//2, -1)
+        ret_keys = tmp_keys.view(-1, self.key_size)[idx].view(len(done_process_mdp_), self.episode_len//2, -1)
         tmp_values = vals[:, done_process_mdp.nonzero(as_tuple=True)[0], :]
-        ret_values = tmp_values.view(-1, self.value_size)[idx].view(torch.sum(done_process_mdp), self.episode_len//2, -1)
+        ret_values = tmp_values.view(-1, self.value_size)[idx].view(len(done_process_mdp_), self.episode_len//2, -1)
         tmp_RPE = RPE_read_modulation[:, done_process_mdp.nonzero(as_tuple=True)[0], :]
-        ret_RPE = tmp_RPE.view(-1, 1)[idx].view(torch.sum(done_process_mdp), self.episode_len//2, -1)
+        ret_RPE = tmp_RPE.view(-1, 1)[idx].view(len(done_process_mdp_), self.episode_len//2, -1)
 
         return ret_keys.detach(), ret_values.detach(), ret_RPE.detach()
 
