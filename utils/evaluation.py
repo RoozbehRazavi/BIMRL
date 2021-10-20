@@ -368,7 +368,7 @@ def evaluate_meta_policy(
                     break
         envs.close()
 
-    plot_meta_eval(returns_per_episode.mean(0).unsqueeze(0), save_path, iter_idx)
+    plot_meta_eval(returns_per_episode.mean(0).unsqueeze(0).detach().cpu(), save_path, iter_idx)
 
 
 def visualize_policy(
