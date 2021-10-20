@@ -159,9 +159,9 @@ class MetaLearner:
                 if self.exploitation_policy is not None:
                     self.exploitation_policy.actor_critic.rim_level1_output_rms = utl.load_obj(save_path, 'policy_rim_level1_rms_exploitation')
             if self.state_prediction_running_normalizer is not None:
-                self.state_prediction_running_normalizer = utl.load_obj(save_path, 'state_error_rms')
+                self.state_prediction_running_normalizer = utl.load_obj(save_path, 'state_error_rmsexploration')
             if self.action_prediction_running_normalizer is not None:
-                self.action_prediction_running_normalizer = utl.load_obj(save_path, 'action_error_rms')
+                self.action_prediction_running_normalizer = utl.load_obj(save_path, 'action_error_rmsexploration')
 
     def initialise_policy_storage(self, num_processes):
         return OnlineStorage(args=self.args,
