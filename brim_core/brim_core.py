@@ -258,7 +258,7 @@ class BRIMCore(nn.Module):
             state_process = None
         if self.use_memory and not activated_branch == 'level3':
             self.brim.model.memory.prior(batch_size, activated_branch)
-        return self.brim.prior(batch_size=batch_size, sample=sample, state=state, state_process=state_process, embedd_state=embedd_state)
+        return self.brim.prior(batch_size=batch_size, sample=sample, state=state, state_process=state_process, embedd_state=embedd_state, activated_branch=activated_branch)
 
     def forward(self,
                 actions,
@@ -500,7 +500,7 @@ class BRIMCore(nn.Module):
                        return_prior,
                        sample,
                        detach_every,
-                       prev_state
+                       prev_state,
                        ):
 
         brim_output1, brim_output2, brim_output3, brim_output4, brim_output5, brim_hidden_states, \

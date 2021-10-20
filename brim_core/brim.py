@@ -226,9 +226,9 @@ class BRIM(nn.Module):
         ).to(device)
         return vae_encoder
 
-    def prior(self, state, state_process, batch_size, sample, embedd_state):
+    def prior(self, state, state_process, batch_size, sample, embedd_state, activated_branch):
         latent_sample, latent_mean, latent_logvar, task_inference_hidden_state = self.vae_encoder.prior(batch_size, sample)
-        brim_output1, brim_output2, brim_output3, brim_output4, brim_output5, brim_hidden_state, policy_embedded_state = self.model.prior(batch_size, state, state_process, embedd_state)
+        brim_output1, brim_output2, brim_output3, brim_output4, brim_output5, brim_hidden_state, policy_embedded_state = self.model.prior(batch_size, state, state_process, embedd_state, activated_branch)
 
         return (brim_output1, brim_output2, brim_output3, brim_output4, brim_output5, brim_hidden_state),\
                (latent_sample, latent_mean, latent_logvar, task_inference_hidden_state), policy_embedded_state

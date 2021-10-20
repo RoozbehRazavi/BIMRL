@@ -592,7 +592,7 @@ class Blocks(nn.Module):
             hebb_learning_rate)
         return memory
 
-    def prior(self, batch_size, state, state_process, embedd_state):
+    def prior(self, batch_size, state, state_process, embedd_stat, activated_branch):
         brim_hidden_state = []
         rim_hidden_size = max(self.rim_level1_hidden_size, self.rim_level2_hidden_size, self.rim_level3_hidden_size)
         brim_hidden_state.append(torch.zeros((1, batch_size, 1, rim_hidden_size), requires_grad=True, device=device))
@@ -631,8 +631,9 @@ class Blocks(nn.Module):
         else:
             brim_output1 = torch.zeros(size=(1, batch_size, self.rim_level1_output_dim), device=device)
             brim_output2 = torch.zeros(size=(1, batch_size, self.rim_level1_output_dim), device=device)
-            extra_information['exploration_policy_embedded_state'] = state_process(state)
-            extra_information['exploitation_policy_embedded_state'] = state_process(state)
+            if not activated_branch == 'level3':
+                extra_information['exploration_policy_embedded_state'] = state_process(state)
+                extra_information['exploitation_policy_embedded_state'] = state_process(state)
 
         if self.use_rim_level2:
             brim_output3 = self.output_layer_level2[0](h3)
