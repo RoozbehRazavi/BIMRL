@@ -363,7 +363,7 @@ def evaluate_meta_policy(
 
                 # add rewards
                 if episode_idx == i:
-                    returns_per_episode[:, i] += rew_raw
+                    returns_per_episode[:, i:i+1] += rew_raw
                 if sum(done_mdp) > 0:
                     break
         envs.close()

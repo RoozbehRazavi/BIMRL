@@ -172,7 +172,7 @@ def get_args(rest_args):
     parser.add_argument('--vae_fill_with_exploration_experience', type=boolean_argument, default=False,
                         help='vae buffer fill just with exploration trajectory of with both exploration and exploitation')
 
-    parser.add_argument('--exploration_processes_portion', type=float, default=0.0,
+    parser.add_argument('--exploration_processes_portion', type=float, default=0.5,
                         help='what portion of process generate trajectory with exploration policy')
 
     # Disable Loss of Base2Final
@@ -356,6 +356,6 @@ def get_args(rest_args):
 
     ####
     parser.add_argument('--exploration_num_episodes', type=int, default=4)
-    parser.add_argument('--meta_evaluate_interval', type=int, default=20)
+    parser.add_argument('--meta_evaluate_interval', type=int, default=1)
 
     return parser.parse_args(rest_args)

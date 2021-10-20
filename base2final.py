@@ -1190,8 +1190,8 @@ class Base2Final:
         latent_sample = latent_sample[1:max_len+1]
         latent_mean = latent_mean[1:max_len+1]
         latent_logvar = latent_logvar[1:max_len+1]
-        done_task = done_task[1:max_len+1]
-        done_episode = done_episode[1:max_len+1]
+        done_task = done_task[0:max_len+1]
+        done_episode = done_episode[0:max_len+1]
 
         latent = utl.get_latent_for_policy(
             sample_embeddings=False,
