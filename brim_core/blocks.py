@@ -631,6 +631,8 @@ class Blocks(nn.Module):
         else:
             brim_output1 = torch.zeros(size=(1, batch_size, self.rim_level1_output_dim), device=device)
             brim_output2 = torch.zeros(size=(1, batch_size, self.rim_level1_output_dim), device=device)
+            extra_information['exploration_policy_embedded_state'] = state_process(state)
+            extra_information['exploitation_policy_embedded_state'] = state_process(state)
 
         if self.use_rim_level2:
             brim_output3 = self.output_layer_level2[0](h3)
