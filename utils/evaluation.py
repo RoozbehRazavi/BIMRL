@@ -392,7 +392,7 @@ def visualize_policy(
                          rank_offset=2,  # to use diff tmp folders than main processes
                          episodes_per_task=num_episodes,
                          normalise_rew=args.norm_rew_for_policy, ret_rms=ret_rms)
-    num_steps = envs._max_episode_steps
+    num_steps = envs._max_episode_steps//4
 
     state, belief, task = utl.reset_env(envs, args)
     frames = []
