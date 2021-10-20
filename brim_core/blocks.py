@@ -727,6 +727,7 @@ class Blocks(nn.Module):
                     extra_information['exploration_policy_embedded_state'] = state_process(policy_state)
             else:
                 brim_output1 = torch.zeros(size=(*brim_hidden_state1.shape[:-1], self.rim_level1_output_dim), device=device)
+                extra_information['exploration_policy_embedded_state'] = state_process(policy_state)
 
             if self.use_rim_level2:
                 level2_input = self.input_embedding_layer_level2[0](brim_input)
@@ -809,6 +810,7 @@ class Blocks(nn.Module):
                     extra_information['exploitation_policy_embedded_state'] = state_process(policy_state)
             else:
                 brim_output2 = torch.zeros(size=(*brim_hidden_state2.shape[:-1], self.rim_level1_output_dim), device=device)
+                extra_information['exploration_policy_embedded_state'] = state_process(policy_state)
 
             if self.use_rim_level2:
                 level2_input = self.input_embedding_layer_level2[1](brim_input)
