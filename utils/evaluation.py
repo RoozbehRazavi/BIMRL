@@ -175,7 +175,6 @@ def evaluate(args,
 
 def plot_meta_eval(returns, save_path, iter_idx):
     plt.figure(figsize=(12, 5))
-    plt.subplot(1, 2, 1)
     plt.plot(range(returns.shape[1]), returns[0], '-', alpha=0.5)
     plt.xlabel('exploration episode', fontsize=15)
     plt.ylabel('exploitation mean return', fontsize=15)
@@ -395,6 +394,8 @@ def visualize_policy(
     num_steps = envs._max_episode_steps//4
 
     state, belief, task = utl.reset_env(envs, args)
+    if state.shape[-1] == 147:
+        state = torch.cat((state, torch.zeros((1, 1), device=device)), dim=-1)
     frames = []
 
     if brim_core is not None:
@@ -446,6 +447,8 @@ def visualize_policy(
 
             # observe reward and next obs
             [state, belief, task], (rew_raw, rew_normalised), done, infos = utl.env_step(envs, action, args)
+            if state.shape[-1] == 147:
+                state = torch.cat((state, torch.zeros((1, 1), device=device)), dim=-1)
             done_ = torch.from_numpy(np.array(done, dtype=int)).to(device).float().view((-1, 1))
 
             # replace intrinsic reward instead extrinsic reward

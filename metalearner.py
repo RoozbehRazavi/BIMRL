@@ -120,7 +120,7 @@ class MetaLearner:
                 self.base2final.exploitation_value_decoder.load_state_dict(
                     torch.load(os.path.join(save_path, f"exploitation_value_decoder.pt"), map_location=device))
 
-            self.base2final.brim_core.load_state_dict(torch.load(os.path.join(save_path, f"brim_core.pt")))
+            self.base2final.brim_core.load_state_dict(torch.load(os.path.join(save_path, f"brim_core.pt"), map_location=device))
 
             if self.exploration_policy is not None:
                 self.exploration_policy.actor_critic.load_state_dict(
@@ -140,28 +140,28 @@ class MetaLearner:
 
             if self.args.norm_rew_for_policy:
                 if self.exploration_envs is not None:
-                    self.exploration_envs.venv.ret_rms = utl.load_obj(save_path, 'env_rew_rms_exploration')
+                    self.exploration_envs.venv.ret_rms = torch.load(os.path.join(save_path, 'env_rew_rms_exploration.pkl'), map_location=device)
                 if self.exploitation_envs is not None:
-                    self.exploitation_envs.venv.ret_rms = utl.load_obj(save_path, 'env_rew_rms_exploitation')
+                    self.exploitation_envs.venv.ret_rms = torch.load(os.path.join(save_path, 'env_rew_rms_exploitation.pkl'), map_location=device)
             if self.args.norm_state_for_policy and self.args.pass_state_to_policy:
                 if self.exploration_policy is not None:
-                    self.exploration_policy.actor_critic.state_rms = utl.load_obj(save_path, 'policy_state_rms_exploration')
+                    self.exploration_policy.actor_critic.state_rms = torch.load(os.path.join(save_path, 'policy_state_rms_exploration.pkl'), map_location=device)
                 if self.exploitation_policy is not None:
-                    self.exploitation_policy.actor_critic.state_rms = utl.load_obj(save_path, 'policy_state_rms_exploitation')
+                    self.exploitation_policy.actor_critic.state_rms = torch.load(os.path.join(save_path, 'policy_state_rms_exploitation.pkl'), map_location=device)
             if self.args.norm_task_inference_latent_for_policy and self.args.pass_task_inference_latent_to_policy:
                 if self.exploration_policy is not None:
-                    self.exploration_policy.actor_critic.task_inference_latent_rms = utl.load_obj(save_path, 'policy_latent_rms_exploration')
+                    self.exploration_policy.actor_critic.task_inference_latent_rms = torch.load(os.path.join(save_path, 'policy_latent_rms_exploration.pkl'), map_location=device)
                 if self.exploitation_policy is not None:
-                    self.exploitation_policy.actor_critic.task_inference_latent_rms = utl.load_obj(save_path, 'policy_latent_rms_exploitation')
+                    self.exploitation_policy.actor_critic.task_inference_latent_rms = torch.load(os.path.join(save_path, 'policy_latent_rms_exploitation.pkl'), map_location=device)
             if self.args.norm_rim_level1_output and self.args.use_rim_level1:
                 if self.exploration_policy is not None:
-                    self.exploration_policy.actor_critic.rim_level1_output_rms = utl.load_obj(save_path, 'policy_rim_level1_rms_exploration')
+                    self.exploration_policy.actor_critic.rim_level1_output_rms = torch.load(os.path.join(save_path, 'policy_rim_level1_rms_exploration.pkl'), map_location=device)
                 if self.exploitation_policy is not None:
-                    self.exploitation_policy.actor_critic.rim_level1_output_rms = utl.load_obj(save_path, 'policy_rim_level1_rms_exploitation')
+                    self.exploitation_policy.actor_critic.rim_level1_output_rms = torch.load(os.path.join(save_path, 'policy_rim_level1_rms_exploitation.pkl'), map_location=device)
             if self.state_prediction_running_normalizer is not None:
-                self.state_prediction_running_normalizer = utl.load_obj(save_path, 'state_error_rmsexploration')
+                self.state_prediction_running_normalizer = torch.load(os.path.join(save_path, 'state_error_rms.pkl'), map_location=device)
             if self.action_prediction_running_normalizer is not None:
-                self.action_prediction_running_normalizer = utl.load_obj(save_path, 'action_error_rmsexploration')
+                self.action_prediction_running_normalizer = torch.load(os.path.join(save_path, 'action_error_rms.pkl'), map_location=device)
 
     def initialise_policy_storage(self, num_processes):
         return OnlineStorage(args=self.args,
@@ -921,22 +921,28 @@ class MetaLearner:
                 # save normalisation params of envs
                 if self.args.norm_rew_for_policy:
                     rew_rms = envs.venv.ret_rms
-                    utl.save_obj(rew_rms, save_path, f"env_rew_rms_{policy_type}{idx_label}")
+                    filename = os.path.join(save_path, f"env_rew_rms_{policy_type}{idx_label}.pkl")
+                    torch.save(rew_rms, filename, _use_new_zipfile_serialization=False)
 
                 if self.state_prediction_running_normalizer is not None:
-                    utl.save_obj(self.state_prediction_running_normalizer, save_path, f"state_error_rms{policy_type}{idx_label}")
+                    filename = os.path.join(save_path, f"state_error_rms{idx_label}.pkl")
+                    torch.save(self.state_prediction_running_normalizer, filename, _use_new_zipfile_serialization=False)
 
                 if self.action_prediction_running_normalizer is not None:
-                    utl.save_obj(self.action_prediction_running_normalizer, save_path, f"action_error_rms{policy_type}{idx_label}")
+                    filename = os.path.join(save_path, f"action_error_rms{idx_label}.pkl")
+                    torch.save(self.action_prediction_running_normalizer, filename, _use_new_zipfile_serialization=False)
 
                 if self.args.norm_state_for_policy and self.args.pass_state_to_policy:
-                    utl.save_obj(policy.actor_critic.state_rms, save_path, f"policy_state_rms_{policy_type}{idx_label}")
+                    filename = os.path.join(save_path, f"policy_state_rms_{policy_type}{idx_label}.pkl")
+                    torch.save(policy.actor_critic.state_rms, filename, _use_new_zipfile_serialization=False)
 
                 if self.args.norm_task_inference_latent_for_policy and self.args.pass_task_inference_latent_to_policy:
-                    utl.save_obj(policy.actor_critic.task_inference_latent_rms, save_path, f"policy_latent_rms_{policy_type}{idx_label}")
+                    filename = os.path.join(save_path, f"policy_latent_rms_{policy_type}{idx_label}.pkl")
+                    torch.save(policy.actor_critic.task_inference_latent_rms, filename, _use_new_zipfile_serialization=False)
 
                 if self.args.norm_rim_level1_output and self.args.use_rim_level1:
-                    utl.save_obj(policy.actor_critic.rim_level1_output_rms, save_path, f"policy_rim_level1_rms_{policy_type}{idx_label}")
+                    filename = os.path.join(save_path, f"policy_rim_level1_rms_{policy_type}{idx_label}.pkl")
+                    torch.save(policy.actor_critic.rim_level1_output_rms, filename, _use_new_zipfile_serialization=False)
 
         # --- log some other things ---
 

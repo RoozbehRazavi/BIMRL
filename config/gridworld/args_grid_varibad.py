@@ -9,8 +9,8 @@ def get_args(rest_args):
 
     parser.add_argument('--num_frames', type=int, default=1e8, help='number of frames to train')
     parser.add_argument('--max_rollouts_per_task', type=int, default=4, help='number of MDP episodes for adaptation')
-    parser.add_argument('--exp_label', default='varibad', help='label (typically name of method)')
-    parser.add_argument('--env_name', default='MiniGrid-Empty-5x5-v0', help='environment to train on')
+    parser.add_argument('--exp_label', default='A1_meta_eval2', help='label (typically name of method)')
+    parser.add_argument('--env_name', default='MiniGrid-FourRooms-v0', help='environment to train on')
 
     # --- POLICY ---
 
@@ -166,10 +166,10 @@ def get_args(rest_args):
     parser.add_argument('--deterministic_execution', type=boolean_argument, default=False,
                         help='Make code fully deterministic. Expects 1 process and uses deterministic CUDNN')
 
-    parser.add_argument('--load_model', type=boolean_argument, default=False)
+    parser.add_argument('--load_model', type=boolean_argument, default=True)
 
     # General Base2Final
-    parser.add_argument('--vae_fill_with_exploration_experience', type=boolean_argument, default=False,
+    parser.add_argument('--vae_fill_just_with_exploration_experience', type=boolean_argument, default=True,
                         help='vae buffer fill just with exploration trajectory of with both exploration and exploitation')
 
     parser.add_argument('--exploration_processes_portion', type=float, default=0.5,

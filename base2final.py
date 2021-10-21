@@ -947,21 +947,21 @@ class Base2Final:
         """
         Returns the VAE loss
         """
-        exploration_rollout_storage_read = self.exploration_rollout_storage.ready_for_update()
-        exploitation_rollout_storage_read = self.exploitation_rollout_storage.ready_for_update()
+        exploration_rollout_storage_ready = self.exploration_rollout_storage.ready_for_update()
+        exploitation_rollout_storage_ready = self.exploitation_rollout_storage.ready_for_update()
 
-        if self.args.vae_fill_with_exploration_experience:
-            if not exploration_rollout_storage_read:
+        if self.args.vae_fill_just_with_exploration_experience:
+            if not exploration_rollout_storage_ready:
                 return 0
         else:
-            if not exploitation_rollout_storage_read and not exploration_rollout_storage_read:
+            if not exploitation_rollout_storage_ready and not exploration_rollout_storage_ready:
                 return 0
 
         if self.args.disable_decoder and self.args.disable_stochasticity_in_latent:
             return 0
 
-        use_exploitation_data = exploitation_rollout_storage_read and not self.args.vae_fill_with_exploration_experience
-        use_exploration_data = exploration_rollout_storage_read
+        use_exploitation_data = exploitation_rollout_storage_ready and not self.args.vae_fill_just_with_exploration_experience
+        use_exploration_data = exploration_rollout_storage_ready
 
         assert use_exploration_data or use_exploitation_data
 
@@ -1142,8 +1142,8 @@ class Base2Final:
 
     def compute_memory_loss(self, policy, activated_branch):
         if activated_branch == 'exploration':
-            exploration_rollout_storage_read = self.exploration_rollout_storage.ready_for_update()
-            if not exploration_rollout_storage_read:
+            exploration_rollout_storage_ready = self.exploration_rollout_storage.ready_for_update()
+            if not exploration_rollout_storage_ready:
                 return 0
             vae_prev_obs, vae_next_obs, vae_actions, vae_rewards, vae_tasks, done_task, done_episode, trajectory_lens = self.exploration_rollout_storage.get_batch(
                 batchsize=self.args.vae_batch_num_trajs, memory_batch=True)
@@ -1162,8 +1162,8 @@ class Base2Final:
                 policy=policy,
                 prev_state=vae_prev_obs[0, :, :])
         elif activated_branch == 'exploitation':
-            exploitation_rollout_storage_read = self.exploitation_rollout_storage.ready_for_update()
-            if not exploitation_rollout_storage_read:
+            exploitation_rollout_storage_ready = self.exploitation_rollout_storage.ready_for_update()
+            if not exploitation_rollout_storage_ready:
                 return 0
             vae_prev_obs, vae_next_obs, vae_actions, vae_rewards, vae_tasks, done_task, done_episode, trajectory_lens = self.exploitation_rollout_storage.get_batch(
                 batchsize=self.args.vae_batch_num_trajs, memory_batch=True)

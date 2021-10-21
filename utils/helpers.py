@@ -327,7 +327,8 @@ def save_obj(obj, folder, name):
 def load_obj(folder, name):
     filename = os.path.join(folder, name + '.pkl')
     with open(filename, 'rb') as f:
-        return pickle.load(f)
+        with torch.loading_context(map_location=device):
+            return pickle.load(f)
 
 
 class RunningMeanStd(object):
