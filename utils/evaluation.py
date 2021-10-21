@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from environments.parallel_envs import make_vec_envs
 from utils import helpers as utl
 from array2gif import write_gif
+import math
 import os
 
 import numpy
@@ -174,8 +175,8 @@ def evaluate(args,
 
 
 def plot_meta_eval(returns, save_path, iter_idx):
-    plt.figure(figsize=(12, 5))
-    plt.plot(range(returns.shape[1]), returns[0], '-', alpha=0.5)
+    plt.plot(range(int(returns.shape[1])), returns[0], linestyle='-', marker='o', alpha=0.5)
+    plt.xticks(range(int(returns.shape[1])))
     plt.xlabel('exploration episode', fontsize=15)
     plt.ylabel('exploitation mean return', fontsize=15)
     plt.tight_layout()

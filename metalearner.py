@@ -138,30 +138,30 @@ class MetaLearner:
             if self.exploitation_policy is not None:
                 self.exploitation_policy.optimiser.load_state_dict(general_info['exploitation_policy_optimiser'])
 
-            if self.args.norm_rew_for_policy:
-                if self.exploration_envs is not None:
-                    self.exploration_envs.venv.ret_rms = torch.load(os.path.join(save_path, 'env_rew_rms_exploration.pkl'), map_location=device)
-                if self.exploitation_envs is not None:
-                    self.exploitation_envs.venv.ret_rms = torch.load(os.path.join(save_path, 'env_rew_rms_exploitation.pkl'), map_location=device)
-            if self.args.norm_state_for_policy and self.args.pass_state_to_policy:
-                if self.exploration_policy is not None:
-                    self.exploration_policy.actor_critic.state_rms = torch.load(os.path.join(save_path, 'policy_state_rms_exploration.pkl'), map_location=device)
-                if self.exploitation_policy is not None:
-                    self.exploitation_policy.actor_critic.state_rms = torch.load(os.path.join(save_path, 'policy_state_rms_exploitation.pkl'), map_location=device)
-            if self.args.norm_task_inference_latent_for_policy and self.args.pass_task_inference_latent_to_policy:
-                if self.exploration_policy is not None:
-                    self.exploration_policy.actor_critic.task_inference_latent_rms = torch.load(os.path.join(save_path, 'policy_latent_rms_exploration.pkl'), map_location=device)
-                if self.exploitation_policy is not None:
-                    self.exploitation_policy.actor_critic.task_inference_latent_rms = torch.load(os.path.join(save_path, 'policy_latent_rms_exploitation.pkl'), map_location=device)
-            if self.args.norm_rim_level1_output and self.args.use_rim_level1:
-                if self.exploration_policy is not None:
-                    self.exploration_policy.actor_critic.rim_level1_output_rms = torch.load(os.path.join(save_path, 'policy_rim_level1_rms_exploration.pkl'), map_location=device)
-                if self.exploitation_policy is not None:
-                    self.exploitation_policy.actor_critic.rim_level1_output_rms = torch.load(os.path.join(save_path, 'policy_rim_level1_rms_exploitation.pkl'), map_location=device)
-            if self.state_prediction_running_normalizer is not None:
-                self.state_prediction_running_normalizer = torch.load(os.path.join(save_path, 'state_error_rms.pkl'), map_location=device)
-            if self.action_prediction_running_normalizer is not None:
-                self.action_prediction_running_normalizer = torch.load(os.path.join(save_path, 'action_error_rms.pkl'), map_location=device)
+            # if self.args.norm_rew_for_policy:
+            #     if self.exploration_envs is not None:
+            #         self.exploration_envs.venv.ret_rms = torch.load(os.path.join(save_path, 'env_rew_rms_exploration.pkl'), map_location=device)
+            #     if self.exploitation_envs is not None:
+            #         self.exploitation_envs.venv.ret_rms = torch.load(os.path.join(save_path, 'env_rew_rms_exploitation.pkl'), map_location=device)
+            # if self.args.norm_state_for_policy and self.args.pass_state_to_policy:
+            #     if self.exploration_policy is not None:
+            #         self.exploration_policy.actor_critic.state_rms = torch.load(os.path.join(save_path, 'policy_state_rms_exploration.pkl'), map_location=device)
+            #     if self.exploitation_policy is not None:
+            #         self.exploitation_policy.actor_critic.state_rms = torch.load(os.path.join(save_path, 'policy_state_rms_exploitation.pkl'), map_location=device)
+            # if self.args.norm_task_inference_latent_for_policy and self.args.pass_task_inference_latent_to_policy:
+            #     if self.exploration_policy is not None:
+            #         self.exploration_policy.actor_critic.task_inference_latent_rms = torch.load(os.path.join(save_path, 'policy_latent_rms_exploration.pkl'), map_location=device)
+            #     if self.exploitation_policy is not None:
+            #         self.exploitation_policy.actor_critic.task_inference_latent_rms = torch.load(os.path.join(save_path, 'policy_latent_rms_exploitation.pkl'), map_location=device)
+            # if self.args.norm_rim_level1_output and self.args.use_rim_level1:
+            #     if self.exploration_policy is not None:
+            #         self.exploration_policy.actor_critic.rim_level1_output_rms = torch.load(os.path.join(save_path, 'policy_rim_level1_rms_exploration.pkl'), map_location=device)
+            #     if self.exploitation_policy is not None:
+            #         self.exploitation_policy.actor_critic.rim_level1_output_rms = torch.load(os.path.join(save_path, 'policy_rim_level1_rms_exploitation.pkl'), map_location=device)
+            # if self.state_prediction_running_normalizer is not None:
+            #     self.state_prediction_running_normalizer = torch.load(os.path.join(save_path, 'state_error_rms.pkl'), map_location=device)
+            # if self.action_prediction_running_normalizer is not None:
+            #     self.action_prediction_running_normalizer = torch.load(os.path.join(save_path, 'action_error_rms.pkl'), map_location=device)
 
     def initialise_policy_storage(self, num_processes):
         return OnlineStorage(args=self.args,
