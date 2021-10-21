@@ -948,16 +948,16 @@ class MetaLearner:
 
         if (self.iter_idx % self.args.log_interval == 0) and (train_stats is not None):
 
-            self.logger.add('policy_losses/value_loss', train_stats[0], self.iter_idx)
-            self.logger.add('policy_losses/action_loss', train_stats[1], self.iter_idx)
-            self.logger.add('policy_losses/dist_entropy', train_stats[2], self.iter_idx)
-            self.logger.add('policy_losses/sum', train_stats[3], self.iter_idx)
+            self.logger.add(f'{policy_type}_policy_losses/value_loss', train_stats[0], self.iter_idx)
+            self.logger.add(f'{policy_type}_policy_losses/action_loss', train_stats[1], self.iter_idx)
+            self.logger.add(f'{policy_type}_policy_losses/dist_entropy', train_stats[2], self.iter_idx)
+            self.logger.add(f'{policy_type}_policy_losses/sum', train_stats[3], self.iter_idx)
 
-            self.logger.add('policy/action', run_stats[0][0].float().mean(), self.iter_idx)
+            self.logger.add(f'{policy_type}_policy/action', run_stats[0][0].float().mean(), self.iter_idx)
             if hasattr(policy.actor_critic, 'logstd'):
-                self.logger.add('policy/action_logstd', policy.actor_critic.dist.logstd.mean(), self.iter_idx)
-            self.logger.add('policy/action_logprob', run_stats[1].mean(), self.iter_idx)
-            self.logger.add('policy/value', run_stats[2].mean(), self.iter_idx)
+                self.logger.add(f'{policy_type}_policy/action_logstd', policy.actor_critic.dist.logstd.mean(), self.iter_idx)
+            self.logger.add(f'{policy_type}_policy/action_logprob', run_stats[1].mean(), self.iter_idx)
+            self.logger.add(f'{policy_type}_policy/value', run_stats[2].mean(), self.iter_idx)
 
             self.logger.add('vae_encoder/latent_mean', torch.cat(policy_storage.latent_mean).mean(), self.iter_idx)
             self.logger.add('vae_encoder/latent_logvar', torch.cat(policy_storage.latent_logvar).mean(), self.iter_idx)
