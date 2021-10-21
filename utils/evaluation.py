@@ -505,4 +505,6 @@ def visualize_policy(
                 break
     envs.close()
     save_path = os.path.join(full_output_folder, f'{policy_type}_policy_{iter_idx}.gif')
+    if os.path.isfile(os.path.join(save_path, f'{policy_type}_policy_{iter_idx}.gif')):
+        os.remove(os.path.join(save_path, f'{policy_type}_policy_{iter_idx}.gif'))
     write_gif(numpy.array(frames), save_path)

@@ -267,24 +267,6 @@ class MetaLearner:
         if train_exploitation:
             self.exploitation_policy_storage.prev_state[0].copy_(exploitation_prev_state)
 
-        # log once before training
-        with torch.no_grad():
-            if train_exploration:
-                self.log(None, None, start_time,
-                         self.exploration_policy,
-                         self.exploration_policy_storage,
-                         self.exploration_envs,
-                         'exploration',
-                         meta_eval=train_exploration and train_exploitation)
-
-            if train_exploitation:
-                self.log(None, None, start_time,
-                         self.exploitation_policy,
-                         self.exploitation_policy_storage,
-                         self.exploitation_envs,
-                         'exploitation',
-                         meta_eval=train_exploration and train_exploitation)
-
         vae_is_pretrained = False
         for self.iter_idx in range(self.start_idx, self.num_updates):
 
