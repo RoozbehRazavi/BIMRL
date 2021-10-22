@@ -649,6 +649,42 @@ class MetaLearner:
                                      policy_type='exploration',
                                      meta_eval=train_exploration and train_exploitation
                                      )
+                        elif not train_exploitation:
+                            print('evaluate exploitation on exploration policy ...')
+                            ret_rms = self.exploration_envs.venv.ret_rms if self.args.norm_rew_for_policy else None
+
+                            returns_per_episode = utl_eval.evaluate(args=self.args,
+                                                                    policy=self.exploration_policy,
+                                                                    ret_rms=ret_rms,
+                                                                    brim_core=self.base2final.brim_core,
+                                                                    iter_idx=self.iter_idx,
+                                                                    policy_type='exploitation',
+                                                                    state_decoder=self.base2final.state_decoder,
+                                                                    action_decoder=self.base2final.action_decoder,
+                                                                    state_prediction_running_normalizer=self.state_prediction_running_normalizer,
+                                                                    action_prediction_running_normalizer=self.action_prediction_running_normalizer
+                                                                    )
+
+                            # log the return avg/std across tasks (=processes)
+                            returns_avg = returns_per_episode.mean(dim=0)
+                            returns_std = returns_per_episode.std(dim=0)
+                            for k in range(len(returns_avg)):
+                                self.logger.add('return_avg_per_iter_{}/episode_{}'.format('exploitation', k + 1),
+                                                returns_avg[k],
+                                                self.iter_idx)
+                                self.logger.add('return_avg_per_frame_{}/episode_{}'.format('exploitation', k + 1),
+                                                returns_avg[k],
+                                                self.total_frames)
+                                self.logger.add('return_std_per_iter_{}/episode_{}'.format('exploitation', k + 1),
+                                                returns_std[k],
+                                                self.iter_idx)
+                                self.logger.add('return_std_per_frame_{}/episode_{}'.format('exploitation', k + 1),
+                                                returns_std[k],
+                                                self.total_frames)
+                            print(f"Updates {self.iter_idx}, "
+                                  f"\n Mean return exploitation (train): {returns_avg[-1].item()} \n")
+                        else:
+                            pass
                         if train_exploitation:
                             exploitation_run_stats = [exploitation_action, exploitation_action_log_prob,
                                                       exploitation_value]

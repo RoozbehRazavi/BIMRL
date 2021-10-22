@@ -158,9 +158,9 @@ def compute_intrinsic_reward(rew_raw,
         norm_action_error * action_prediction_intrinsic_reward_coef +\
         rew_normalised * extrinsic_reward_intrinsic_reward_coef
 
-    intrinsic_rew_raw = state_error * state_prediction_intrinsic_reward_coef + \
-        action_error * action_prediction_intrinsic_reward_coef +\
-        rew_raw
+    intrinsic_rew_raw = state_error * state_prediction_intrinsic_reward_coef * 0.01 + \
+        action_error * action_prediction_intrinsic_reward_coef * 0.01 +\
+        rew_raw * extrinsic_reward_intrinsic_reward_coef
 
     return intrinsic_rew_raw.detach(), intrinsic_rew_normalised.detach(), state_error.detach(), action_error.detach()
 
