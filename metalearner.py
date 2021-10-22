@@ -649,7 +649,7 @@ class MetaLearner:
                                      policy_type='exploration',
                                      meta_eval=train_exploration and train_exploitation
                                      )
-                        elif not train_exploitation:
+                        if train_exploration and not train_exploitation:
                             print('evaluate exploitation on exploration policy ...')
                             ret_rms = self.exploration_envs.venv.ret_rms if self.args.norm_rew_for_policy else None
 
