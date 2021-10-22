@@ -658,11 +658,12 @@ class MetaLearner:
                                                                     ret_rms=ret_rms,
                                                                     brim_core=self.base2final.brim_core,
                                                                     iter_idx=self.iter_idx,
-                                                                    policy_type='exploitation',
+                                                                    policy_type='exploration',
                                                                     state_decoder=self.base2final.state_decoder,
                                                                     action_decoder=self.base2final.action_decoder,
                                                                     state_prediction_running_normalizer=self.state_prediction_running_normalizer,
-                                                                    action_prediction_running_normalizer=self.action_prediction_running_normalizer
+                                                                    action_prediction_running_normalizer=self.action_prediction_running_normalizer,
+                                                                    tmp=True
                                                                     )
 
                             # log the return avg/std across tasks (=processes)

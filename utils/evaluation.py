@@ -22,7 +22,8 @@ def evaluate(args,
              action_prediction_running_normalizer,
              brim_core=None,
              num_episodes=None,
-             policy_type='exploration'
+             policy_type='exploration',
+             tmp=False
              ):
     env_name = args.env_name
     if hasattr(args, 'test_env_name'):
@@ -108,6 +109,7 @@ def evaluate(args,
             # observe reward and next obs
             [state, belief, task], (rew_raw, rew_normalised), done, infos = utl.env_step(envs, action, args)
             done_ = torch.from_numpy(np.array(done, dtype=int)).to(device).float().view((-1, 1))
+            rew_raw__ = rew_raw
 
             # replace intrinsic reward instead extrinsic reward
             if policy_type == 'exploration':
@@ -159,7 +161,10 @@ def evaluate(args,
                     rpe=None)
 
             # add rewards
-            returns_per_episode[range(num_processes), task_count] += rew_raw.view(-1)
+            if tmp:
+                returns_per_episode[range(num_processes), task_count] += rew_raw__.view(-1)
+            else:
+                returns_per_episode[range(num_processes), task_count] += rew_raw.view(-1)
 
             done_mdp = [info['done_mdp'] for info in infos]
             for i in np.argwhere(done_mdp).flatten():
