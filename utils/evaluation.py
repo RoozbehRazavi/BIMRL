@@ -23,9 +23,9 @@ def evaluate(args,
              action_prediction_running_normalizer,
              reward_prediction_running_normalizer,
              brim_core,
-             num_episodes,
              policy_type,
              num_updates,
+             num_episodes=None,
              tmp=False,
              ):
     env_name = args.env_name

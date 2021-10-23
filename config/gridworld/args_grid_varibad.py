@@ -7,7 +7,7 @@ def get_args(rest_args):
 
     # --- GENERAL ---
 
-    parser.add_argument('--num_frames', type=int, default=1e8, help='number of frames to train')
+    parser.add_argument('--num_frames', type=int, default=3e6, help='number of frames to train')
     parser.add_argument('--max_rollouts_per_task', type=int, default=4, help='number of MDP episodes for adaptation')
     parser.add_argument('--exp_label', default='A1_meta_eval2', help='label (typically name of method)')
     parser.add_argument('--env_name', default='MiniGrid-FourRooms-v0', help='environment to train on')
