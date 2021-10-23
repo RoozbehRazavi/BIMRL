@@ -92,9 +92,12 @@ class MetaLearner:
 
         self.state_prediction_running_normalizer = None
         self.action_prediction_running_normalizer = None
+        self.reward_prediction_running_normalizer = None
         if train_exploration:
             self.state_prediction_running_normalizer = utl.RunningMeanStd(shape=(1,))
             self.action_prediction_running_normalizer = utl.RunningMeanStd(shape=(1,))
+            self.reward_prediction_running_normalizer = utl.RunningMeanStd(shape=(1,))
+
 
         self.start_idx = 0
         if self.args.load_model and os.path.exists(os.path.join(self.logger.full_output_folder, 'models', 'brim_core.pt')):
@@ -300,6 +303,7 @@ class MetaLearner:
                 self.exploration_policy_storage.policy_embedded_state.append(exploration_policy_embedded_state)
                 state_errors = []
                 action_errors = []
+                reward_errors = []
 
             if train_exploitation:
                 if hasattr(self.exploitation_policy_storage, 'latent_mean'):
@@ -370,7 +374,7 @@ class MetaLearner:
                             latent = exploration_brim_output5
 
                     exploration_intrinsic_rew_raw, \
-                    exploration_intrinsic_rew_normalised, state_error, action_error = utl.compute_intrinsic_reward(
+                    exploration_intrinsic_rew_normalised, state_error, action_error, reward_error = utl.compute_intrinsic_reward(
                         exploration_rew_raw,
                         exploration_rew_normalised,
                         latent=latent,
@@ -384,10 +388,18 @@ class MetaLearner:
                         action_prediction_running_normalizer=self.action_prediction_running_normalizer,
                         state_prediction_intrinsic_reward_coef=self.args.state_prediction_intrinsic_reward_coef,
                         action_prediction_intrinsic_reward_coef=self.args.action_prediction_intrinsic_reward_coef,
-                        extrinsic_reward_intrinsic_reward_coef=self.args.extrinsic_reward_intrinsic_reward_coef
+                        extrinsic_reward_intrinsic_reward_coef=self.args.extrinsic_reward_intrinsic_reward_coef,
+                        reward_decoder=self.base2final.reward_decoder,
+                        reward_prediction_intrinsic_reward_coef=self.args.reward_prediction_intrinsic_reward_coef,
+                        decode_reward=self.args.decode_reward,
+                        reward_prediction_running_normalizer=self.reward_prediction_running_normalizer,
+                        rew_pred_type=self.args.rew_pred_type,
+                        itr_idx=self.iter_idx,
+                        num_updates=self.num_updates
                         )
                     state_errors.append(state_error)
                     action_errors.append(action_error)
+                    reward_errors.append(reward_error)
 
                     exploration_done_episode = list()
                     for i in range(self.exploration_num_processes):
@@ -647,45 +659,9 @@ class MetaLearner:
                                      policy_storage=self.exploration_policy_storage,
                                      envs=self.exploration_envs,
                                      policy_type='exploration',
-                                     meta_eval=train_exploration and train_exploitation
+                                     meta_eval=train_exploration and train_exploitation,
+                                     tmp=train_exploration and not train_exploitation
                                      )
-                        if train_exploration and not train_exploitation:
-                            print('evaluate exploitation on exploration policy ...')
-                            ret_rms = self.exploration_envs.venv.ret_rms if self.args.norm_rew_for_policy else None
-
-                            returns_per_episode = utl_eval.evaluate(args=self.args,
-                                                                    policy=self.exploration_policy,
-                                                                    ret_rms=ret_rms,
-                                                                    brim_core=self.base2final.brim_core,
-                                                                    iter_idx=self.iter_idx,
-                                                                    policy_type='exploration',
-                                                                    state_decoder=self.base2final.state_decoder,
-                                                                    action_decoder=self.base2final.action_decoder,
-                                                                    state_prediction_running_normalizer=self.state_prediction_running_normalizer,
-                                                                    action_prediction_running_normalizer=self.action_prediction_running_normalizer,
-                                                                    tmp=True
-                                                                    )
-
-                            # log the return avg/std across tasks (=processes)
-                            returns_avg = returns_per_episode.mean(dim=0)
-                            returns_std = returns_per_episode.std(dim=0)
-                            for k in range(len(returns_avg)):
-                                self.logger.add('return_avg_per_iter_{}/episode_{}'.format('exploitation', k + 1),
-                                                returns_avg[k],
-                                                self.iter_idx)
-                                self.logger.add('return_avg_per_frame_{}/episode_{}'.format('exploitation', k + 1),
-                                                returns_avg[k],
-                                                self.total_frames)
-                                self.logger.add('return_std_per_iter_{}/episode_{}'.format('exploitation', k + 1),
-                                                returns_std[k],
-                                                self.iter_idx)
-                                self.logger.add('return_std_per_frame_{}/episode_{}'.format('exploitation', k + 1),
-                                                returns_std[k],
-                                                self.total_frames)
-                            print(f"Updates {self.iter_idx}, "
-                                  f"\n Mean return exploitation (train): {returns_avg[-1].item()} \n")
-                        else:
-                            pass
                         if train_exploitation:
                             exploitation_run_stats = [exploitation_action, exploitation_action_log_prob,
                                                       exploitation_value]
@@ -696,7 +672,8 @@ class MetaLearner:
                                      policy_storage=self.exploitation_policy_storage,
                                      envs=self.exploitation_envs,
                                      policy_type='exploitation',
-                                     meta_eval=train_exploration and train_exploitation
+                                     meta_eval=train_exploration and train_exploitation,
+                                     tmp=train_exploration and not train_exploitation
                                      )
 
             # clean up after update
@@ -705,8 +682,10 @@ class MetaLearner:
                 self.exploration_policy_storage.after_update()
                 self.state_prediction_running_normalizer.update(torch.cat(state_errors))
                 self.action_prediction_running_normalizer.update(torch.cat(action_errors))
+                self.reward_prediction_running_normalizer.update(torch.cat(reward_errors))
                 state_errors = []
                 action_errors = []
+                reward_errors = []
             if train_exploitation:
                 self.exploitation_policy_storage.after_update()
 
@@ -817,7 +796,7 @@ class MetaLearner:
 
         return policy_train_stats
 
-    def log(self, run_stats, train_stats, start_time, policy, policy_storage, envs, policy_type, meta_eval):
+    def log(self, run_stats, train_stats, start_time, policy, policy_storage, envs, policy_type, meta_eval, tmp):
 
         if (self.iter_idx % self.args.meta_evaluate_interval == 0) and meta_eval and policy_type=='exploitation':
             utl_eval.evaluate_meta_policy(
@@ -830,6 +809,7 @@ class MetaLearner:
                 self.base2final.action_decoder,
                 self.state_prediction_running_normalizer,
                 self.action_prediction_running_normalizer,
+                self.reward_prediction_running_normalizer,
                 self.base2final.brim_core,
                 self.args.exploration_num_episodes,
                 save_path=self.logger.full_output_folder)
@@ -850,7 +830,10 @@ class MetaLearner:
                 num_episodes=1,
                 state_prediction_running_normalizer=self.state_prediction_running_normalizer,
                 action_prediction_running_normalizer=self.action_prediction_running_normalizer,
-                full_output_folder=self.logger.full_output_folder)
+                reward_prediction_running_normalizer=self.reward_prediction_running_normalizer,
+                full_output_folder=self.logger.full_output_folder,
+                reward_decoder=self.base2final.reward_decoder,
+                num_updates=self.num_updates)
 
         # --- evaluate policy ----
 
@@ -858,17 +841,22 @@ class MetaLearner:
             print('evaluate ...')
             ret_rms = envs.venv.ret_rms if self.args.norm_rew_for_policy else None
 
-            returns_per_episode = utl_eval.evaluate(args=self.args,
-                                                    policy=policy,
-                                                    ret_rms=ret_rms,
-                                                    brim_core=self.base2final.brim_core,
-                                                    iter_idx=self.iter_idx,
-                                                    policy_type=policy_type,
-                                                    state_decoder=self.base2final.state_decoder,
-                                                    action_decoder=self.base2final.action_decoder,
-                                                    state_prediction_running_normalizer=self.state_prediction_running_normalizer,
-                                                    action_prediction_running_normalizer=self.action_prediction_running_normalizer
-                                                    )
+            returns_per_episode, returns_per_episode__ = utl_eval.evaluate(
+                args=self.args,
+                policy=policy,
+                ret_rms=ret_rms,
+                brim_core=self.base2final.brim_core,
+                iter_idx=self.iter_idx,
+                policy_type=policy_type,
+                state_decoder=self.base2final.state_decoder,
+                action_decoder=self.base2final.action_decoder,
+                state_prediction_running_normalizer=self.state_prediction_running_normalizer,
+                action_prediction_running_normalizer=self.action_prediction_running_normalizer,
+                reward_decoder=self.base2final.reward_decoder,
+                reward_prediction_running_normalizer=self.reward_prediction_running_normalizer,
+                tmp=tmp,
+                num_updates=self.num_updates
+                )
 
             # log the return avg/std across tasks (=processes)
             returns_avg = returns_per_episode.mean(dim=0)
@@ -882,12 +870,27 @@ class MetaLearner:
                                 self.iter_idx)
                 self.logger.add('return_std_per_frame_{}/episode_{}'.format(policy_type, k + 1), returns_std[k],
                                 self.total_frames)
-
             # print FPS only once
             print(f"Updates {self.iter_idx}, "
                   f"Frames {self.total_frames}, "
                   f"FPS {int(self.in_this_run_frames / (time.time() - start_time))}, "
                   f"\n Mean return {policy_type} (train): {returns_avg[-1].item()} \n")
+            if tmp:
+                returns_avg = returns_per_episode__.mean(dim=0)
+                returns_std = returns_per_episode__.std(dim=0)
+                for k in range(len(returns_avg)):
+                    self.logger.add('return_avg_per_iter_{}/episode_{}'.format('exploitation', k + 1), returns_avg[k],
+                                    self.iter_idx)
+                    self.logger.add('return_avg_per_frame_{}/episode_{}'.format('exploitation', k + 1), returns_avg[k],
+                                    self.total_frames)
+                    self.logger.add('return_std_per_iter_{}/episode_{}'.format('exploitation', k + 1), returns_std[k],
+                                    self.iter_idx)
+                    self.logger.add('return_std_per_frame_{}/episode_{}'.format('exploitation', k + 1), returns_std[k],
+                                    self.total_frames)
+                # print FPS only once
+                print(f"Updates {self.iter_idx}, "
+                      f"Frames {self.total_frames}, "
+                      f"\n Mean return exploitation (train): {returns_avg[-1].item()} \n")
 
         # --- save models ---
         if self.iter_idx % self.args.save_interval == 0:

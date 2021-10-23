@@ -137,32 +137,60 @@ def compute_intrinsic_reward(rew_raw,
                              action,
                              state_decoder,
                              action_decoder,
+                             reward_decoder,
                              decode_action,
+                             decode_reward,
                              state_prediction_running_normalizer,
                              action_prediction_running_normalizer,
+                             reward_prediction_running_normalizer,
                              state_prediction_intrinsic_reward_coef,
                              action_prediction_intrinsic_reward_coef,
-                             extrinsic_reward_intrinsic_reward_coef):
+                             reward_prediction_intrinsic_reward_coef,
+                             rew_pred_type,
+                             extrinsic_reward_intrinsic_reward_coef,
+                             itr_idx,
+                             num_updates):
     if decode_action:
         action_pred = action_decoder(latent_state=latent, state=prev_state, next_state=next_state, n_step_next_state=None, n_step_action_prediction=False)[0].detach()
         action_error = F.nll_loss(action_pred, action.squeeze(-1).long(), reduction='none').unsqueeze(-1)
     else:
         action_error = 0.0
+    if decode_reward:
+        reward_pred = reward_decoder(latent_state=latent, next_state=next_state, prev_state=prev_state, action=action, n_step_reward_prediction=False)[0].detach()
+        if rew_pred_type == 'categorical':
+            reward_pred = F.softmax(reward_pred, dim=-1)
+        elif rew_pred_type == 'bernoulli':
+            reward_pred = torch.sigmoid(reward_pred)
+
+        rew_target = (rew_raw == 1).float()
+        if rew_pred_type == 'deterministic':
+            reward_error = (reward_pred - rew_raw).pow(2)
+        elif rew_pred_type in ['categorical', 'bernoulli']:
+            reward_error = F.binary_cross_entropy(reward_pred, rew_target, reduction='none')
+        else:
+            raise NotImplementedError
+    else:
+        reward_error = 0
+
+    annealing_tmp = 1 - (itr_idx / num_updates)
     state_pred = state_decoder(latent_state=latent, state=prev_state, action=action, n_step_action=None,
                                n_step_state_prediction=False)[0].detach()
     state_error = (state_pred - next_state).pow(2).mean(dim=-1).unsqueeze(-1)
 
     norm_state_error = (state_error - state_prediction_running_normalizer.mean) / torch.sqrt(state_prediction_running_normalizer.var + 1e-8)
     norm_action_error = (action_error - action_prediction_running_normalizer.mean) / torch.sqrt(action_prediction_running_normalizer.var + 1e-8)
-    intrinsic_rew_normalised = norm_state_error * state_prediction_intrinsic_reward_coef +\
-        norm_action_error * action_prediction_intrinsic_reward_coef +\
+    norm_reward_error = (reward_error - reward_prediction_running_normalizer.mean) / torch.sqrt(reward_prediction_running_normalizer.var + 1e-8)
+    intrinsic_rew_normalised = (norm_state_error * state_prediction_intrinsic_reward_coef +\
+        norm_action_error * action_prediction_intrinsic_reward_coef + \
+        norm_reward_error * reward_prediction_intrinsic_reward_coef) * annealing_tmp + \
         rew_normalised * extrinsic_reward_intrinsic_reward_coef
 
-    intrinsic_rew_raw = state_error * state_prediction_intrinsic_reward_coef * 0.001 + \
-        action_error * action_prediction_intrinsic_reward_coef * 0.001 +\
+    intrinsic_rew_raw = (state_error * state_prediction_intrinsic_reward_coef * 0.01 + \
+        action_error * action_prediction_intrinsic_reward_coef * 0.01 + \
+        reward_error * reward_prediction_intrinsic_reward_coef * 0.01) * annealing_tmp + \
         rew_raw * extrinsic_reward_intrinsic_reward_coef
 
-    return intrinsic_rew_raw.detach(), intrinsic_rew_normalised.detach(), state_error.detach(), action_error.detach()
+    return intrinsic_rew_raw.detach(), intrinsic_rew_normalised.detach(), state_error.detach(), action_error.detach(), reward_error.detach()
 
 
 def seed(seed, deterministic_execution=False):

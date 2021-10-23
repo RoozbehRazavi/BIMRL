@@ -18,12 +18,15 @@ def evaluate(args,
              iter_idx,
              state_decoder,
              action_decoder,
+             reward_decoder,
              state_prediction_running_normalizer,
              action_prediction_running_normalizer,
-             brim_core=None,
-             num_episodes=None,
-             policy_type='exploration',
-             tmp=False
+             reward_prediction_running_normalizer,
+             brim_core,
+             num_episodes,
+             policy_type,
+             num_updates,
+             tmp=False,
              ):
     env_name = args.env_name
     if hasattr(args, 'test_env_name'):
@@ -44,6 +47,7 @@ def evaluate(args,
     #  any overflow and will be discarded at the end, because we need to wait until
     #  all processes have at least [num_episodes] many episodes)
     returns_per_episode = torch.zeros((num_processes, num_episodes + 1)).to(device)
+    returns_per_episode__ = torch.zeros((num_processes, num_episodes + 1)).to(device)
 
     # --- initialise environments and latents ---
 
@@ -124,7 +128,7 @@ def evaluate(args,
                     else:
                         latent = brim_output_level3
 
-                rew_raw, rew_normalised, _, _ = utl.compute_intrinsic_reward(rew_raw=rew_raw,
+                rew_raw, rew_normalised, _, _, _ = utl.compute_intrinsic_reward(rew_raw=rew_raw,
                                                                              rew_normalised=rew_normalised,
                                                                              latent=latent,
                                                                              prev_state=prev_state,
@@ -137,7 +141,14 @@ def evaluate(args,
                                                                              action_prediction_running_normalizer=action_prediction_running_normalizer,
                                                                              state_prediction_intrinsic_reward_coef=args.state_prediction_intrinsic_reward_coef,
                                                                              action_prediction_intrinsic_reward_coef=args.action_prediction_intrinsic_reward_coef,
-                                                                             extrinsic_reward_intrinsic_reward_coef=args.extrinsic_reward_intrinsic_reward_coef)
+                                                                             extrinsic_reward_intrinsic_reward_coef=args.extrinsic_reward_intrinsic_reward_coef,
+                                                                             reward_decoder=reward_decoder,
+                                                                             rew_pred_type=args.rew_pred_type,
+                                                                             reward_prediction_running_normalizer=reward_prediction_running_normalizer,
+                                                                             reward_prediction_intrinsic_reward_coef=args.reward_prediction_intrinsic_reward_coef,
+                                                                             decode_reward=args.decode_reward,
+                                                                             itr_idx=iter_idx,
+                                                                             num_updates=num_updates)
 
             done_mdp = list()
             for i in range(num_processes):
@@ -162,8 +173,7 @@ def evaluate(args,
 
             # add rewards
             if tmp:
-                returns_per_episode[range(num_processes), task_count] += rew_raw__.view(-1)
-            else:
+                returns_per_episode__[range(num_processes), task_count] += rew_raw__.view(-1)
                 returns_per_episode[range(num_processes), task_count] += rew_raw.view(-1)
 
             done_mdp = [info['done_mdp'] for info in infos]
@@ -176,7 +186,7 @@ def evaluate(args,
 
     envs.close()
 
-    return returns_per_episode[:, :num_episodes]
+    return returns_per_episode[:, :num_episodes], returns_per_episode__[:, :num_episodes]
 
 
 def plot_meta_eval(returns, save_path, iter_idx):
@@ -202,11 +212,14 @@ def evaluate_meta_policy(
         iter_idx,
         state_decoder,
         action_decoder,
+        reward_decoder,
         state_prediction_running_normalizer,
         action_prediction_running_normalizer,
-        brim_core=None,
-        exploration_num_episodes=None,
-        save_path=None):
+        reward_prediction_running_normalizer,
+        brim_core,
+        exploration_num_episodes,
+        save_path,
+        num_updates):
 
     env_name = args.env_name
     if hasattr(args, 'test_env_name'):
@@ -330,7 +343,7 @@ def evaluate_meta_policy(
                         else:
                             latent = brim_output_level3
 
-                    rew_raw, rew_normalised, _, _ = utl.compute_intrinsic_reward(rew_raw=rew_raw,
+                    rew_raw, rew_normalised, _, _, _ = utl.compute_intrinsic_reward(rew_raw=rew_raw,
                                                                                  rew_normalised=rew_normalised,
                                                                                  latent=latent,
                                                                                  prev_state=prev_state,
@@ -343,7 +356,15 @@ def evaluate_meta_policy(
                                                                                  action_prediction_running_normalizer=action_prediction_running_normalizer,
                                                                                  state_prediction_intrinsic_reward_coef=args.state_prediction_intrinsic_reward_coef,
                                                                                  action_prediction_intrinsic_reward_coef=args.action_prediction_intrinsic_reward_coef,
-                                                                                 extrinsic_reward_intrinsic_reward_coef=args.extrinsic_reward_intrinsic_reward_coef)
+                                                                                 extrinsic_reward_intrinsic_reward_coef=args.extrinsic_reward_intrinsic_reward_coef,
+                                                                                 reward_decoder=reward_decoder,
+                                                                                 rew_pred_type=args.rew_pred_type,
+                                                                                 reward_prediction_running_normalizer=reward_prediction_running_normalizer,
+                                                                                 reward_prediction_intrinsic_reward_coef=args.reward_prediction_intrinsic_reward_coef,
+                                                                                 decode_reward=args.decode_reward,
+                                                                                 itr_idx=iter_idx,
+                                                                                 num_updates=num_updates
+                                                                                 )
 
                 done_mdp = list()
                 for i in range(num_processes):
@@ -385,10 +406,13 @@ def visualize_policy(
         policy_type,
         state_decoder,
         action_decoder,
+        reward_decoder,
         num_episodes,
         state_prediction_running_normalizer,
         action_prediction_running_normalizer,
-        full_output_folder):
+        reward_prediction_running_normalizer,
+        full_output_folder,
+        num_updates):
 
     env_name = args.env_name
     envs = make_vec_envs(env_name, seed=args.seed * 42 + iter_idx, num_processes=1,
@@ -470,7 +494,7 @@ def visualize_policy(
                     else:
                         latent = brim_output_level3
 
-                rew_raw, rew_normalised, _, _ = utl.compute_intrinsic_reward(rew_raw=rew_raw,
+                rew_raw, rew_normalised, _, _, _ = utl.compute_intrinsic_reward(rew_raw=rew_raw,
                                                                              rew_normalised=rew_normalised,
                                                                              latent=latent,
                                                                              prev_state=prev_state,
@@ -483,7 +507,15 @@ def visualize_policy(
                                                                              action_prediction_running_normalizer=action_prediction_running_normalizer,
                                                                              state_prediction_intrinsic_reward_coef=args.state_prediction_intrinsic_reward_coef,
                                                                              action_prediction_intrinsic_reward_coef=args.action_prediction_intrinsic_reward_coef,
-                                                                             extrinsic_reward_intrinsic_reward_coef=args.extrinsic_reward_intrinsic_reward_coef)
+                                                                             extrinsic_reward_intrinsic_reward_coef=args.extrinsic_reward_intrinsic_reward_coef,
+                                                                             reward_decoder=reward_decoder,
+                                                                             rew_pred_type=args.rew_pred_type,
+                                                                             reward_prediction_running_normalizer=reward_prediction_running_normalizer,
+                                                                             reward_prediction_intrinsic_reward_coef=args.reward_prediction_intrinsic_reward_coef,
+                                                                             decode_reward=args.decode_reward,
+                                                                             itr_idx=iter_idx,
+                                                                             num_updates=num_updates
+                                                                             )
 
             done_mdp = list()
             for i in range(1):
