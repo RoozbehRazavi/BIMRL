@@ -490,32 +490,34 @@ def visualize_policy(
                                                    latent_logvar=latent_logvar)
                 if args.use_rim_level3:
                     if args.residual_task_inference_latent:
-                        latent = torch.cat((brim_output_level3.squeeze(0), latent), dim=-1)
+                        if brim_output_level3.dim() == 3:
+                            brim_output_level3 = brim_output_level3.squeeze(1)
+                        latent = torch.cat((brim_output_level3, latent), dim=-1)
                     else:
                         latent = brim_output_level3
 
-                rew_raw, rew_normalised, _, _, _ = utl.compute_intrinsic_reward(rew_raw=rew_raw,
-                                                                             rew_normalised=rew_normalised,
-                                                                             latent=latent,
-                                                                             prev_state=prev_state,
-                                                                             next_state=state,
-                                                                             action=action.float(),
-                                                                             state_decoder=state_decoder,
-                                                                             action_decoder=action_decoder,
-                                                                             decode_action=args.decode_action,
-                                                                             state_prediction_running_normalizer=state_prediction_running_normalizer,
-                                                                             action_prediction_running_normalizer=action_prediction_running_normalizer,
-                                                                             state_prediction_intrinsic_reward_coef=args.state_prediction_intrinsic_reward_coef,
-                                                                             action_prediction_intrinsic_reward_coef=args.action_prediction_intrinsic_reward_coef,
-                                                                             extrinsic_reward_intrinsic_reward_coef=args.extrinsic_reward_intrinsic_reward_coef,
-                                                                             reward_decoder=reward_decoder,
-                                                                             rew_pred_type=args.rew_pred_type,
-                                                                             reward_prediction_running_normalizer=reward_prediction_running_normalizer,
-                                                                             reward_prediction_intrinsic_reward_coef=args.reward_prediction_intrinsic_reward_coef,
-                                                                             decode_reward=args.decode_reward,
-                                                                             itr_idx=iter_idx,
-                                                                             num_updates=num_updates
-                                                                             )
+                rew_raw, rew_normalised, _, _, _ = utl.compute_intrinsic_reward(
+                    rew_raw=rew_raw,
+                    rew_normalised=rew_normalised,
+                    latent=latent,
+                    prev_state=prev_state,
+                    next_state=state,
+                    action=action.float(),
+                    state_decoder=state_decoder,
+                    action_decoder=action_decoder,
+                    decode_action=args.decode_action,
+                    state_prediction_running_normalizer=state_prediction_running_normalizer,
+                    action_prediction_running_normalizer=action_prediction_running_normalizer,
+                    state_prediction_intrinsic_reward_coef=args.state_prediction_intrinsic_reward_coef,
+                    action_prediction_intrinsic_reward_coef=args.action_prediction_intrinsic_reward_coef,
+                    extrinsic_reward_intrinsic_reward_coef=args.extrinsic_reward_intrinsic_reward_coef,
+                    reward_decoder=reward_decoder,
+                    rew_pred_type=args.rew_pred_type,
+                    reward_prediction_running_normalizer=reward_prediction_running_normalizer,
+                    reward_prediction_intrinsic_reward_coef=args.reward_prediction_intrinsic_reward_coef,
+                    decode_reward=args.decode_reward,
+                    itr_idx=iter_idx,
+                    num_updates=num_updates)
 
             done_mdp = list()
             for i in range(1):

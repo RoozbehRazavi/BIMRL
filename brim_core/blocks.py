@@ -592,7 +592,7 @@ class Blocks(nn.Module):
             hebb_learning_rate)
         return memory
 
-    def prior(self, batch_size, state, state_process, embedd_stat, activated_branch):
+    def prior(self, batch_size, state, state_process, embedd_state, activated_branch):
         brim_hidden_state = []
         rim_hidden_size = max(self.rim_level1_hidden_size, self.rim_level2_hidden_size, self.rim_level3_hidden_size)
         brim_hidden_state.append(torch.zeros((1, batch_size, 1, rim_hidden_size), requires_grad=True, device=device))

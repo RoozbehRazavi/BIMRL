@@ -313,7 +313,7 @@ class RewardDecoder(nn.Module):
     def forward(self, latent_state, next_state, prev_state=None, action=None, n_step_next_obs=None, n_step_actions=None, n_step_reward_prediction=None):
         if n_step_reward_prediction is None:
             n_step_reward_prediction = self.n_step_reward_prediction
-        assert (n_step_next_obs is not None and n_step_actions is not None) or not self.n_step_reward_prediction
+        assert (n_step_next_obs is not None and n_step_actions is not None) or not n_step_reward_prediction
 
         reward_prediction = []
         # if self.multi_head:
