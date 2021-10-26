@@ -413,7 +413,10 @@ class Base2Final:
                 return loss_state
         else:
             losses = list()
+            alpha = 1
             for i in range(self.args.n_prediction+1):
+                if self.args.use_discount_n_prediction:
+                    alpha *= self.args.discount_n_prediction_coef
                 if i == 0:
                     losses.append(compute_loss_state(state_pred[i], next_obs, self.args.state_pred_type))
                 else:
@@ -873,8 +876,11 @@ class Base2Final:
 
             if self.args.n_step_reward_prediction:
                 losses = torch.zeros(size=(self.args.n_prediction + 1, 1)).to(device)
+                alpha = 1.0
                 for i in range(self.args.n_prediction + 1):
-                    losses[i] = avg_loss(rew_reconstruction_loss[i], self.args.vae_avg_elbo_terms, self.args.vae_avg_reconstruction_terms)
+                    if self.args.use_discount_n_prediction:
+                        alpha *= self.args.discount_n_prediction_coef
+                    losses[i] = alpha * avg_loss(rew_reconstruction_loss[i], self.args.vae_avg_elbo_terms, self.args.vae_avg_reconstruction_terms)
                 if self.args.vae_avg_n_step_prediction:
                     rew_reconstruction_loss = losses.mean(dim=0)
                 else:
@@ -889,8 +895,11 @@ class Base2Final:
                                                                                dec_next_obs, dec_actions, dec_n_step_actions, dec_n_step_next_obs, n_step_state_prediction=self.args.n_step_state_prediction)
             if n_step_state_prediction:
                 losses = torch.zeros(size=(self.args.n_prediction+1, 1)).to(device)
+                alpha = 1.0
                 for i in range(self.args.n_prediction+1):
-                    losses[i] = avg_loss(state_reconstruction_loss[i], self.args.vae_avg_elbo_terms, self.args.vae_avg_reconstruction_terms)
+                    if self.args.use_discount_n_prediction:
+                        alpha *= self.args.discount_n_prediction_coef
+                    losses[i] = alpha * avg_loss(state_reconstruction_loss[i], self.args.vae_avg_elbo_terms, self.args.vae_avg_reconstruction_terms)
                 if self.args.vae_avg_n_step_prediction:
                     state_reconstruction_loss = losses.mean(dim=0)
                 else:
@@ -905,8 +914,11 @@ class Base2Final:
                                                                                  dec_n_step_next_obs, dec_actions, dec_n_step_actions, n_step_action_prediction=self.args.n_step_action_prediction)
             if n_step_action_prediction:
                 losses = torch.zeros(size=(self.args.n_prediction+1, 1)).to(device)
+                alpha = 1.0
                 for i in range(self.args.n_prediction+1):
-                    losses[i] = avg_loss(action_reconstruction_loss[i], self.args.vae_avg_elbo_terms, self.args.vae_avg_reconstruction_terms)
+                    if self.args.use_discount_n_prediction:
+                        alpha *= self.args.discount_n_prediction_coef
+                    losses[i] = alpha * avg_loss(action_reconstruction_loss[i], self.args.vae_avg_elbo_terms, self.args.vae_avg_reconstruction_terms)
                 if self.args.vae_avg_n_step_prediction:
                     action_reconstruction_loss = losses.mean(dim=0)
                 else:
