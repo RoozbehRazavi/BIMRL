@@ -10,7 +10,7 @@ import torch
 
 # get configs
 from config.gridworld import \
-    args_grid_oracle, args_grid_belief_oracle, args_grid_rl2, args_grid_varibad
+    args_grid_rl2, args_grid_varibad, args_base2final_exploration_rl_block, args_base2final_exploration_memory, args_base2final_exploration_rl_attention
 from config.mujoco import \
     args_cheetah_dir_oracle, args_cheetah_dir_rl2, args_cheetah_dir_varibad, \
     args_cheetah_vel_oracle, args_cheetah_vel_rl2, args_cheetah_vel_varibad, args_cheetah_vel_avg, \
@@ -27,15 +27,16 @@ def main():
     env = args.env_type
 
     # --- GridWorld ---
-
-    if env == 'gridworld_oracle':
-        args = args_grid_oracle.get_args(rest_args)
-    elif env == 'gridworld_belief_oracle':
-        args = args_grid_belief_oracle.get_args(rest_args)
-    elif env == 'gridworld_varibad':
+    if env == 'gridworld_varibad':
         args = args_grid_varibad.get_args(rest_args)
     elif env == 'gridworld_rl2':
         args = args_grid_rl2.get_args(rest_args)
+    elif env == 'gridworld_b2f_exploration_rl_block':
+        args = args_base2final_exploration_rl_block.get_args(rest_args)
+    elif env == 'gridworld_b2f_exploration_memory':
+        args = args_base2final_exploration_memory.get_args(rest_args)
+    elif env == 'gridworld_b2f_exploration_rl_attention':
+        args = args_base2final_exploration_rl_attention.get_args(rest_args)
 
     # --- MUJOCO ---
 
