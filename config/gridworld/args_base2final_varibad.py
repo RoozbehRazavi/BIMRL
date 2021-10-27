@@ -212,7 +212,7 @@ def get_args(rest_args):
     parser.add_argument('--extrinsic_reward_intrinsic_reward_coef', type=float, default=2.0,
                         help='coefficient for action pred error in intrinsic reward')
 
-    parser.add_argument('--residual_task_inference_latent', type=boolean_argument, default=None)
+    parser.add_argument('--residual_task_inference_latent', type=boolean_argument, default=True)
 
     # Coefficient in Base2Final
     parser.add_argument('--add_extrinsic_reward_to_intrinsic', type=boolean_argument, default=True,
@@ -309,11 +309,11 @@ def get_args(rest_args):
     parser.add_argument('--rim_top_down_level2_level1', type=boolean_argument, default=False,
                         help='rim level 1 get information from level 2')
     # memory
-    parser.add_argument('--use_memory', type=boolean_argument, default=True,
+    parser.add_argument('--use_memory', type=boolean_argument, default=False,
                         help='whatever or not use memory in model')
-    parser.add_argument('--use_hebb', type=boolean_argument, default=True,
+    parser.add_argument('--use_hebb', type=boolean_argument, default=False,
                         help='whatever or not use hebbian memory in memory module')
-    parser.add_argument('--use_gen', type=boolean_argument, default=True,
+    parser.add_argument('--use_gen', type=boolean_argument, default=False,
                         help='whatever or not use generative memory in memory module')
 
     parser.add_argument('--read_num_head', type=int, default=4)
@@ -342,7 +342,7 @@ def get_args(rest_args):
                         help='RL vs Recons loss for memory training')
 
     # vision core
-    parser.add_argument('--use_stateful_vision_core', type=boolean_argument, default=False,
+    parser.add_argument('--use_stateful_vision_core', type=boolean_argument, default=True,
                         help='use attentional visual process unit')
     parser.add_argument('--visual_attention_value_size', type=int, default=28)
     parser.add_argument('--visual_attention_key_size', type=int, default=4)
