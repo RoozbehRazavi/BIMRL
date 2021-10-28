@@ -70,7 +70,7 @@ class PPO:
                                              {'params': self.actor_critic.state_encoder.parameters(), 'lr': self.args.lr_vae}], eps=eps)
             else:
                 # TODO ...
-                self.optimiser = optim.Adam(actor_critic.parameters(), lr=0.001, eps=eps)
+                self.optimiser = optim.Adam(actor_critic.parameters(), lr=lr, eps=eps)
         elif policy_optimiser == 'rmsprop':
             raise NotImplementedError
             self.optimiser = optim.RMSprop(actor_critic.parameters(), lr=lr, eps=eps, alpha=0.99)
