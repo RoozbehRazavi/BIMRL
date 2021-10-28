@@ -198,7 +198,7 @@ def get_args(rest_args):
 
     parser.add_argument('--action_loss_coeff', type=float, default=1.0, help='weight for state loss')
 
-    parser.add_argument('--decode_action', type=boolean_argument, default=True,
+    parser.add_argument('--decode_action', type=boolean_argument, default=False,
                         help='predict action between two state')
 
     parser.add_argument('--state_prediction_intrinsic_reward_coef', type=float, default=0.1,
@@ -251,7 +251,7 @@ def get_args(rest_args):
     parser.add_argument('--use_gru_or_rim', type=str, default='RIM',
                         help='as a RNN model use RIM or GRU')
 
-    parser.add_argument('--use_rim_level1', type=boolean_argument, default=True,
+    parser.add_argument('--use_rim_level1', type=boolean_argument, default=False,
                         help='whatever create rim level1 (use for policy) or not')
 
     parser.add_argument('--use_rim_level2', type=boolean_argument, default=False,
@@ -342,7 +342,7 @@ def get_args(rest_args):
                         help='RL vs Recons loss for memory training')
 
     # vision core
-    parser.add_argument('--use_stateful_vision_core', type=boolean_argument, default=True,
+    parser.add_argument('--use_stateful_vision_core', type=boolean_argument, default=False,
                         help='use attentional visual process unit')
     parser.add_argument('--visual_attention_value_size', type=int, default=28)
     parser.add_argument('--visual_attention_key_size', type=int, default=4)

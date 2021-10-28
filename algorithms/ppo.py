@@ -47,28 +47,30 @@ class PPO:
         # optimiser
         if policy_optimiser == 'adam':
             use_state_encoder = self.args.policy_state_embedding_dim is not None and self.args.pass_state_to_policy
-            if use_state_encoder and self.args.use_stateful_vision_core:
+            # TODO ...
+            if False and use_state_encoder and self.args.use_stateful_vision_core:
                 use_task_inference_latent_encoder = self.args.policy_task_inference_latent_embedding_dim is not None and self.args.pass_task_inference_latent_to_policy
                 use_belief_encoder = self.args.policy_belief_embedding_dim is not None and self.args.pass_belief_to_policy
                 use_task_encoder = self.args.policy_task_embedding_dim is not None and self.args.pass_task_to_policy
                 use_rim_level1_output_encoder = self.args.policy_rim_level1_output_embedding_dim is not None and self.args.use_rim_level1
                 params = []
                 if use_task_inference_latent_encoder:
-                    params.extend(self.actor_critic.task_inference_latent_encoder.parameters())
+                    params.extend(actor_critic.task_inference_latent_encoder.parameters())
                 if use_belief_encoder:
-                    params.extend(self.actor_critic.belief_encoder.parameters())
+                    params.extend(actor_critic.belief_encoder.parameters())
                 if use_task_encoder:
-                    params.extend(self.actor_critic.task_encoder.parameters())
+                    params.extend(actor_critic.task_encoder.parameters())
                 if use_rim_level1_output_encoder:
-                    params.extend(self.actor_critic.rim_level1_output_encoder.parameters())
-                params.extend(self.actor_critic.actor_layers.parameters())
-                params.extend(self.actor_critic.critic_layers.parameters())
-                params.extend(self.actor_critic.critic_linear.parameters())
+                    params.extend(actor_critic.rim_level1_output_encoder.parameters())
+                params.extend(actor_critic.actor_layers.parameters())
+                params.extend(actor_critic.critic_layers.parameters())
+                params.extend(actor_critic.critic_linear.parameters())
 
                 self.optimiser = optim.Adam([{'params': [*params], 'lr':lr},
                                              {'params': self.actor_critic.state_encoder.parameters(), 'lr': self.args.lr_vae}], eps=eps)
             else:
-                self.optimiser = optim.Adam(actor_critic.parameters(), lr=lr, eps=eps)
+                # TODO ...
+                self.optimiser = optim.Adam(actor_critic.parameters(), lr=0.001, eps=eps)
         elif policy_optimiser == 'rmsprop':
             raise NotImplementedError
             self.optimiser = optim.RMSprop(actor_critic.parameters(), lr=lr, eps=eps, alpha=0.99)
