@@ -635,18 +635,17 @@ class MetaLearner:
                             policy_storage=self.exploration_policy_storage,
                             activated_branch='exploration')
                     if train_exploitation:
-                        #with torch.autograd.set_detect_anomaly(True):
-                            exploitation_train_stats = self.update(
-                                belief=exploitation_belief,
-                                task=exploitation_task,
-                                latent_sample=exploitation_latent_sample,
-                                latent_mean=exploitation_latent_mean,
-                                latent_logvar=exploitation_latent_logvar,
-                                brim_output_level1=brim_output2,
-                                policy_embedded_state=exploitation_policy_embedded_state,
-                                policy=self.exploitation_policy,
-                                policy_storage=self.exploitation_policy_storage,
-                                activated_branch='exploitation')
+                        exploitation_train_stats = self.update(
+                            belief=exploitation_belief,
+                            task=exploitation_task,
+                            latent_sample=exploitation_latent_sample,
+                            latent_mean=exploitation_latent_mean,
+                            latent_logvar=exploitation_latent_logvar,
+                            brim_output_level1=brim_output2,
+                            policy_embedded_state=exploitation_policy_embedded_state,
+                            policy=self.exploitation_policy,
+                            policy_storage=self.exploitation_policy_storage,
+                            activated_branch='exploitation')
 
                     # log
                     with torch.no_grad():
