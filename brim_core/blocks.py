@@ -102,7 +102,6 @@ class Blocks(nn.Module):
                     brim_layers_before_rim_level1.append(rim_level2_hidden_size - (rim_level1_input_dim - tmp))
                     rim_level1_input_dim = rim_level2_hidden_size
                 else:
-                    # TODO unfortunately should add Linear Layer
                     self.use_fix_dim_level1 = True
                     self.rim1_input_fix_dim = nn.ModuleList([])
                     self.rim1_input_fix_dim.append(nn.Linear(rim_level2_hidden_size, rim_level1_input_dim))

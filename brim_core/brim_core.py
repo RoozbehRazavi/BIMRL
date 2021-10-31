@@ -285,7 +285,6 @@ class BRIMCore(nn.Module):
 
         if return_prior:
             # if hidden state is none, start with the prior
-            # TODO debug this part for prior state
             (prior_brim_output1, prior_brim_output2, prior_brim_output3, prior_brim_output4,
              prior_brim_output5, prior_brim_hidden_state), \
             (prior_sample, prior_mean, prior_logvar, prior_task_inference_hidden_state), prior_extras_information = self.prior(

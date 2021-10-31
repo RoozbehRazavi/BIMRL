@@ -4,9 +4,6 @@ import random
 import sys
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-#TODO make in sequentional with help of sklearn lib
-
-
 class Kmeans():
 
     def __init__(self, args):

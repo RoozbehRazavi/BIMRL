@@ -142,7 +142,6 @@ class BRIMCell(nn.Module):
         self.comm_query_size = comm_query_size
         self.comm_value_size = comm_value_size
 
-        # TODO check this change from Linear to GroupLinear by run
         self.key = nn.Linear(input_size, num_input_heads * input_query_size).to(self.device)
         self.value = nn.Linear(input_size, num_input_heads * input_value_size).to(self.device)
 

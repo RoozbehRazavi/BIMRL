@@ -181,7 +181,6 @@ class Policy(nn.Module):
 
     def state_process(self, state, rim_output_to_vision_core=None):
         if self.pass_state_to_policy:
-            # TODO: somehow don't normalise the "done" flag (if existing)
             if self.norm_state:
                 state = (state - self.state_rms.mean) / torch.sqrt(self.state_rms.var + 1e-8)
             if self.use_state_encoder:

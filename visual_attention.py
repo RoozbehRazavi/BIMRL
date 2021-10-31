@@ -166,7 +166,6 @@ class VisionNetwork(nn.Module):
 class QueryNetwork(nn.Module):
     def __init__(self, hidden_state_size):
         super(QueryNetwork, self).__init__()
-        # TODO: Add proper non-linearity.
         self.model = nn.Sequential(
             nn.Linear(hidden_state_size, 64), nn.ReLU(), nn.Linear(64, 80), nn.ReLU(), nn.Linear(80, 80)
         )
@@ -177,7 +176,6 @@ class QueryNetwork(nn.Module):
 
 
 class SpatialBasis:
-    # TODO: Implement Spatial.
     """
     NOTE: The `height` and `weight` depend on the inputs' size and its resulting size
     after being processed by the vision network.
