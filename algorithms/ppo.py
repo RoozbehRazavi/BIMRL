@@ -48,7 +48,7 @@ class PPO:
         if policy_optimiser == 'adam':
             use_state_encoder = self.args.policy_state_embedding_dim is not None and self.args.pass_state_to_policy
             # TODO
-            if use_state_encoder and self.args.use_stateful_vision_core:
+            if False and use_state_encoder and self.args.use_stateful_vision_core:
                 pass
                 # use_task_inference_latent_encoder = self.args.policy_task_inference_latent_embedding_dim is not None and self.args.pass_task_inference_latent_to_policy
                 # use_belief_encoder = self.args.policy_belief_embedding_dim is not None and self.args.pass_belief_to_policy
