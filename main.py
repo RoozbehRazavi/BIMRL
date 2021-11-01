@@ -10,7 +10,8 @@ import torch
 
 # get configs
 from config.gridworld import \
-    args_grid_rl2, args_grid_varibad, args_base2final_exploration_rl_block, args_base2final_exploration_memory, args_base2final_exploration_rl_attention
+    args_grid_rl2, args_grid_varibad, args_base2final_exploration_rl_block,\
+    args_base2final_exploration_memory, args_base2final_exploration_rl_attention, args_base2final_exploration_varibad
 from config.mujoco import \
     args_cheetah_dir_oracle, args_cheetah_dir_rl2, args_cheetah_dir_varibad, \
     args_cheetah_vel_oracle, args_cheetah_vel_rl2, args_cheetah_vel_varibad, args_cheetah_vel_avg, \
@@ -37,6 +38,8 @@ def main():
         args = args_base2final_exploration_memory.get_args(rest_args)
     elif env == 'gridworld_b2f_exploration_rl_attention':
         args = args_base2final_exploration_rl_attention.get_args(rest_args)
+    elif env == 'gridworld_b2f_exploration_varibad':
+        args = args_base2final_exploration_varibad.get_args(rest_args)
 
     # --- MUJOCO ---
 
