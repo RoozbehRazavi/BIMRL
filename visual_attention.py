@@ -133,21 +133,21 @@ class VisionNetwork(nn.Module):
         self.vision_cnn = nn.Sequential(
             nn.Conv2d(
                 in_channels=3,
-                out_channels=8,
+                out_channels=4,
                 kernel_size=(5, 5),
                 stride=1,
                 padding=1,
             ),
             nn.Conv2d(
-                in_channels=8,
-                out_channels=16,
+                in_channels=4,
+                out_channels=8,
                 kernel_size=(3, 3),
                 stride=1,
                 padding=1,
             ),
         )
         self.vision_lstm = ConvLSTMCell(
-            input_channels=16, hidden_channels=32, kernel_size=3
+            input_channels=8, hidden_channels=12, kernel_size=3
         )
 
     def reset(self, done):
@@ -167,12 +167,20 @@ class QueryNetwork(nn.Module):
     def __init__(self, hidden_state_size):
         super(QueryNetwork, self).__init__()
         self.model = nn.Sequential(
-            nn.Linear(hidden_state_size, 64), nn.ReLU(), nn.Linear(64, 80), nn.ReLU(), nn.Linear(80, 80)
+            nn.Linear(hidden_state_size, 256),
+            nn.ReLU(),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Linear(64, 32),
+            nn.ReLU(),
+            nn.Linear(32, 32)
         )
 
     def forward(self, query):
         out = self.model(query)
-        return out.reshape(-1, 4, 20)
+        return out.reshape(-1, 4, 8)
 
 
 class SpatialBasis:
@@ -181,7 +189,7 @@ class SpatialBasis:
     after being processed by the vision network.
     """
 
-    def __init__(self, height=5, width=5, channels=16):
+    def __init__(self, height=5, width=5, channels=4):
         h, w, d = height, width, channels
 
         p_h = torch.mul(torch.arange(1, h+1).unsqueeze(1).float(), torch.ones(1, w).float()) * (np.pi / h)
@@ -190,11 +198,12 @@ class SpatialBasis:
         # NOTE: I didn't quite see how U,V = 4 made sense given that the authors form the spatial
         # basis by taking the outer product of the values. Still, I think what I have is aligned with what
         # they did, but I am less confident in this step.
-        U = V = 4 # size of U, V.
+        U = V = 2 # size of U, V.
         u_basis = v_basis = torch.arange(1, U+1).unsqueeze(0).float()
         a = torch.mul(p_h.unsqueeze(2), u_basis)
         b = torch.mul(p_w.unsqueeze(2), v_basis)
-        out = torch.einsum('hwu,hwv->hwuv', torch.cos(a), torch.cos(b)).reshape(h, w, d)
+        out = torch.einsum('hwu,hwv->hwuv', torch.cos(a), torch.cos(b))
+        out = out.reshape(h, w, d)
         self.S = out
 
     def __call__(self, X):
@@ -250,10 +259,10 @@ class VisionCore(nn.Module):
         self.answer_processor = nn.Sequential(
             # 1026 x 512
             nn.Linear(
-                (c_v + c_s) * num_queries , 64
+                (c_v + c_s) * num_queries, 32
             ),
             nn.ReLU(),
-            nn.Linear(64, state_embedding_size-1),
+            nn.Linear(32, state_embedding_size-1),
         )
 
     def reset(self, done):
