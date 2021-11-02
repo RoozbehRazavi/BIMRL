@@ -5,6 +5,7 @@ from torch import nn
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+
 class ConvLSTMCell(nn.Module):
     def __init__(self, input_channels, hidden_channels, kernel_size):
         super(ConvLSTMCell, self).__init__()
@@ -133,14 +134,14 @@ class VisionNetwork(nn.Module):
         self.vision_cnn = nn.Sequential(
             nn.Conv2d(
                 in_channels=3,
-                out_channels=4,
+                out_channels=8,
                 kernel_size=(5, 5),
                 stride=1,
                 padding=1,
             ),
             nn.Conv2d(
-                in_channels=4,
-                out_channels=8,
+                in_channels=8,
+                out_channels=12,
                 kernel_size=(3, 3),
                 stride=1,
                 padding=1,
@@ -159,8 +160,8 @@ class VisionNetwork(nn.Module):
     def forward(self, X):
         X = X.transpose(1, 3)
         tmp = self.vision_cnn(X)
-        O, _ = self.vision_lstm(tmp)
-        return O.transpose(1, 3)
+        #O, _ = self.vision_lstm(tmp)
+        return tmp.transpose(1, 3)
 
 
 class QueryNetwork(nn.Module):
