@@ -254,10 +254,10 @@ def get_args(rest_args):
     parser.add_argument('--use_rim_level1', type=boolean_argument, default=True,
                         help='whatever create rim level1 (use for policy) or not')
 
-    parser.add_argument('--use_rim_level2', type=boolean_argument, default=False,
+    parser.add_argument('--use_rim_level2', type=boolean_argument, default=True,
                         help='whatever create rim level2 (use for n step value prediction) or not')
 
-    parser.add_argument('--use_rim_level3', type=boolean_argument, default=True,
+    parser.add_argument('--use_rim_level3', type=boolean_argument, default=False,
                         help='whatever create rim level3 (use for decode VAE terms) or not')
 
     parser.add_argument('--rim_level1_hidden_size', type=int, default=32,
@@ -304,9 +304,9 @@ def get_args(rest_args):
                         help='rim level 1 get information from task inference output')
     parser.add_argument('--rim_level2_condition_on_task_inference_latent', type=boolean_argument, default=True,
                         help='rim level 2 get information from task inference output')
-    parser.add_argument('--rim_top_down_level3_level2', type=boolean_argument, default=True,
+    parser.add_argument('--rim_top_down_level3_level2', type=boolean_argument, default=False,
                         help='rim level 2 get information from level 3')
-    parser.add_argument('--rim_top_down_level2_level1', type=boolean_argument, default=False,
+    parser.add_argument('--rim_top_down_level2_level1', type=boolean_argument, default=True,
                         help='rim level 1 get information from level 2')
     # memory
     parser.add_argument('--use_memory', type=boolean_argument, default=False,

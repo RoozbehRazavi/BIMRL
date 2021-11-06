@@ -702,9 +702,9 @@ class Blocks(nn.Module):
                     extra_information['read_rim_output1'] = read_rim_output1
                     level1_input = torch.cat((level1_input, read_rim_output1), dim=-1)
                 if self.use_fix_dim_level1:
-                    brim_hidden_state3_ = self.rim1_input_fix_dim[0](brim_hidden_state3.detach())
+                    brim_hidden_state3_ = self.rim1_input_fix_dim[0](brim_hidden_state3)
                 else:
-                    brim_hidden_state3_ = brim_hidden_state3.detach()
+                    brim_hidden_state3_ = brim_hidden_state3
                 if self.rim_top_down_level2_level1:
                     brim_hidden_state1 = [brim_hidden_state1, brim_hidden_state3_]
                 else:
@@ -785,9 +785,9 @@ class Blocks(nn.Module):
                     read_rim_output2 = self.memory.read((memory_state, brim_level1_task_inference_latent), brim_hidden_state2, activated_branch)
                     level1_input = torch.cat((level1_input, read_rim_output2), dim=-1)
                 if self.use_fix_dim_level1:
-                    brim_hidden_state4_ = self.rim1_input_fix_dim[1](brim_hidden_state4.detach())
+                    brim_hidden_state4_ = self.rim1_input_fix_dim[1](brim_hidden_state4)
                 else:
-                    brim_hidden_state4_ = brim_hidden_state4.detach()
+                    brim_hidden_state4_ = brim_hidden_state4
                 if self.rim_top_down_level2_level1:
                     brim_hidden_state2 = [brim_hidden_state2, brim_hidden_state4_]
                 else:
