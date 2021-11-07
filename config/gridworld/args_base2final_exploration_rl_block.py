@@ -251,10 +251,10 @@ def get_args(rest_args):
     parser.add_argument('--use_gru_or_rim', type=str, default='RIM',
                         help='as a RNN model use RIM or GRU')
 
-    parser.add_argument('--use_rim_level1', type=boolean_argument, default=False,
+    parser.add_argument('--use_rim_level1', type=boolean_argument, default=True,
                         help='whatever create rim level1 (use for policy) or not')
 
-    parser.add_argument('--use_rim_level2', type=boolean_argument, default=False,
+    parser.add_argument('--use_rim_level2', type=boolean_argument, default=True,
                         help='whatever create rim level2 (use for n step value prediction) or not')
 
     parser.add_argument('--use_rim_level3', type=boolean_argument, default=False,
@@ -291,7 +291,7 @@ def get_args(rest_args):
     # rim_levels_output_dim shouldn't huge (set some thing like 5)
     parser.add_argument('--rim_level1_output_dim', type=int, default=16,
                         help='output size of rim level1')
-    parser.add_argument('--rim_level2_output_dim', type=int, default=8,
+    parser.add_argument('--rim_level2_output_dim', type=int, default=16,
                         help='output size of rim level2')
     parser.add_argument('--rim_level3_output_dim', type=int, default=8,
                         help='output size of rim level3')
