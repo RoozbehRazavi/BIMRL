@@ -251,7 +251,7 @@ def get_args(rest_args):
     parser.add_argument('--use_gru_or_rim', type=str, default='RIM',
                         help='as a RNN model use RIM or GRU')
 
-    parser.add_argument('--use_rim_level1', type=boolean_argument, default=True,
+    parser.add_argument('--use_rim_level1', type=boolean_argument, default=False,
                         help='whatever create rim level1 (use for policy) or not')
 
     parser.add_argument('--use_rim_level2', type=boolean_argument, default=False,
