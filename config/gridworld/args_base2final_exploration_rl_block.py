@@ -52,7 +52,7 @@ def get_args(rest_args):
     parser.add_argument('--ppo_clip_param', type=float, default=0.05, help='clamp param')
 
     # other hyperparameters
-    parser.add_argument('--lr_policy', type=float, default=0.0005, help='learning rate (default: 7e-4)')
+    parser.add_argument('--lr_policy', type=float, default=0.0009, help='learning rate (default: 7e-4)')
     parser.add_argument('--num_processes', type=int, default=16,
                         help='how many training CPU processes / parallel environments to use (default: 16)')
     parser.add_argument('--policy_num_steps', type=int, default=400,
@@ -142,7 +142,7 @@ def get_args(rest_args):
                         help='use auto-encoder (non-variational)')
     parser.add_argument('--sample_embeddings', type=boolean_argument, default=False,
                         help='sample embedding for policy, instead of full belief')
-    parser.add_argument('--vae_loss_coeff', type=float, default=1.0,
+    parser.add_argument('--vae_loss_coeff', type=float, default=0.00001,
                         help='weight for VAE loss (vs RL loss)')
     parser.add_argument('--kl_to_gauss_prior', type=boolean_argument, default=False,
                         help='KL term in ELBO to fixed Gaussian prior (instead of prev approx posterior)')
@@ -193,7 +193,7 @@ def get_args(rest_args):
                         help='detach output of task inference module when pass it to policy network')
     parser.add_argument('--vae_loss_throughout_vae_encoder_from_rim_level3', type=boolean_argument, default=False)
 
-    parser.add_argument('--n_step_value_prediction_coeff', type=float, default=0.0001,
+    parser.add_argument('--n_step_value_prediction_coeff', type=float, default=0.00001,
                         help='weight for n step value prediction vs (VAE loss and RL loss)')
 
     parser.add_argument('--action_loss_coeff', type=float, default=1.0, help='weight for state loss')
@@ -209,7 +209,7 @@ def get_args(rest_args):
 
     parser.add_argument('--reward_prediction_intrinsic_reward_coef', type=float, default=0.1)
 
-    parser.add_argument('--extrinsic_reward_intrinsic_reward_coef', type=float, default=2.0,
+    parser.add_argument('--extrinsic_reward_intrinsic_reward_coef', type=float, default=10.0,
                         help='coefficient for action pred error in intrinsic reward')
 
     parser.add_argument('--residual_task_inference_latent', type=boolean_argument, default=None)
