@@ -56,7 +56,8 @@ class BRIMCore(nn.Module):
                  residual_task_inference_latent,
                  rim_output_size_to_vision_core,
                  memory_params,
-                 pass_gradient_to_rim_from_state_encoder
+                 pass_gradient_to_rim_from_state_encoder,
+                 shared_embedding_network
                  ):
         super(BRIMCore, self).__init__()
         assert (not use_memory and not use_hebb and not use_gen) or use_memory
@@ -113,7 +114,8 @@ class BRIMCore(nn.Module):
                                          vae_loss_throughout_vae_encoder_from_rim_level3,
                                          residual_task_inference_latent,
                                          rim_output_size_to_vision_core,
-                                         pass_gradient_to_rim_from_state_encoder
+                                         pass_gradient_to_rim_from_state_encoder,
+                                         shared_embedding_network
                                          )
         for name, param in self.brim.named_parameters():
             if 'bias' in name:
@@ -167,7 +169,8 @@ class BRIMCore(nn.Module):
                         vae_loss_throughout_vae_encoder_from_rim_level3,
                         residual_task_inference_latent,
                         rim_output_size_to_vision_core,
-                        pass_gradient_to_rim_from_state_encoder
+                        pass_gradient_to_rim_from_state_encoder,
+                        shared_embedding_network
                         ):
         brim = BRIM(use_memory=use_memory,
                     memory_params=memory_params,
@@ -214,7 +217,8 @@ class BRIMCore(nn.Module):
                     vae_loss_throughout_vae_encoder_from_rim_level3=vae_loss_throughout_vae_encoder_from_rim_level3,
                     residual_task_inference_latent=residual_task_inference_latent,
                     rim_output_size_to_vision_core=rim_output_size_to_vision_core,
-                    pass_gradient_to_rim_from_state_encoder=pass_gradient_to_rim_from_state_encoder).to(device)
+                    pass_gradient_to_rim_from_state_encoder=pass_gradient_to_rim_from_state_encoder,
+                    shared_embedding_network=shared_embedding_network).to(device)
         return brim
 
     def _sample_gaussian(self, mu, logvar, num=None):

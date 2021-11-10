@@ -242,7 +242,8 @@ class Base2Final:
             residual_task_inference_latent=self.args.residual_task_inference_latent,
             rim_output_size_to_vision_core=self.args.rim_output_size_to_vision_core,
             memory_params=memory_params,
-            pass_gradient_to_rim_from_state_encoder=self.args.pass_gradient_to_rim_from_state_encoder
+            pass_gradient_to_rim_from_state_encoder=self.args.pass_gradient_to_rim_from_state_encoder,
+            shared_embedding_network=self.args.shared_embedding_network
         ).to(device)
         return brim_core
 

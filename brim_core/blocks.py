@@ -49,7 +49,8 @@ class Blocks(nn.Module):
                  use_stateful_vision_core,
                  rim_output_size_to_vision_core,
                  memory_params,
-                 pass_gradient_to_rim_from_state_encoder
+                 pass_gradient_to_rim_from_state_encoder,
+                 shared_embedding_network
                  ):
         super(Blocks, self).__init__()
         assert (rim_top_down_level2_level1 and use_rim_level2) or not rim_top_down_level2_level1
@@ -76,10 +77,19 @@ class Blocks(nn.Module):
         self.use_memory = use_memory
         self.use_stateful_vision_core = use_stateful_vision_core
         self.pass_gradient_to_rim_from_state_encoder = pass_gradient_to_rim_from_state_encoder
-
-        self.state_encoder = utl.SimpleVision(state_embed_dim)
-        self.action_encoder = utl.FeatureExtractor(action_dim, action_embed_dim, F.relu)
-        self.reward_encoder = utl.FeatureExtractor(reward_dim, reward_embed_size, F.relu)
+        self.shared_embedding_network = shared_embedding_network
+        if shared_embedding_network:
+            self.state_encoder = utl.SimpleVision(state_embed_dim)
+            self.action_encoder = utl.FeatureExtractor(action_dim, action_embed_dim, F.relu)
+            self.reward_encoder = utl.FeatureExtractor(reward_dim, reward_embed_size, F.relu)
+        else:
+            self.state_encoder = nn.ModuleList([])
+            self.action_encoder = nn.ModuleList([])
+            self.reward_encoder = nn.ModuleList([])
+            for i in range(3):
+                self.state_encoder.append(utl.SimpleVision(state_embed_dim))
+                self.action_encoder.append(utl.FeatureExtractor(action_dim, action_embed_dim, F.relu))
+                self.reward_encoder.append(utl.FeatureExtractor(reward_dim, reward_embed_size, F.relu))
         brim_input_dim = action_embed_dim + state_embed_dim + reward_embed_size
         self.use_fix_dim_level1 = False
         self.use_fix_dim_level2 = False
@@ -673,16 +683,29 @@ class Blocks(nn.Module):
 
         policy_state = state.clone()
         memory_state = state.clone()
-        action = self.action_encoder(action)
         batch_size = state.shape[0]
         tmp_state = state.clone()
         state = state.view(-1, state.shape[-1])
         state = utl.image_obs(state)
-        state = self.state_encoder(state)
-        tmp1 = state.view(batch_size, self.state_embed_dim - 1)
-        tmp2 = tmp_state[:, -2:-1]
-        state = torch.cat((tmp1, tmp2), dim=-1)
-        reward = self.reward_encoder(reward)
+        if self.shared_embedding_network:
+            state = self.state_encoder(state)
+            tmp1 = state.view(batch_size, self.state_embed_dim - 1)
+            tmp2 = tmp_state[:, -2:-1]
+            state = torch.cat((tmp1, tmp2), dim=-1)
+            action = self.action_encoder(action)
+            reward = self.reward_encoder(reward)
+            brim_input = torch.cat((state, action, reward), dim=-1)
+        else:
+            brim_inputs = []
+            for i in range(3):
+                state_ = self.state_encoder[i](state)
+                tmp1 = state_.view(batch_size, self.state_embed_dim - 1)
+                tmp2 = tmp_state[:, -2:-1]
+                state_ = torch.cat((tmp1, tmp2), dim=-1)
+                action_ = self.action_encoder[i](action)
+                reward_ = self.reward_encoder[i](reward)
+                brim_inputs.append(torch.cat((state_, action_, reward_), dim=-1))
+
         if brim_hidden_state.dim() == 4:
             brim_hidden_state = brim_hidden_state.squeeze(0)
         brim_hidden_state1 = brim_hidden_state[:, 0, :self.rim_level1_hidden_size]
@@ -690,10 +713,10 @@ class Blocks(nn.Module):
         brim_hidden_state3 = brim_hidden_state[:, 2, :self.rim_level2_hidden_size]
         brim_hidden_state4 = brim_hidden_state[:, 3, :self.rim_level2_hidden_size]
         brim_hidden_state5 = brim_hidden_state[:, 4, :self.rim_level3_hidden_size]
-
-        brim_input = torch.cat((state, action, reward), dim=-1)
         if activated_branch == 'exploration':
             if self.use_rim_level1:
+                if not self.shared_embedding_network:
+                    brim_input = brim_inputs[0]
                 level1_input = self.input_embedding_layer_level1[0](brim_input)
                 if self.rim_level1_condition_on_task_inference_latent:
                     level1_input = torch.cat((level1_input, brim_level1_task_inference_latent), dim=-1)
@@ -732,6 +755,8 @@ class Blocks(nn.Module):
                 extra_information['exploration_policy_embedded_state'] = state_process(policy_state)
 
             if self.use_rim_level2:
+                if not self.shared_embedding_network:
+                    brim_input = brim_inputs[1]
                 level2_input = self.input_embedding_layer_level2[0](brim_input)
                 if self.rim_level2_condition_on_task_inference_latent:
                     level2_input = torch.cat((level2_input, brim_level2_task_inference_latent), dim=-1)
@@ -756,6 +781,8 @@ class Blocks(nn.Module):
                 brim_output3 = torch.zeros(size=(*brim_hidden_state3.shape[:-1], self.rim_level2_output_dim), device=device)
 
             if self.use_rim_level3:
+                if not self.shared_embedding_network:
+                    brim_input = brim_inputs[2]
                 level3_input = self.input_embedding_layer_level3(brim_input)
                 if not self.vae_loss_throughout_vae_encoder_from_rim_level3:
                     assert self.residual_task_inference_latent
@@ -778,6 +805,8 @@ class Blocks(nn.Module):
 
         elif activated_branch == 'exploitation':
             if self.use_rim_level1:
+                if not self.shared_embedding_network:
+                    brim_input = brim_inputs[0]
                 level1_input = self.input_embedding_layer_level1[1](brim_input)
                 if self.rim_level1_condition_on_task_inference_latent:
                     level1_input = torch.cat((level1_input, brim_level1_task_inference_latent), dim=-1)
@@ -815,6 +844,8 @@ class Blocks(nn.Module):
                 extra_information['exploitation_policy_embedded_state'] = state_process(policy_state)
 
             if self.use_rim_level2:
+                if not self.shared_embedding_network:
+                    brim_input = brim_inputs[1]
                 level2_input = self.input_embedding_layer_level2[1](brim_input)
                 if self.rim_level2_condition_on_task_inference_latent:
                     level2_input = torch.cat((level2_input, brim_level2_task_inference_latent), dim=-1)
@@ -838,6 +869,8 @@ class Blocks(nn.Module):
                 brim_output4 = torch.zeros(size=(*brim_hidden_state4.shape[:-1], self.rim_level2_output_dim), device=device)
 
             if self.use_rim_level3:
+                if not self.shared_embedding_network:
+                    brim_input = brim_inputs[2]
                 level3_input = self.input_embedding_layer_level3(brim_input)
                 if not self.vae_loss_throughout_vae_encoder_from_rim_level3:
                     assert self.residual_task_inference_latent
@@ -860,6 +893,8 @@ class Blocks(nn.Module):
 
         elif activated_branch == 'level3':
             if self.use_rim_level3:
+                if not self.shared_embedding_network:
+                    brim_input = brim_inputs[2]
                 level3_input = self.input_embedding_layer_level3(brim_input)
                 if not self.vae_loss_throughout_vae_encoder_from_rim_level3:
                     assert self.residual_task_inference_latent

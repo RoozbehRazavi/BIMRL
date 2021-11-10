@@ -356,5 +356,6 @@ def get_args(rest_args):
     ####
     parser.add_argument('--exploration_num_episodes', type=int, default=4)
     parser.add_argument('--meta_evaluate_interval', type=int, default=1000)
+    parser.add_argument('--shared_embedding_network', type=boolean_argument, default=True)
 
     return parser.parse_args(rest_args)
