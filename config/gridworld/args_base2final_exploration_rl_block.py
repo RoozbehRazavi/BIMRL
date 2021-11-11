@@ -45,22 +45,22 @@ def get_args(rest_args):
     parser.add_argument('--policy_optimiser', type=str, default='adam', help='choose: rmsprop, adam')
 
     # PPO specific
-    parser.add_argument('--ppo_num_epochs', type=int, default=2, help='number of epochs per PPO update')
-    parser.add_argument('--ppo_num_minibatch', type=int, default=4, help='number of minibatches to split the data')
+    parser.add_argument('--ppo_num_epochs', type=int, default=4, help='number of epochs per PPO update')
+    parser.add_argument('--ppo_num_minibatch', type=int, default=2, help='number of minibatches to split the data')
     parser.add_argument('--ppo_use_huberloss', type=boolean_argument, default=True, help='use huberloss instead of MSE')
     parser.add_argument('--ppo_use_clipped_value_loss', type=boolean_argument, default=True, help='clip value loss')
-    parser.add_argument('--ppo_clip_param', type=float, default=0.05, help='clamp param')
+    parser.add_argument('--ppo_clip_param', type=float, default=0.1, help='clamp param')
 
     # other hyperparameters
     parser.add_argument('--lr_policy', type=float, default=0.0007, help='learning rate (default: 7e-4)')
-    parser.add_argument('--num_processes', type=int, default=16,
+    parser.add_argument('--num_processes', type=int, default=32,
                         help='how many training CPU processes / parallel environments to use (default: 16)')
     parser.add_argument('--policy_num_steps', type=int, default=400,
                         help='number of env steps to do (per process) before updating')
-    parser.add_argument('--policy_eps', type=float, default=1e-5, help='optimizer epsilon (1e-8 for ppo, 1e-5 for a2c)')
+    parser.add_argument('--policy_eps', type=float, default=1e-8, help='optimizer epsilon (1e-8 for ppo, 1e-5 for a2c)')
     parser.add_argument('--policy_init_std', type=float, default=1.0, help='only used for continuous actions')
     parser.add_argument('--policy_value_loss_coef', type=float, default=0.5, help='value loss coefficient')
-    parser.add_argument('--policy_entropy_coef', type=float, default=0.1, help='entropy term coefficient')
+    parser.add_argument('--policy_entropy_coef', type=float, default=0.01, help='entropy term coefficient')
     parser.add_argument('--policy_gamma', type=float, default=0.95, help='discount factor for rewards')
     parser.add_argument('--policy_use_gae', type=boolean_argument, default=True,
                         help='use generalized advantage estimation')
@@ -72,7 +72,7 @@ def get_args(rest_args):
     # --- VAE TRAINING ---
 
     # general
-    parser.add_argument('--lr_vae', type=float, default=0.001)
+    parser.add_argument('--lr_vae', type=float, default=0.003)
     parser.add_argument('--size_vae_buffer', type=int, default=1000,
                         help='how many trajectories (!) to keep in VAE buffer')
     parser.add_argument('--precollect_len', type=int, default=5000,
@@ -281,9 +281,9 @@ def get_args(rest_args):
     parser.add_argument('--rim_level3_topk', type=int, default=3,
                         help='number of module in rim level 3 that can active in each time step')
 
-    parser.add_argument('--brim_layers_before_rim_level1', nargs='+', type=int, default=[32, 16])
-    parser.add_argument('--brim_layers_before_rim_level2', nargs='+', type=int, default=[32, 16])
-    parser.add_argument('--brim_layers_before_rim_level3', nargs='+', type=int, default=[32, 16])
+    parser.add_argument('--brim_layers_before_rim_level1', nargs='+', type=int, default=[16])
+    parser.add_argument('--brim_layers_before_rim_level2', nargs='+', type=int, default=[16])
+    parser.add_argument('--brim_layers_before_rim_level3', nargs='+', type=int, default=[16])
 
     parser.add_argument('--brim_layers_after_rim_level1', nargs='+', type=int, default=[8])
     parser.add_argument('--brim_layers_after_rim_level2', nargs='+', type=int, default=[8])
