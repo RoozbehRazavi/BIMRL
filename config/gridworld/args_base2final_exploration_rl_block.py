@@ -72,7 +72,7 @@ def get_args(rest_args):
     # --- VAE TRAINING ---
 
     # general
-    parser.add_argument('--lr_vae', type=float, default=0.003)
+    parser.add_argument('--lr_vae', type=float, default=0.001)
     parser.add_argument('--size_vae_buffer', type=int, default=1000,
                         help='how many trajectories (!) to keep in VAE buffer')
     parser.add_argument('--precollect_len', type=int, default=5000,
