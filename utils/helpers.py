@@ -191,7 +191,7 @@ def compute_intrinsic_reward(rew_raw,
         rew_raw * extrinsic_reward_intrinsic_reward_coef
     
     if isinstance(state_error, torch.Tensor):
-        action_error = action_error.detach()
+        state_error = state_error.detach()
     
     if isinstance(intrinsic_rew_raw, torch.Tensor):
         intrinsic_rew_raw = intrinsic_rew_raw.detach()
