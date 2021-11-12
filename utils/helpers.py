@@ -189,8 +189,23 @@ def compute_intrinsic_reward(rew_raw,
         action_error * action_prediction_intrinsic_reward_coef * 0.01 + \
         reward_error * reward_prediction_intrinsic_reward_coef * 0.01) * annealing_tmp + \
         rew_raw * extrinsic_reward_intrinsic_reward_coef
+    
+    if isinstance(state_error, torch.Tensor):
+        action_error = action_error.detach()
+    
+    if isinstance(intrinsic_rew_raw, torch.Tensor):
+        intrinsic_rew_raw = intrinsic_rew_raw.detach()
+    
+    if isinstance(intrinsic_rew_normalised, torch.Tensor):
+        intrinsic_rew_normalised = intrinsic_rew_normalised.detach()
+    
+    if isinstance(action_error, torch.Tensor):
+        action_error = action_error.detach()
+    
+    if isinstance(reward_error, torch.Tensor):
+        reward_error = reward_error.detach()
 
-    return intrinsic_rew_raw.detach(), intrinsic_rew_normalised.detach(), state_error.detach(), action_error.detach(), reward_error.detach()
+    return intrinsic_rew_raw, intrinsic_rew_normalised, state_error, action_error, reward_error
 
 
 def seed(seed, deterministic_execution=False):
