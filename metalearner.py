@@ -677,9 +677,12 @@ class MetaLearner:
             # clean up after update
             if train_exploration:
                 self.exploration_policy_storage.after_update()
-                self.state_prediction_running_normalizer.update(torch.cat(state_errors))
-                self.action_prediction_running_normalizer.update(torch.cat(action_errors))
-                self.reward_prediction_running_normalizer.update(torch.cat(reward_errors))
+                if self.args.decode_state:
+                    self.state_prediction_running_normalizer.update(torch.cat(state_errors))
+                if self.args.decode_action:
+                    self.action_prediction_running_normalizer.update(torch.cat(action_errors))
+                if self.args.decode_reward:
+                    self.reward_prediction_running_normalizer.update(torch.cat(reward_errors))
                 state_errors = []
                 action_errors = []
                 reward_errors = []
