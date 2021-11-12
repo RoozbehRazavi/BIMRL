@@ -60,7 +60,7 @@ def get_args(rest_args):
     parser.add_argument('--policy_eps', type=float, default=1e-8, help='optimizer epsilon (1e-8 for ppo, 1e-5 for a2c)')
     parser.add_argument('--policy_init_std', type=float, default=1.0, help='only used for continuous actions')
     parser.add_argument('--policy_value_loss_coef', type=float, default=0.5, help='value loss coefficient')
-    parser.add_argument('--policy_entropy_coef', type=float, default=0.01, help='entropy term coefficient')
+    parser.add_argument('--policy_entropy_coef', type=float, default=0.1, help='entropy term coefficient')
     parser.add_argument('--policy_gamma', type=float, default=0.95, help='discount factor for rewards')
     parser.add_argument('--policy_use_gae', type=boolean_argument, default=True,
                         help='use generalized advantage estimation')
@@ -193,18 +193,18 @@ def get_args(rest_args):
                         help='detach output of task inference module when pass it to policy network')
     parser.add_argument('--vae_loss_throughout_vae_encoder_from_rim_level3', type=boolean_argument, default=False)
 
-    parser.add_argument('--n_step_value_prediction_coeff', type=float, default=1.0,
+    parser.add_argument('--n_step_value_prediction_coeff', type=float, default=0.00001,
                         help='weight for n step value prediction vs (VAE loss and RL loss)')
 
     parser.add_argument('--action_loss_coeff', type=float, default=1.0, help='weight for state loss')
 
-    parser.add_argument('--decode_action', type=boolean_argument, default=True,
+    parser.add_argument('--decode_action', type=boolean_argument, default=False,
                         help='predict action between two state')
 
     parser.add_argument('--state_prediction_intrinsic_reward_coef', type=float, default=0.1,
                         help='coefficient for state pred error in intrinsic reward')
 
-    parser.add_argument('--action_prediction_intrinsic_reward_coef', type=float, default=0.1,
+    parser.add_argument('--action_prediction_intrinsic_reward_coef', type=float, default=0.0,
                         help='coefficient for action pred error in intrinsic reward')
 
     parser.add_argument('--reward_prediction_intrinsic_reward_coef', type=float, default=0.1)
@@ -356,6 +356,6 @@ def get_args(rest_args):
     ####
     parser.add_argument('--exploration_num_episodes', type=int, default=4)
     parser.add_argument('--meta_evaluate_interval', type=int, default=1000)
-    parser.add_argument('--shared_embedding_network', type=boolean_argument, default=False)
+    parser.add_argument('--shared_embedding_network', type=boolean_argument, default=True)
 
     return parser.parse_args(rest_args)
