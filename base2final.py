@@ -16,6 +16,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 def compute_memory_loss():
     return
 
+
 def compute_returns(next_value, rewards, value_preds, returns, gamma, tau, use_gae, masks, bad_masks, use_proper_time_limits):
     if use_proper_time_limits:
         if use_gae:
@@ -56,11 +57,18 @@ def compute_loss_action(action_pred, action):
     return loss
 
 
-def compute_loss_value(values, value_preds, return_batch, clip_param=0.2):
-    value_pred_clipped = value_preds + (values - value_preds).clamp(-clip_param, clip_param)
-    value_losses = F.smooth_l1_loss(values, return_batch, reduction='none')
-    value_losses_clipped = F.smooth_l1_loss(value_pred_clipped, return_batch, reduction='none')
-    value_loss = 0.5 * torch.max(value_losses, value_losses_clipped).mean(dim=-1)
+def compute_loss_value(values, value_preds, return_batch, n_step_v_loss, clip_param=0.2):
+    if n_step_v_loss == 'huber':
+        value_pred_clipped = value_preds + (values - value_preds).clamp(-clip_param, clip_param)
+        value_losses = F.smooth_l1_loss(values, return_batch, reduction='none')
+        value_losses_clipped = F.smooth_l1_loss(value_pred_clipped, return_batch, reduction='none')
+        value_loss = 0.5 * torch.max(value_losses, value_losses_clipped).mean(dim=-1)
+    elif n_step_v_loss == 'norm2_ret':
+        value_loss = F.mse_loss(values, return_batch, reduction='none').mean(dim=-1)
+    elif n_step_v_loss == 'norm2_val':
+        value_loss = F.mse_loss(values, value_preds, reduction='none').mean(dim=-1)
+    else:
+        raise NotImplementedError
     return value_loss
 
 
@@ -553,9 +561,9 @@ class Base2Final:
         losses = list()
         for i in range(self.args.n_prediction + 1):
             if i == 0:
-                losses.append(compute_loss_value(value_pred[i], value_next_state, returns_next_state))
+                losses.append(compute_loss_value(value_pred[i], value_next_state, returns_next_state, n_step_v_loss=self.args.n_step_v_loss))
             else:
-                losses.append(compute_loss_value(value_pred[i], n_step_value_next_state[i - 1], n_step_returns_next_state[i - 1]))
+                losses.append(compute_loss_value(value_pred[i], n_step_value_next_state[i - 1], n_step_returns_next_state[i - 1], n_step_v_loss=self.args.n_step_v_loss))
         return losses
 
     def compute_value_loss(self,
