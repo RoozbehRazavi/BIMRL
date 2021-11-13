@@ -46,38 +46,6 @@ class MetaLearner:
         if self.args.exploration_processes_portion == 1.0:
             train_exploitation = False
 
-        self.exploration_envs = None
-        self.exploitation_envs = None
-        if train_exploration:
-            self.exploration_envs = make_vec_envs(env_name=args.env_name, seed=args.seed,
-                                                  num_processes=self.exploration_num_processes,
-                                                  gamma=args.policy_gamma, device=device,
-                                                  episodes_per_task=self.args.max_rollouts_per_task,
-                                                  normalise_rew=args.norm_rew_for_policy, ret_rms=None)
-        if train_exploitation:
-            self.exploitation_envs = make_vec_envs(env_name=args.env_name, seed=args.seed,
-                                                   num_processes=self.exploitation_num_processes,
-                                                   gamma=args.policy_gamma, device=device,
-                                                   episodes_per_task=self.args.max_rollouts_per_task,
-                                                   normalise_rew=args.norm_rew_for_policy, ret_rms=None)
-
-        envs = self.exploration_envs if self.exploration_envs is not None else self.exploitation_envs
-        # calculate what the maximum length of the trajectories is
-        self.args.max_trajectory_len = envs._max_episode_steps
-        self.args.max_trajectory_len *= self.args.max_rollouts_per_task
-
-        # get policy input dimensions
-        self.args.state_dim = envs.observation_space.shape[0]
-        self.args.task_dim = envs.task_dim
-        self.args.belief_dim = envs.belief_dim
-        self.args.num_states = envs.num_states
-        # get policy output (action) dimensions
-        self.args.action_space = envs.action_space
-        if isinstance(envs.action_space, gym.spaces.discrete.Discrete):
-            self.args.action_dim = 1
-        else:
-            self.args.action_dim = envs.action_space.shape[0]
-
         # initialise VAE and policy
         self.base2final = Base2Final(self.args, self.logger, lambda: self.iter_idx, self.exploration_num_processes, self.exploitation_num_processes)
         self.exploration_policy_storage = self.initialise_policy_storage(self.exploration_num_processes)
@@ -96,7 +64,6 @@ class MetaLearner:
             self.state_prediction_running_normalizer = utl.RunningMeanStd(shape=(1,))
             self.action_prediction_running_normalizer = utl.RunningMeanStd(shape=(1,))
             self.reward_prediction_running_normalizer = utl.RunningMeanStd(shape=(1,))
-
 
         self.start_idx = 0
         if self.args.load_model and os.path.exists(os.path.join(self.logger.full_output_folder, 'models', 'brim_core.pt')):
@@ -164,6 +131,40 @@ class MetaLearner:
                 self.state_prediction_running_normalizer = torch.load(os.path.join(save_path, 'state_error_rms.pkl'), map_location=device)
             if self.action_prediction_running_normalizer is not None:
                 self.action_prediction_running_normalizer = torch.load(os.path.join(save_path, 'action_error_rms.pkl'), map_location=device)
+
+        self.exploration_envs = None
+        self.exploitation_envs = None
+        if train_exploration:
+            seed = args.seed + self.start_idx * 64 + self.exploration_num_processes
+            self.exploration_envs = make_vec_envs(env_name=args.env_name, seed=seed,
+                                                  num_processes=self.exploration_num_processes,
+                                                  gamma=args.policy_gamma, device=device,
+                                                  episodes_per_task=self.args.max_rollouts_per_task,
+                                                  normalise_rew=args.norm_rew_for_policy, ret_rms=None)
+        if train_exploitation:
+            seed = args.seed + self.start_idx * 64 + self.exploitation_num_processes
+            self.exploitation_envs = make_vec_envs(env_name=args.env_name, seed=seed,
+                                                   num_processes=self.exploitation_num_processes,
+                                                   gamma=args.policy_gamma, device=device,
+                                                   episodes_per_task=self.args.max_rollouts_per_task,
+                                                   normalise_rew=args.norm_rew_for_policy, ret_rms=None)
+
+        envs = self.exploration_envs if self.exploration_envs is not None else self.exploitation_envs
+        # calculate what the maximum length of the trajectories is
+        self.args.max_trajectory_len = envs._max_episode_steps
+        self.args.max_trajectory_len *= self.args.max_rollouts_per_task
+
+        # get policy input dimensions
+        self.args.state_dim = envs.observation_space.shape[0]
+        self.args.task_dim = envs.task_dim
+        self.args.belief_dim = envs.belief_dim
+        self.args.num_states = envs.num_states
+        # get policy output (action) dimensions
+        self.args.action_space = envs.action_space
+        if isinstance(envs.action_space, gym.spaces.discrete.Discrete):
+            self.args.action_dim = 1
+        else:
+            self.args.action_dim = envs.action_space.shape[0]
 
     def initialise_policy_storage(self, num_processes):
         return OnlineStorage(args=self.args,

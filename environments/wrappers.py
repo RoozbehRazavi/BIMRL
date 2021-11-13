@@ -27,7 +27,7 @@ class MiniGridWrapper(gym.core.ObservationWrapper):
     # add reset task and rset function to env
     # add _max_episode_steps attribute
     def __init__(self,
-                 env):
+                 env, seed):
         super().__init__(env)
 
         imgSpace = env.observation_space.spaces['image']
@@ -46,26 +46,23 @@ class MiniGridWrapper(gym.core.ObservationWrapper):
         if not hasattr(self.env.unwrapped, 'num_states'):
             self.env.unwrapped.num_states = self.env.unwrapped.width * self.env.unwrapped.height
 
-        self.seed_num = None
-
+        print('seed : ', seed)
+        self.seed_num = seed
 
     def reset(self):
         self.env.seed(self.seed_num)
         obs = self.env.reset()
-        #print('reset episode : ', self.seed_num)
-        #self.redraw(self.env.render('rgb_array', tile_size=32))
         return self.observation(obs)
 
     def reset_task(self, task=None):
-        self.seed_num = self.env.seed(None)[0]
-        #print('reset task : ', self.seed_num)
+        if self.seed_num is not None:
+            self.seed_num += 64
+        self.seed_num = self.env.seed(self.seed_num)[0]
         self.env.reset()
-        #self.redraw(self.env.render('rgb_array', tile_size=32))
 
     def redraw(self, img):
         plt.imshow(img)
         plt.show()
-
 
     def observation(self, obs):
         image = obs['image']

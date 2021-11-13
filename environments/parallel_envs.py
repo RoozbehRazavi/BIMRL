@@ -9,20 +9,20 @@ from environments.env_utils.vec_env.dummy_vec_env import DummyVecEnv
 from environments.env_utils.vec_env.subproc_vec_env import SubprocVecEnv
 from environments.env_utils.vec_env.vec_normalize import VecNormalize
 from environments.wrappers import TimeLimitMask, VariBadWrapper
-from gym_minigrid.wrappers import ImgObsWrapper, FlatObsWrapper
 from environments.wrappers import MiniGridWrapper
+
 
 def make_env(env_id, seed, rank, episodes_per_task, **kwargs):
     def _thunk():
         env = gym.make(env_id, **kwargs)
-        # if seed is not None:
-        #     env.seed(seed + rank)
+        if seed is not None:
+            seed_ = env.seed(seed + rank)[0]
+        else:
+            seed_ = env.seed()[0]
         if str(env.__class__.__name__).find('TimeLimit') >= 0:
             env = TimeLimitMask(env)
         if 'MiniGrid' in env_id:
-            #env = ImgObsWrapper(env)
-            #env = FlatObsWrapper(env=env, maxStrLen=50)
-            env = MiniGridWrapper(env=env)
+            env = MiniGridWrapper(env=env, seed=seed_)
         env = VariBadWrapper(env=env, episodes_per_task=episodes_per_task)
         return env
 
@@ -36,9 +36,10 @@ def make_vec_envs(env_name, seed, num_processes, gamma,
     """
     :param ret_rms: running return and std for rewards
     """
-    envs = [make_env(env_id=env_name, seed=seed, rank=rank_offset + i,
-                     episodes_per_task=episodes_per_task, **kwargs)
-            for i in range(num_processes)]
+    envs = []
+    for i in range(num_processes):
+        envs.append(make_env(env_id=env_name, seed=seed, rank=rank_offset + i,
+                     episodes_per_task=episodes_per_task, **kwargs))
 
     if len(envs) > 1:
         envs = SubprocVecEnv(envs)
