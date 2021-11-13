@@ -254,7 +254,7 @@ def get_args(rest_args):
     parser.add_argument('--use_rim_level1', type=boolean_argument, default=True,
                         help='whatever create rim level1 (use for policy) or not')
 
-    parser.add_argument('--use_rim_level2', type=boolean_argument, default=True,
+    parser.add_argument('--use_rim_level2', type=boolean_argument, default=False,
                         help='whatever create rim level2 (use for n step value prediction) or not')
 
     parser.add_argument('--use_rim_level3', type=boolean_argument, default=False,
