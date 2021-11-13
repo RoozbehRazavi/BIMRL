@@ -187,7 +187,7 @@ def compute_intrinsic_reward(rew_raw,
 
     intrinsic_rew_raw = (state_error * state_prediction_intrinsic_reward_coef * 0.2 + \
         action_error * action_prediction_intrinsic_reward_coef * 0.01 + \
-        reward_error * reward_prediction_intrinsic_reward_coef * 0.1) * annealing_tmp + \
+        reward_error * reward_prediction_intrinsic_reward_coef * 0.2) * annealing_tmp + \
         rew_raw * extrinsic_reward_intrinsic_reward_coef
     
     if isinstance(state_error, torch.Tensor):
