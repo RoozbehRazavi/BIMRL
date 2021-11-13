@@ -46,7 +46,6 @@ class MiniGridWrapper(gym.core.ObservationWrapper):
         if not hasattr(self.env.unwrapped, 'num_states'):
             self.env.unwrapped.num_states = self.env.unwrapped.width * self.env.unwrapped.height
 
-        print('seed : ', seed)
         self.seed_num = seed
 
     def reset(self):

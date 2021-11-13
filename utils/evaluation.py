@@ -51,7 +51,7 @@ def evaluate(args,
 
     # --- initialise environments and latents ---
 
-    envs = make_vec_envs(env_name, seed=args.seed * 42 + iter_idx, num_processes=num_processes,
+    envs = make_vec_envs(env_name, seed=args.seed * 1e6 + iter_idx, num_processes=num_processes,
                          gamma=args.policy_gamma,
                          device=device,
                          rank_offset=num_processes + 1,  # to use diff tmp folders than main processes
@@ -230,7 +230,7 @@ def evaluate_meta_policy(
     returns_per_episode = torch.zeros((num_processes, exploration_num_episodes)).to(device)
     # --- initialise environments and latents ---
     for i in range(exploration_num_episodes):
-        envs = make_vec_envs(env_name, seed=args.seed * 42 + iter_idx, num_processes=num_processes,
+        envs = make_vec_envs(env_name, seed=args.seed * 1e6 + iter_idx, num_processes=num_processes,
                              gamma=args.policy_gamma,
                              device=device,
                              rank_offset=2,  # to use diff tmp folders than main processes
@@ -415,7 +415,7 @@ def visualize_policy(
         num_updates):
 
     env_name = args.env_name
-    envs = make_vec_envs(env_name, seed=args.seed * 42 + iter_idx, num_processes=1,
+    envs = make_vec_envs(env_name, seed=args.seed * 1e6 + iter_idx, num_processes=1,
                          gamma=args.policy_gamma,
                          device=device,
                          rank_offset=2,  # to use diff tmp folders than main processes

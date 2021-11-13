@@ -46,92 +46,11 @@ class MetaLearner:
         if self.args.exploration_processes_portion == 1.0:
             train_exploitation = False
 
-        # initialise VAE and policy
-        self.base2final = Base2Final(self.args, self.logger, lambda: self.iter_idx, self.exploration_num_processes, self.exploitation_num_processes)
-        self.exploration_policy_storage = self.initialise_policy_storage(self.exploration_num_processes)
-        self.exploitation_policy_storage = self.initialise_policy_storage(self.exploitation_num_processes)
-        self.exploration_policy = None
-        self.exploitation_policy = None
-        if train_exploration:
-            self.exploration_policy = self.initialise_policy(policy_type='exploration')
-        if train_exploitation:
-            self.exploitation_policy = self.initialise_policy(policy_type='exploitation')
-
-        self.state_prediction_running_normalizer = None
-        self.action_prediction_running_normalizer = None
-        self.reward_prediction_running_normalizer = None
-        if train_exploration:
-            self.state_prediction_running_normalizer = utl.RunningMeanStd(shape=(1,))
-            self.action_prediction_running_normalizer = utl.RunningMeanStd(shape=(1,))
-            self.reward_prediction_running_normalizer = utl.RunningMeanStd(shape=(1,))
-
         self.start_idx = 0
-        if self.args.load_model and os.path.exists(os.path.join(self.logger.full_output_folder, 'models', 'brim_core.pt')):
+        if self.args.load_model and os.path.exists(os.path.join(self.logger.full_output_folder, 'models', 'general.pt')):
             save_path = os.path.join(self.logger.full_output_folder, 'models')
             general_info = torch.load(os.path.join(save_path, f"general.pt"), map_location=device)
-
-            if self.base2final.state_decoder is not None:
-                self.base2final.state_decoder.load_state_dict(torch.load(os.path.join(save_path, f"state_decoder.pt"), map_location=device))
-
-            if self.base2final.reward_decoder is not None:
-                self.base2final.reward_decoder.load_state_dict(
-                    torch.load(os.path.join(save_path, f"reward_decoder.pt"), map_location=device))
-
-            if self.base2final.action_decoder is not None:
-                self.base2final.action_decoder.load_state_dict(
-                    torch.load(os.path.join(save_path, f"action_decoder.pt"), map_location=device))
-
-            if self.base2final.exploration_value_decoder is not None:
-                self.base2final.exploration_value_decoder.load_state_dict(
-                    torch.load(os.path.join(save_path, f"exploration_value_decoder.pt"), map_location=device))
-
-            if self.base2final.exploitation_value_decoder is not None:
-                self.base2final.exploitation_value_decoder.load_state_dict(
-                    torch.load(os.path.join(save_path, f"exploitation_value_decoder.pt"), map_location=device))
-
-            self.base2final.brim_core.load_state_dict(torch.load(os.path.join(save_path, f"brim_core.pt"), map_location=device))
-
-            if self.exploration_policy is not None:
-                self.exploration_policy.actor_critic.load_state_dict(
-                    torch.load(os.path.join(save_path, f"exploration_policy.pt"), map_location=device))
-            if self.exploitation_policy is not None:
-                self.exploitation_policy.actor_critic.load_state_dict(
-                    torch.load(os.path.join(save_path, f"exploitation_policy.pt"), map_location=device))
-
             self.start_idx = general_info['iter_idx']
-            self.iter_idx = self.start_idx
-            self.total_frames = self.start_idx * args.policy_num_steps * args.num_processes
-            self.base2final.optimiser_vae.load_state_dict(general_info['vae_optimiser'])
-            if self.exploration_policy is not None:
-                self.exploration_policy.optimiser.load_state_dict(general_info['exploration_policy_optimiser'])
-            if self.exploitation_policy is not None:
-                self.exploitation_policy.optimiser.load_state_dict(general_info['exploitation_policy_optimiser'])
-
-            if self.args.norm_rew_for_policy:
-                if self.exploration_envs is not None:
-                    self.exploration_envs.venv.ret_rms = torch.load(os.path.join(save_path, 'env_rew_rms_exploration.pkl'), map_location=device)
-                if self.exploitation_envs is not None:
-                    self.exploitation_envs.venv.ret_rms = torch.load(os.path.join(save_path, 'env_rew_rms_exploitation.pkl'), map_location=device)
-            if self.args.norm_state_for_policy and self.args.pass_state_to_policy:
-                if self.exploration_policy is not None:
-                    self.exploration_policy.actor_critic.state_rms = torch.load(os.path.join(save_path, 'policy_state_rms_exploration.pkl'), map_location=device)
-                if self.exploitation_policy is not None:
-                    self.exploitation_policy.actor_critic.state_rms = torch.load(os.path.join(save_path, 'policy_state_rms_exploitation.pkl'), map_location=device)
-            if self.args.norm_task_inference_latent_for_policy and self.args.pass_task_inference_latent_to_policy:
-                if self.exploration_policy is not None:
-                    self.exploration_policy.actor_critic.task_inference_latent_rms = torch.load(os.path.join(save_path, 'policy_latent_rms_exploration.pkl'), map_location=device)
-                if self.exploitation_policy is not None:
-                    self.exploitation_policy.actor_critic.task_inference_latent_rms = torch.load(os.path.join(save_path, 'policy_latent_rms_exploitation.pkl'), map_location=device)
-            if self.args.norm_rim_level1_output and self.args.use_rim_level1:
-                if self.exploration_policy is not None:
-                    self.exploration_policy.actor_critic.rim_level1_output_rms = torch.load(os.path.join(save_path, 'policy_rim_level1_rms_exploration.pkl'), map_location=device)
-                if self.exploitation_policy is not None:
-                    self.exploitation_policy.actor_critic.rim_level1_output_rms = torch.load(os.path.join(save_path, 'policy_rim_level1_rms_exploitation.pkl'), map_location=device)
-            if self.state_prediction_running_normalizer is not None:
-                self.state_prediction_running_normalizer = torch.load(os.path.join(save_path, 'state_error_rms.pkl'), map_location=device)
-            if self.action_prediction_running_normalizer is not None:
-                self.action_prediction_running_normalizer = torch.load(os.path.join(save_path, 'action_error_rms.pkl'), map_location=device)
-
         self.exploration_envs = None
         self.exploitation_envs = None
         if train_exploration:
@@ -165,6 +84,89 @@ class MetaLearner:
             self.args.action_dim = 1
         else:
             self.args.action_dim = envs.action_space.shape[0]
+
+        # initialise VAE and policy
+        self.base2final = Base2Final(self.args, self.logger, lambda: self.iter_idx, self.exploration_num_processes, self.exploitation_num_processes)
+        self.exploration_policy_storage = self.initialise_policy_storage(self.exploration_num_processes)
+        self.exploitation_policy_storage = self.initialise_policy_storage(self.exploitation_num_processes)
+        self.exploration_policy = None
+        self.exploitation_policy = None
+        if train_exploration:
+            self.exploration_policy = self.initialise_policy(policy_type='exploration')
+        if train_exploitation:
+            self.exploitation_policy = self.initialise_policy(policy_type='exploitation')
+
+        self.state_prediction_running_normalizer = None
+        self.action_prediction_running_normalizer = None
+        self.reward_prediction_running_normalizer = None
+        if train_exploration:
+            self.state_prediction_running_normalizer = utl.RunningMeanStd(shape=(1,))
+            self.action_prediction_running_normalizer = utl.RunningMeanStd(shape=(1,))
+            self.reward_prediction_running_normalizer = utl.RunningMeanStd(shape=(1,))
+
+        if self.args.load_model and os.path.exists(os.path.join(self.logger.full_output_folder, 'models', 'brim_core.pt')):
+            save_path = os.path.join(self.logger.full_output_folder, 'models')
+
+            if self.base2final.state_decoder is not None:
+                self.base2final.state_decoder.load_state_dict(torch.load(os.path.join(save_path, f"state_decoder.pt"), map_location=device))
+
+            if self.base2final.reward_decoder is not None:
+                self.base2final.reward_decoder.load_state_dict(
+                    torch.load(os.path.join(save_path, f"reward_decoder.pt"), map_location=device))
+
+            if self.base2final.action_decoder is not None:
+                self.base2final.action_decoder.load_state_dict(
+                    torch.load(os.path.join(save_path, f"action_decoder.pt"), map_location=device))
+
+            if self.base2final.exploration_value_decoder is not None:
+                self.base2final.exploration_value_decoder.load_state_dict(
+                    torch.load(os.path.join(save_path, f"exploration_value_decoder.pt"), map_location=device))
+
+            if self.base2final.exploitation_value_decoder is not None:
+                self.base2final.exploitation_value_decoder.load_state_dict(
+                    torch.load(os.path.join(save_path, f"exploitation_value_decoder.pt"), map_location=device))
+
+            self.base2final.brim_core.load_state_dict(torch.load(os.path.join(save_path, f"brim_core.pt"), map_location=device))
+
+            if self.exploration_policy is not None:
+                self.exploration_policy.actor_critic.load_state_dict(
+                    torch.load(os.path.join(save_path, f"exploration_policy.pt"), map_location=device))
+            if self.exploitation_policy is not None:
+                self.exploitation_policy.actor_critic.load_state_dict(
+                    torch.load(os.path.join(save_path, f"exploitation_policy.pt"), map_location=device))
+
+            self.iter_idx = self.start_idx
+            self.total_frames = self.start_idx * args.policy_num_steps * args.num_processes
+            self.base2final.optimiser_vae.load_state_dict(general_info['vae_optimiser'])
+            if self.exploration_policy is not None:
+                self.exploration_policy.optimiser.load_state_dict(general_info['exploration_policy_optimiser'])
+            if self.exploitation_policy is not None:
+                self.exploitation_policy.optimiser.load_state_dict(general_info['exploitation_policy_optimiser'])
+
+            if self.args.norm_rew_for_policy:
+                if self.exploration_envs is not None:
+                    self.exploration_envs.venv.ret_rms = torch.load(os.path.join(save_path, 'env_rew_rms_exploration.pkl'), map_location=device)
+                if self.exploitation_envs is not None:
+                    self.exploitation_envs.venv.ret_rms = torch.load(os.path.join(save_path, 'env_rew_rms_exploitation.pkl'), map_location=device)
+            if self.args.norm_state_for_policy and self.args.pass_state_to_policy:
+                if self.exploration_policy is not None:
+                    self.exploration_policy.actor_critic.state_rms = torch.load(os.path.join(save_path, 'policy_state_rms_exploration.pkl'), map_location=device)
+                if self.exploitation_policy is not None:
+                    self.exploitation_policy.actor_critic.state_rms = torch.load(os.path.join(save_path, 'policy_state_rms_exploitation.pkl'), map_location=device)
+            if self.args.norm_task_inference_latent_for_policy and self.args.pass_task_inference_latent_to_policy:
+                if self.exploration_policy is not None:
+                    self.exploration_policy.actor_critic.task_inference_latent_rms = torch.load(os.path.join(save_path, 'policy_latent_rms_exploration.pkl'), map_location=device)
+                if self.exploitation_policy is not None:
+                    self.exploitation_policy.actor_critic.task_inference_latent_rms = torch.load(os.path.join(save_path, 'policy_latent_rms_exploitation.pkl'), map_location=device)
+            if self.args.norm_rim_level1_output and self.args.use_rim_level1:
+                if self.exploration_policy is not None:
+                    self.exploration_policy.actor_critic.rim_level1_output_rms = torch.load(os.path.join(save_path, 'policy_rim_level1_rms_exploration.pkl'), map_location=device)
+                if self.exploitation_policy is not None:
+                    self.exploitation_policy.actor_critic.rim_level1_output_rms = torch.load(os.path.join(save_path, 'policy_rim_level1_rms_exploitation.pkl'), map_location=device)
+            if self.state_prediction_running_normalizer is not None:
+                self.state_prediction_running_normalizer = torch.load(os.path.join(save_path, 'state_error_rms.pkl'), map_location=device)
+            if self.action_prediction_running_normalizer is not None:
+                self.action_prediction_running_normalizer = torch.load(os.path.join(save_path, 'action_error_rms.pkl'), map_location=device)
 
     def initialise_policy_storage(self, num_processes):
         return OnlineStorage(args=self.args,
