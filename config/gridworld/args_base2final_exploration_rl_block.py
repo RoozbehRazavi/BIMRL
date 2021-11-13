@@ -201,7 +201,7 @@ def get_args(rest_args):
     parser.add_argument('--decode_action', type=boolean_argument, default=True,
                         help='predict action between two state')
 
-    parser.add_argument('--state_prediction_intrinsic_reward_coef', type=float, default=0.1,
+    parser.add_argument('--state_prediction_intrinsic_reward_coef', type=float, default=0.0,
                         help='coefficient for state pred error in intrinsic reward')
 
     parser.add_argument('--action_prediction_intrinsic_reward_coef', type=float, default=0.1,

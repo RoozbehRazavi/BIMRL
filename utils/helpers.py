@@ -185,9 +185,9 @@ def compute_intrinsic_reward(rew_raw,
         norm_reward_error * reward_prediction_intrinsic_reward_coef) * annealing_tmp + \
         rew_normalised * extrinsic_reward_intrinsic_reward_coef
 
-    print('s ', state_error)
-    print('a ', action_error)
-    print('r ',reward_error)
+    # print('s ', state_error)
+    # print('a ', action_error)
+    # print('r ', reward_error)
     intrinsic_rew_raw = (state_error * state_prediction_intrinsic_reward_coef * 0.2 + \
         action_error * action_prediction_intrinsic_reward_coef * 0.01 + \
         reward_error * reward_prediction_intrinsic_reward_coef * 0.2) * annealing_tmp + \
