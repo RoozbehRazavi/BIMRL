@@ -193,7 +193,7 @@ def get_args(rest_args):
                         help='detach output of task inference module when pass it to policy network')
     parser.add_argument('--vae_loss_throughout_vae_encoder_from_rim_level3', type=boolean_argument, default=False)
 
-    parser.add_argument('--n_step_value_prediction_coeff', type=float, default=0.00001,
+    parser.add_argument('--n_step_value_prediction_coeff', type=float, default=1.0,
                         help='weight for n step value prediction vs (VAE loss and RL loss)')
 
     parser.add_argument('--action_loss_coeff', type=float, default=1.0, help='weight for state loss')
@@ -254,7 +254,7 @@ def get_args(rest_args):
     parser.add_argument('--use_rim_level1', type=boolean_argument, default=True,
                         help='whatever create rim level1 (use for policy) or not')
 
-    parser.add_argument('--use_rim_level2', type=boolean_argument, default=False,
+    parser.add_argument('--use_rim_level2', type=boolean_argument, default=True,
                         help='whatever create rim level2 (use for n step value prediction) or not')
 
     parser.add_argument('--use_rim_level3', type=boolean_argument, default=False,
@@ -306,7 +306,7 @@ def get_args(rest_args):
                         help='rim level 2 get information from task inference output')
     parser.add_argument('--rim_top_down_level3_level2', type=boolean_argument, default=False,
                         help='rim level 2 get information from level 3')
-    parser.add_argument('--rim_top_down_level2_level1', type=boolean_argument, default=False,
+    parser.add_argument('--rim_top_down_level2_level1', type=boolean_argument, default=True,
                         help='rim level 1 get information from level 2')
     # memory
     parser.add_argument('--use_memory', type=boolean_argument, default=False,
@@ -356,8 +356,8 @@ def get_args(rest_args):
     ####
     parser.add_argument('--exploration_num_episodes', type=int, default=4)
     parser.add_argument('--meta_evaluate_interval', type=int, default=1000)
-    parser.add_argument('--shared_embedding_network', type=boolean_argument, default=True)
+    parser.add_argument('--shared_embedding_network', type=boolean_argument, default=False)
 
-    parser.add_argument('--n_step_v_loss', type=str, default='norm2_val', help='norm2_ret/norm2_val/huber')
+    parser.add_argument('--n_step_v_loss', type=str, default='norm2_ret', help='norm2_ret/norm2_val/huber')
 
     return parser.parse_args(rest_args)
