@@ -180,17 +180,17 @@ def compute_intrinsic_reward(rew_raw,
     norm_state_error = (state_error - state_prediction_running_normalizer.mean) / torch.sqrt(state_prediction_running_normalizer.var + 1e-8)
     norm_action_error = (action_error - action_prediction_running_normalizer.mean) / torch.sqrt(action_prediction_running_normalizer.var + 1e-8)
     norm_reward_error = (reward_error - reward_prediction_running_normalizer.mean) / torch.sqrt(reward_prediction_running_normalizer.var + 1e-8)
-    intrinsic_rew_normalised = (norm_state_error * state_prediction_intrinsic_reward_coef +\
+    intrinsic_rew_normalised = ((norm_state_error * state_prediction_intrinsic_reward_coef +\
         norm_action_error * action_prediction_intrinsic_reward_coef + \
         norm_reward_error * reward_prediction_intrinsic_reward_coef) * annealing_tmp + \
-        rew_normalised * extrinsic_reward_intrinsic_reward_coef
+        rew_normalised * extrinsic_reward_intrinsic_reward_coef)/(annealing_tmp + extrinsic_reward_intrinsic_reward_coef)
 
     # print('s ', state_error)
     # print('a ', action_error)
     # print('r ', reward_error)
     intrinsic_rew_raw = (state_error * state_prediction_intrinsic_reward_coef * 0.01 + \
         action_error * action_prediction_intrinsic_reward_coef * 0.01 + \
-        reward_error * reward_prediction_intrinsic_reward_coef * 0.01) * annealing_tmp + \
+        reward_error * reward_prediction_intrinsic_reward_coef * 0.01) * 0.1 *  annealing_tmp + \
         rew_raw * extrinsic_reward_intrinsic_reward_coef
     
     if isinstance(state_error, torch.Tensor):
