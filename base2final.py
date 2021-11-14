@@ -881,9 +881,10 @@ class Base2Final:
                                                                            dec_actions, dec_rewards, dec_n_step_next_obs, dec_n_step_actions, dec_n_step_rewards)
 
             if self.args.n_step_reward_prediction:
-                losses = torch.zeros(size=(self.args.n_prediction + 1, 1), requires_grad=True).to(device)
+                losses = torch.zeros(size=(self.args.n_prediction + 1, 1)).to(device)
                 alpha = 1.0
                 for i in range(self.args.n_prediction + 1):
+                    print(rew_reconstruction_loss[0].requires_grad)
                     losses[i] = alpha * avg_loss(rew_reconstruction_loss[i], self.args.vae_avg_elbo_terms, self.args.vae_avg_reconstruction_terms)
                     if self.args.use_discount_n_prediction:
                         alpha *= self.args.discount_n_prediction_coef
