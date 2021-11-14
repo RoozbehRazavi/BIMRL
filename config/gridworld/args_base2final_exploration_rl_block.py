@@ -212,7 +212,7 @@ def get_args(rest_args):
     parser.add_argument('--extrinsic_reward_intrinsic_reward_coef', type=float, default=10.0,
                         help='coefficient for action pred error in intrinsic reward')
 
-    parser.add_argument('--residual_task_inference_latent', type=boolean_argument, default=None)
+    parser.add_argument('--residual_task_inference_latent', type=boolean_argument, default=True)
 
     # Coefficient in Base2Final
     parser.add_argument('--add_extrinsic_reward_to_intrinsic', type=boolean_argument, default=True,
@@ -257,7 +257,7 @@ def get_args(rest_args):
     parser.add_argument('--use_rim_level2', type=boolean_argument, default=True,
                         help='whatever create rim level2 (use for n step value prediction) or not')
 
-    parser.add_argument('--use_rim_level3', type=boolean_argument, default=False,
+    parser.add_argument('--use_rim_level3', type=boolean_argument, default=True,
                         help='whatever create rim level3 (use for decode VAE terms) or not')
 
     parser.add_argument('--rim_level1_hidden_size', type=int, default=32,
