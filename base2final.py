@@ -886,6 +886,7 @@ class Base2Final:
                 for i in range(self.args.n_prediction + 1):
                     print(rew_reconstruction_loss[0].requires_grad)
                     losses[i] = alpha * avg_loss(rew_reconstruction_loss[i], self.args.vae_avg_elbo_terms, self.args.vae_avg_reconstruction_terms)
+                    print(losses[0].requires_grad)
                     if self.args.use_discount_n_prediction:
                         alpha *= self.args.discount_n_prediction_coef
                 if self.args.vae_avg_n_step_prediction:
