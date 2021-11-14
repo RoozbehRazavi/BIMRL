@@ -1051,6 +1051,7 @@ class Base2Final:
         if not self.args.disable_stochasticity_in_latent:
             assert kl_loss.requires_grad
         if self.args.decode_reward:
+            print(rew_reconstruction_loss)
             assert rew_reconstruction_loss.requires_grad
         if self.args.decode_state:
             assert state_reconstruction_loss.requires_grad
