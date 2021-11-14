@@ -884,9 +884,7 @@ class Base2Final:
                 losses = torch.zeros(size=(self.args.n_prediction + 1, 1)).to(device)
                 alpha = 1.0
                 for i in range(self.args.n_prediction + 1):
-                    print(rew_reconstruction_loss[0].requires_grad)
                     losses[i] = alpha * avg_loss(rew_reconstruction_loss[i], self.args.vae_avg_elbo_terms, self.args.vae_avg_reconstruction_terms)
-                    print(losses[0].requires_grad)
                     if self.args.use_discount_n_prediction:
                         alpha *= self.args.discount_n_prediction_coef
                 if self.args.vae_avg_n_step_prediction:
@@ -1053,7 +1051,6 @@ class Base2Final:
         if not self.args.disable_stochasticity_in_latent:
             assert kl_loss.requires_grad
         if self.args.decode_reward:
-            print(rew_reconstruction_loss)
             assert rew_reconstruction_loss.requires_grad
         if self.args.decode_state:
             assert state_reconstruction_loss.requires_grad
