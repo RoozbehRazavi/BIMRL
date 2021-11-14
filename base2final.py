@@ -717,6 +717,7 @@ class Base2Final:
                                                                                value_decoder)
             losses = []
             for i in range(self.args.n_prediction + 1):
+                print(value_reconstruction_loss[i].shape)
                 losses.append(avg_loss(value_reconstruction_loss[i], self.args.vae_avg_elbo_terms, self.args.vae_avg_reconstruction_terms))
             losses = torch.stack(losses)
             if self.args.vae_avg_n_step_prediction:
