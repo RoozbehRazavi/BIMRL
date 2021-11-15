@@ -281,9 +281,9 @@ def get_args(rest_args):
     parser.add_argument('--rim_level3_topk', type=int, default=3,
                         help='number of module in rim level 3 that can active in each time step')
 
-    parser.add_argument('--brim_layers_before_rim_level1', nargs='+', type=int, default=[16])
-    parser.add_argument('--brim_layers_before_rim_level2', nargs='+', type=int, default=[16])
-    parser.add_argument('--brim_layers_before_rim_level3', nargs='+', type=int, default=[16])
+    parser.add_argument('--brim_layers_before_rim_level1', nargs='+', type=int, default=[32, 16])
+    parser.add_argument('--brim_layers_before_rim_level2', nargs='+', type=int, default=[32, 16])
+    parser.add_argument('--brim_layers_before_rim_level3', nargs='+', type=int, default=[32, 16])
 
     parser.add_argument('--brim_layers_after_rim_level1', nargs='+', type=int, default=[8])
     parser.add_argument('--brim_layers_after_rim_level2', nargs='+', type=int, default=[8])
