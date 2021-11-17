@@ -142,7 +142,7 @@ def get_args(rest_args):
                         help='use auto-encoder (non-variational)')
     parser.add_argument('--sample_embeddings', type=boolean_argument, default=False,
                         help='sample embedding for policy, instead of full belief')
-    parser.add_argument('--vae_loss_coeff', type=float, default=0.00001,
+    parser.add_argument('--vae_loss_coeff', type=float, default=1.0,
                         help='weight for VAE loss (vs RL loss)')
     parser.add_argument('--kl_to_gauss_prior', type=boolean_argument, default=False,
                         help='KL term in ELBO to fixed Gaussian prior (instead of prev approx posterior)')
@@ -162,7 +162,7 @@ def get_args(rest_args):
     parser.add_argument('--results_log_dir', default=None, help='directory to save results (None uses ./logs)')
 
     # general settings
-    parser.add_argument('--seed',  nargs='+', type=int, default=[73])
+    parser.add_argument('--seed',  nargs='+', type=int, default=[87])
     parser.add_argument('--deterministic_execution', type=boolean_argument, default=False,
                         help='Make code fully deterministic. Expects 1 process and uses deterministic CUDNN')
 
@@ -193,7 +193,7 @@ def get_args(rest_args):
                         help='detach output of task inference module when pass it to policy network')
     parser.add_argument('--vae_loss_throughout_vae_encoder_from_rim_level3', type=boolean_argument, default=False)
 
-    parser.add_argument('--n_step_value_prediction_coeff', type=float, default=0.00001,
+    parser.add_argument('--n_step_value_prediction_coeff', type=float, default=1.0,
                         help='weight for n step value prediction vs (VAE loss and RL loss)')
 
     parser.add_argument('--action_loss_coeff', type=float, default=1.0, help='weight for state loss')
@@ -356,7 +356,7 @@ def get_args(rest_args):
     ####
     parser.add_argument('--exploration_num_episodes', type=int, default=4)
     parser.add_argument('--meta_evaluate_interval', type=int, default=1000)
-    parser.add_argument('--shared_embedding_network', type=boolean_argument, default=True)
+    parser.add_argument('--shared_embedding_network', type=boolean_argument, default=False)
 
     parser.add_argument('--n_step_v_loss', type=str, default='norm2_ret', help='norm2_ret/norm2_val/huber')
 
