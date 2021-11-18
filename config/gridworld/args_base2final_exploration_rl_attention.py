@@ -331,7 +331,7 @@ def get_args(rest_args):
     parser.add_argument('--hebbian_key_encoder_layer', type=int, nargs='+', default=[])
     parser.add_argument('--hebbian_value_encoder_layer', type=int, nargs='+', default=[])
 
-    parser.add_argument('--rim_query_size', type=int, default=8)
+    parser.add_argument('--rim_query_size', type=int, default=16)
     parser.add_argument('--rim_hidden_state_to_query_layers', type=int, nargs='+', default=[])
     parser.add_argument('--read_memory_to_value_layer', type=int, nargs='+', default=[])
     parser.add_argument('--read_memory_to_key_layer', type=int, nargs='+', default=[])

@@ -349,13 +349,13 @@ def get_args(rest_args):
     parser.add_argument('--visual_attention_spatial', type=int, default=4)
     parser.add_argument('--visual_attention_num_queries', type=int, default=4)
     parser.add_argument('--rim_output_size_to_vision_core', type=int, default=16)
-    parser.add_argument('--pass_gradient_to_rim_from_state_encoder', type=boolean_argument, default=True)
+    parser.add_argument('--pass_gradient_to_rim_from_state_encoder', type=boolean_argument, default=False)
     parser.add_argument('--use_discount_n_prediction', type=boolean_argument, default=True)
     parser.add_argument('--discount_n_prediction_coef', type=float, default=0.8)
 
     ####
     parser.add_argument('--exploration_num_episodes', type=int, default=4)
     parser.add_argument('--meta_evaluate_interval', type=int, default=1000)
-    parser.add_argument('--shared_embedding_network', type=boolean_argument, default=True)
+    parser.add_argument('--shared_embedding_network', type=boolean_argument, default=False)
     parser.add_argument('--n_step_v_loss', type=str, default='norm2_ret', help='norm2_ret/norm2_val/huber')
     return parser.parse_args(rest_args)
