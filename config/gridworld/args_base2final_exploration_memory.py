@@ -31,7 +31,7 @@ def get_args(rest_args):
     parser.add_argument('--norm_task_inference_latent_for_policy', type=boolean_argument, default=True, help='normalise latent input')
     parser.add_argument('--norm_belief_for_policy', type=boolean_argument, default=True, help='normalise belief input')
     parser.add_argument('--norm_task_for_policy', type=boolean_argument, default=True, help='normalise task input')
-    parser.add_argument('--norm_rew_for_policy', type=boolean_argument, default=True, help='normalise rew for RL train')
+    parser.add_argument('--norm_rew_for_policy', type=boolean_argument, default=False, help='normalise rew for RL train')
     parser.add_argument('--norm_actions_of_policy', type=boolean_argument, default=True, help='normalise policy output')
 
     # network
@@ -57,7 +57,7 @@ def get_args(rest_args):
                         help='how many training CPU processes / parallel environments to use (default: 16)')
     parser.add_argument('--policy_num_steps', type=int, default=400,
                         help='number of env steps to do (per process) before updating')
-    parser.add_argument('--policy_eps', type=float, default=1e-5, help='optimizer epsilon (1e-8 for ppo, 1e-5 for a2c)')
+    parser.add_argument('--policy_eps', type=float, default=1e-8, help='optimizer epsilon (1e-8 for ppo, 1e-5 for a2c)')
     parser.add_argument('--policy_init_std', type=float, default=1.0, help='only used for continuous actions')
     parser.add_argument('--policy_value_loss_coef', type=float, default=0.5, help='value loss coefficient')
     parser.add_argument('--policy_entropy_coef', type=float, default=0.1, help='entropy term coefficient')
@@ -179,11 +179,11 @@ def get_args(rest_args):
 
     parser.add_argument('--rlloss_through_encoder', type=boolean_argument, default=True,
                         help='backprop rl loss through encoder')
-    parser.add_argument('--n_step_state_prediction', type=boolean_argument, default=False,
+    parser.add_argument('--n_step_state_prediction', type=boolean_argument, default=True,
                         help='state prediction for n step forward not just next state')
-    parser.add_argument('--n_step_reward_prediction', type=boolean_argument, default=False,
+    parser.add_argument('--n_step_reward_prediction', type=boolean_argument, default=True,
                         help='reward prediction for n step forward not just next reward')
-    parser.add_argument('--n_step_action_prediction', type=boolean_argument, default=False,
+    parser.add_argument('--n_step_action_prediction', type=boolean_argument, default=True,
                         help='action prediction for n step forward not just next reward')
 
     parser.add_argument('--n_prediction', type=int, default=2,
@@ -201,15 +201,15 @@ def get_args(rest_args):
     parser.add_argument('--decode_action', type=boolean_argument, default=True,
                         help='predict action between two state')
 
-    parser.add_argument('--state_prediction_intrinsic_reward_coef', type=float, default=0.1,
+    parser.add_argument('--state_prediction_intrinsic_reward_coef', type=float, default=0.4,
                         help='coefficient for state pred error in intrinsic reward')
 
-    parser.add_argument('--action_prediction_intrinsic_reward_coef', type=float, default=0.1,
+    parser.add_argument('--action_prediction_intrinsic_reward_coef', type=float, default=0.3,
                         help='coefficient for action pred error in intrinsic reward')
 
-    parser.add_argument('--reward_prediction_intrinsic_reward_coef', type=float, default=0.1)
+    parser.add_argument('--reward_prediction_intrinsic_reward_coef', type=float, default=0.3)
 
-    parser.add_argument('--extrinsic_reward_intrinsic_reward_coef', type=float, default=2.0,
+    parser.add_argument('--extrinsic_reward_intrinsic_reward_coef', type=float, default=10.0,
                         help='coefficient for action pred error in intrinsic reward')
 
     parser.add_argument('--residual_task_inference_latent', type=boolean_argument, default=None)
