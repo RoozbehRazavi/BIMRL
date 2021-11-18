@@ -281,9 +281,9 @@ def get_args(rest_args):
     parser.add_argument('--rim_level3_topk', type=int, default=3,
                         help='number of module in rim level 3 that can active in each time step')
 
-    parser.add_argument('--brim_layers_before_rim_level1', nargs='+', type=int, default=[32, 16])
-    parser.add_argument('--brim_layers_before_rim_level2', nargs='+', type=int, default=[32, 16])
-    parser.add_argument('--brim_layers_before_rim_level3', nargs='+', type=int, default=[32, 16])
+    parser.add_argument('--brim_layers_before_rim_level1', nargs='+', type=int, default=[16])
+    parser.add_argument('--brim_layers_before_rim_level2', nargs='+', type=int, default=[16])
+    parser.add_argument('--brim_layers_before_rim_level3', nargs='+', type=int, default=[16])
 
     parser.add_argument('--brim_layers_after_rim_level1', nargs='+', type=int, default=[8])
     parser.add_argument('--brim_layers_after_rim_level2', nargs='+', type=int, default=[8])
@@ -300,9 +300,9 @@ def get_args(rest_args):
 
     parser.add_argument('--policy_rim_level1_output_embedding_dim', type=int, default=None)
 
-    parser.add_argument('--rim_level1_condition_on_task_inference_latent', type=boolean_argument, default=False,
+    parser.add_argument('--rim_level1_condition_on_task_inference_latent', type=boolean_argument, default=True,
                         help='rim level 1 get information from task inference output')
-    parser.add_argument('--rim_level2_condition_on_task_inference_latent', type=boolean_argument, default=False,
+    parser.add_argument('--rim_level2_condition_on_task_inference_latent', type=boolean_argument, default=True,
                         help='rim level 2 get information from task inference output')
     parser.add_argument('--rim_top_down_level3_level2', type=boolean_argument, default=True,
                         help='rim level 2 get information from level 3')
@@ -349,7 +349,7 @@ def get_args(rest_args):
     parser.add_argument('--visual_attention_spatial', type=int, default=4)
     parser.add_argument('--visual_attention_num_queries', type=int, default=4)
     parser.add_argument('--rim_output_size_to_vision_core', type=int, default=16)
-    parser.add_argument('--pass_gradient_to_rim_from_state_encoder', type=boolean_argument, default=True)
+    parser.add_argument('--pass_gradient_to_rim_from_state_encoder', type=boolean_argument, default=False)
     parser.add_argument('--use_discount_n_prediction', type=boolean_argument, default=True)
     parser.add_argument('--discount_n_prediction_coef', type=float, default=0.8)
 
@@ -357,7 +357,5 @@ def get_args(rest_args):
     parser.add_argument('--exploration_num_episodes', type=int, default=4)
     parser.add_argument('--meta_evaluate_interval', type=int, default=1000)
     parser.add_argument('--shared_embedding_network', type=boolean_argument, default=False)
-
     parser.add_argument('--n_step_v_loss', type=str, default='norm2_ret', help='norm2_ret/norm2_val/huber')
-
     return parser.parse_args(rest_args)
