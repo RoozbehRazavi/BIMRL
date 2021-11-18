@@ -357,5 +357,5 @@ def get_args(rest_args):
     parser.add_argument('--exploration_num_episodes', type=int, default=4)
     parser.add_argument('--meta_evaluate_interval', type=int, default=1000)
     parser.add_argument('--shared_embedding_network', type=boolean_argument, default=True)
-
+    parser.add_argument('--n_step_v_loss', type=str, default='norm2_ret', help='norm2_ret/norm2_val/huber')
     return parser.parse_args(rest_args)
