@@ -291,7 +291,7 @@ def get_args(rest_args):
     # rim_levels_output_dim shouldn't huge (set some thing like 5)
     parser.add_argument('--rim_level1_output_dim', type=int, default=8,
                         help='output size of rim level1')
-    parser.add_argument('--rim_level2_output_dim', type=int, default=8,
+    parser.add_argument('--rim_level2_output_dim', type=int, default=16,
                         help='output size of rim level2')
     parser.add_argument('--rim_level3_output_dim', type=int, default=8,
                         help='output size of rim level3')
