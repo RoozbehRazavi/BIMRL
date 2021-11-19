@@ -300,9 +300,9 @@ def get_args(rest_args):
 
     parser.add_argument('--policy_rim_level1_output_embedding_dim', type=int, default=None)
 
-    parser.add_argument('--rim_level1_condition_on_task_inference_latent', type=boolean_argument, default=True,
+    parser.add_argument('--rim_level1_condition_on_task_inference_latent', type=boolean_argument, default=False,
                         help='rim level 1 get information from task inference output')
-    parser.add_argument('--rim_level2_condition_on_task_inference_latent', type=boolean_argument, default=True,
+    parser.add_argument('--rim_level2_condition_on_task_inference_latent', type=boolean_argument, default=False,
                         help='rim level 2 get information from task inference output')
     parser.add_argument('--rim_top_down_level3_level2', type=boolean_argument, default=True,
                         help='rim level 2 get information from level 3')
