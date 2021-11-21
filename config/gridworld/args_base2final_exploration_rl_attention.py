@@ -201,13 +201,14 @@ def get_args(rest_args):
     parser.add_argument('--decode_action', type=boolean_argument, default=True,
                         help='predict action between two state')
 
-    parser.add_argument('--state_prediction_intrinsic_reward_coef', type=float, default=0.4,
+    # use 0.00n for key and door and 0.0n for other task
+    parser.add_argument('--state_prediction_intrinsic_reward_coef', type=float, default=0.04,
                         help='coefficient for state pred error in intrinsic reward')
 
-    parser.add_argument('--action_prediction_intrinsic_reward_coef', type=float, default=0.3,
+    parser.add_argument('--action_prediction_intrinsic_reward_coef', type=float, default=0.03,
                         help='coefficient for action pred error in intrinsic reward')
 
-    parser.add_argument('--reward_prediction_intrinsic_reward_coef', type=float, default=0.3)
+    parser.add_argument('--reward_prediction_intrinsic_reward_coef', type=float, default=0.03)
 
     parser.add_argument('--extrinsic_reward_intrinsic_reward_coef', type=float, default=10.0,
                         help='coefficient for action pred error in intrinsic reward')

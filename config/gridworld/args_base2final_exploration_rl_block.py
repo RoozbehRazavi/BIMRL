@@ -7,10 +7,10 @@ def get_args(rest_args):
 
     # --- GENERAL ---
 
-    parser.add_argument('--num_frames', type=int, default=4e6, help='number of frames to train')
+    parser.add_argument('--num_frames', type=int, default=3e6, help='number of frames to train')
     parser.add_argument('--max_rollouts_per_task', type=int, default=4, help='number of MDP episodes for adaptation')
     parser.add_argument('--exp_label', default='A1_meta_eval2', help='label (typically name of method)')
-    parser.add_argument('--env_name', default='MiniGrid-MultiRoom-N4-S5-v0', help='environment to train on')
+    parser.add_argument('--env_name', default='MiniGrid-MultiRoom-N2-S4-v0', help='environment to train on')
 
     # --- POLICY ---
 
@@ -201,13 +201,14 @@ def get_args(rest_args):
     parser.add_argument('--decode_action', type=boolean_argument, default=True,
                         help='predict action between two state')
 
-    parser.add_argument('--state_prediction_intrinsic_reward_coef', type=float, default=0.4,
+    # use 0.00n for key and door and 0.0n for other task
+    parser.add_argument('--state_prediction_intrinsic_reward_coef', type=float, default=0.04,
                         help='coefficient for state pred error in intrinsic reward')
 
-    parser.add_argument('--action_prediction_intrinsic_reward_coef', type=float, default=0.3,
+    parser.add_argument('--action_prediction_intrinsic_reward_coef', type=float, default=0.03,
                         help='coefficient for action pred error in intrinsic reward')
 
-    parser.add_argument('--reward_prediction_intrinsic_reward_coef', type=float, default=0.3)
+    parser.add_argument('--reward_prediction_intrinsic_reward_coef', type=float, default=0.03)
 
     parser.add_argument('--extrinsic_reward_intrinsic_reward_coef', type=float, default=10.0,
                         help='coefficient for action pred error in intrinsic reward')
