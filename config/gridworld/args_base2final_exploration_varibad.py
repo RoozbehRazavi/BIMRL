@@ -104,7 +104,7 @@ def get_args(rest_args):
     # - encoder
     parser.add_argument('--state_embedding_size', type=int, default=32)
     parser.add_argument('--vae_encoder_layers_before_gru', nargs='+', type=int, default=[])
-    parser.add_argument('--vae_encoder_gru_hidden_size', type=int, default=64, help='dimensionality of RNN hidden state')
+    parser.add_argument('--vae_encoder_gru_hidden_size', type=int, default=2048, help='dimensionality of RNN hidden state')
     parser.add_argument('--vae_encoder_layers_after_gru', nargs='+', type=int, default=[])
     parser.add_argument('--task_inference_latent_dim', type=int, default=8, help='dimensionality of latent space')
 
@@ -172,7 +172,7 @@ def get_args(rest_args):
     parser.add_argument('--vae_fill_just_with_exploration_experience', type=boolean_argument, default=True,
                         help='vae buffer fill just with exploration trajectory of with both exploration and exploitation')
 
-    parser.add_argument('--exploration_processes_portion', type=float, default=1.0,
+    parser.add_argument('--exploration_processes_portion', type=float, default=0.0,
                         help='what portion of process generate trajectory with exploration policy')
 
     # Disable Loss of Base2Final
