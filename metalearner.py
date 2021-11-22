@@ -87,7 +87,6 @@ class MetaLearner:
 
         # initialise VAE and policy
         self.base2final = Base2Final(self.args, self.logger, lambda: self.iter_idx, self.exploration_num_processes, self.exploitation_num_processes)
-        print(utl.count_params_number(self.base2final, self.exploration_policy.actor_critic))
         self.exploration_policy_storage = self.initialise_policy_storage(self.exploration_num_processes)
         self.exploitation_policy_storage = self.initialise_policy_storage(self.exploitation_num_processes)
         self.exploration_policy = None
@@ -96,6 +95,7 @@ class MetaLearner:
             self.exploration_policy = self.initialise_policy(policy_type='exploration')
         if train_exploitation:
             self.exploitation_policy = self.initialise_policy(policy_type='exploitation')
+        print(utl.count_params_number(self.base2final, self.exploration_policy.actor_critic))
 
         self.state_prediction_running_normalizer = None
         self.action_prediction_running_normalizer = None
