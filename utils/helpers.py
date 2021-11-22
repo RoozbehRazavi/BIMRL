@@ -208,6 +208,16 @@ def compute_intrinsic_reward(rew_raw,
     return intrinsic_rew_raw, intrinsic_rew_normalised, state_error, action_error, reward_error
 
 
+def count_params_number(base2final, policy):
+    params_number = sum(p.numel() for p in base2final.brim_core.parameters() * 3/4 if p.requires_grad)
+    params_number += sum(p.numel() for p in base2final.reward_decoder.parameters() if p.requires_grad)
+    params_number += sum(p.numel() for p in base2final.action_decoder.parameters() if p.requires_grad)
+    params_number += sum(p.numel() for p in base2final.state_decoder.parameters() if p.requires_grad)
+    params_number += sum(p.numel() for p in base2final.exploration_value_decoder.parameters() if p.requires_grad)
+    params_number += sum(p.numel() for p in policy.parameters() if p.requires_grad)
+    return params_number
+
+
 def seed(seed, deterministic_execution=False):
     print('Seeding random, torch, numpy.')
     random.seed(seed)
