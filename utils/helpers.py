@@ -209,7 +209,7 @@ def compute_intrinsic_reward(rew_raw,
 
 
 def count_params_number(base2final, policy):
-    params_number = sum(p.numel() for p in base2final.brim_core.parameters() * 3/4 if p.requires_grad)
+    params_number = sum(p.numel() for p in base2final.brim_core.parameters() if p.requires_grad)* 4/5
     params_number += sum(p.numel() for p in base2final.reward_decoder.parameters() if p.requires_grad)
     params_number += sum(p.numel() for p in base2final.action_decoder.parameters() if p.requires_grad)
     params_number += sum(p.numel() for p in base2final.state_decoder.parameters() if p.requires_grad)
