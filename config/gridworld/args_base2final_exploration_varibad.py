@@ -172,7 +172,7 @@ def get_args(rest_args):
     parser.add_argument('--vae_fill_just_with_exploration_experience', type=boolean_argument, default=True,
                         help='vae buffer fill just with exploration trajectory of with both exploration and exploitation')
 
-    parser.add_argument('--exploration_processes_portion', type=float, default=0.0,
+    parser.add_argument('--exploration_processes_portion', type=float, default=1.0,
                         help='what portion of process generate trajectory with exploration policy')
 
     # Disable Loss of Base2Final
@@ -202,13 +202,13 @@ def get_args(rest_args):
                         help='predict action between two state')
 
     # use 0.00n for key and door and 0.0n for other task
-    parser.add_argument('--state_prediction_intrinsic_reward_coef', type=float, default=0.04,
+    parser.add_argument('--state_prediction_intrinsic_reward_coef', type=float, default=0.0,
                         help='coefficient for state pred error in intrinsic reward')
 
-    parser.add_argument('--action_prediction_intrinsic_reward_coef', type=float, default=0.03,
+    parser.add_argument('--action_prediction_intrinsic_reward_coef', type=float, default=0.0,
                         help='coefficient for action pred error in intrinsic reward')
 
-    parser.add_argument('--reward_prediction_intrinsic_reward_coef', type=float, default=0.03)
+    parser.add_argument('--reward_prediction_intrinsic_reward_coef', type=float, default=0.0)
 
     parser.add_argument('--extrinsic_reward_intrinsic_reward_coef', type=float, default=2.0,
                         help='coefficient for action pred error in intrinsic reward')
