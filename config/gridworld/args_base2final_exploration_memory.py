@@ -359,5 +359,5 @@ def get_args(rest_args):
     parser.add_argument('--n_step_v_loss', type=str, default='norm2_ret', help='norm2_ret/norm2_val/huber')
 
     parser.add_argument('--episodic_reward', type=boolean_argument, default=True)
-    parser.add_argument('--episodic_reward_coef', type=float, default=0.01)
+    parser.add_argument('--episodic_reward_coef', type=float, default=1.0)
     return parser.parse_args(rest_args)
