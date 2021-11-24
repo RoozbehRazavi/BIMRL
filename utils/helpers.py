@@ -192,7 +192,7 @@ def compute_intrinsic_reward(rew_raw,
     norm_reward_error = (reward_error - reward_prediction_running_normalizer.mean) / torch.sqrt(reward_prediction_running_normalizer.var + 1e-8)
     intrinsic_rew_normalised = ((norm_state_error * state_prediction_intrinsic_reward_coef +\
         norm_action_error * action_prediction_intrinsic_reward_coef + \
-        norm_reward_error * reward_prediction_intrinsic_reward_coef +\
+        norm_reward_error * reward_prediction_intrinsic_reward_coef + \
         norm_epi_reward * episodic_reward_coef) * annealing_tmp + \
         rew_normalised * extrinsic_reward_intrinsic_reward_coef)/(annealing_tmp + extrinsic_reward_intrinsic_reward_coef)
 
