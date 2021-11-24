@@ -181,4 +181,3 @@ class DND(nn.Module):
             results.append(intrinsic_reward)
         results = torch.stack(results).unsqueeze(-1)
         return results
-
