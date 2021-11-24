@@ -177,7 +177,7 @@ def compute_intrinsic_reward(rew_raw,
     else:
         reward_error = 0
     if memory is not None and episodic_reward:
-        epi_reward = memory.compute_intrinsic_reward(prev_state, task_inf_latent).detach()
+        epi_reward = memory.compute_intrinsic_reward(next_state, task_inf_latent).detach()
         norm_epi_reward = (epi_reward - epi_reward_running_normalizer.mean) / torch.sqrt(epi_reward_running_normalizer.var + 1e-8)
     else:
         epi_reward = 0.0
