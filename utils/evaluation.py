@@ -135,7 +135,7 @@ def evaluate(args,
                     else:
                         latent = brim_output_level3
 
-                rew_raw, rew_normalised, _, _, _ = utl.compute_intrinsic_reward(rew_raw=rew_raw,
+                rew_raw, rew_normalised, _, _, _, _ = utl.compute_intrinsic_reward(rew_raw=rew_raw,
                                                                              rew_normalised=rew_normalised,
                                                                              latent=latent,
                                                                              prev_state=prev_state,
@@ -363,7 +363,7 @@ def evaluate_meta_policy(
                         else:
                             latent = brim_output_level3
 
-                    rew_raw, rew_normalised, _, _, _ = utl.compute_intrinsic_reward(rew_raw=rew_raw,
+                    rew_raw, rew_normalised, _, _, _, _ = utl.compute_intrinsic_reward(rew_raw=rew_raw,
                                                                                  rew_normalised=rew_normalised,
                                                                                  latent=latent,
                                                                                  prev_state=prev_state,
@@ -527,7 +527,7 @@ def visualize_policy(
                     else:
                         latent = brim_output_level3
 
-                rew_raw, rew_normalised, _, _, _ = utl.compute_intrinsic_reward(
+                rew_raw, rew_normalised, _, _, _, _ = utl.compute_intrinsic_reward(
                     rew_raw=rew_raw,
                     rew_normalised=rew_normalised,
                     latent=latent,
