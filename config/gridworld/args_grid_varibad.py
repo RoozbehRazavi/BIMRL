@@ -55,8 +55,6 @@ def get_args(rest_args):
     parser.add_argument('--lr_policy', type=float, default=0.0007, help='learning rate (default: 7e-4)')
     parser.add_argument('--num_processes', type=int, default=2,
                         help='how many training CPU processes / parallel environments to use (default: 16)')
-    parser.add_argument('--policy_num_steps', type=int, default=400,
-                        help='number of env steps to do (per process) before updating')
     parser.add_argument('--policy_eps', type=float, default=1e-5, help='optimizer epsilon (1e-8 for ppo, 1e-5 for a2c)')
     parser.add_argument('--policy_init_std', type=float, default=1.0, help='only used for continuous actions')
     parser.add_argument('--policy_value_loss_coef', type=float, default=0.5, help='value loss coefficient')
@@ -359,5 +357,8 @@ def get_args(rest_args):
     parser.add_argument('--shared_embedding_network', type=boolean_argument, default=True)
 
     parser.add_argument('--n_step_v_loss', type=str, default='norm2_val', help='norm2_ret/norm2_val/huber')
+
+    parser.add_argument('--episodic_reward', type=boolean_argument, default=False)
+    parser.add_argument('--episodic_reward_coef', type=float, default=1.0)
 
     return parser.parse_args(rest_args)

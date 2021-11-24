@@ -22,6 +22,7 @@ def evaluate(args,
              state_prediction_running_normalizer,
              action_prediction_running_normalizer,
              reward_prediction_running_normalizer,
+             epi_reward_running_normalizer,
              brim_core,
              policy_type,
              num_updates,
@@ -122,6 +123,12 @@ def evaluate(args,
                                                    latent_sample=latent_sample,
                                                    latent_mean=latent_mean,
                                                    latent_logvar=latent_logvar)
+                memory_latent = utl.get_latent_for_policy(sample_embeddings=False,
+                                                          add_nonlinearity_to_latent=False,
+                                                          latent_sample=latent_sample,
+                                                          latent_mean=latent_mean,
+                                                          latent_logvar=latent_logvar)
+
                 if args.use_rim_level3:
                     if args.residual_task_inference_latent:
                         latent = torch.cat((brim_output_level3.squeeze(0), latent), dim=-1)
@@ -148,7 +155,13 @@ def evaluate(args,
                                                                              reward_prediction_intrinsic_reward_coef=args.reward_prediction_intrinsic_reward_coef,
                                                                              decode_reward=args.decode_reward,
                                                                              itr_idx=iter_idx,
-                                                                             num_updates=num_updates)
+                                                                             num_updates=num_updates,
+                                                                             memory=brim_core.brim.model.memory,
+                                                                             episodic_reward=args.episodic_reward,
+                                                                             episodic_reward_coef=args.episodic_reward_coef,
+                                                                             task_inf_latent=memory_latent,
+                                                                             epi_reward_running_normalizer=epi_reward_running_normalizer
+                                                                            )
 
             done_mdp = list()
             for i in range(num_processes):
@@ -216,6 +229,7 @@ def evaluate_meta_policy(
         state_prediction_running_normalizer,
         action_prediction_running_normalizer,
         reward_prediction_running_normalizer,
+        epi_reward_running_normalizer,
         brim_core,
         exploration_num_episodes,
         save_path,
@@ -335,6 +349,12 @@ def evaluate_meta_policy(
                                                        latent_sample=latent_sample,
                                                        latent_mean=latent_mean,
                                                        latent_logvar=latent_logvar)
+                    memory_latent = utl.get_latent_for_policy(sample_embeddings=False,
+                                                              add_nonlinearity_to_latent=False,
+                                                              latent_sample=latent_sample,
+                                                              latent_mean=latent_mean,
+                                                              latent_logvar=latent_logvar)
+
                     if args.use_rim_level3:
                         if args.residual_task_inference_latent:
                             if brim_output_level3.dim() == 3:
@@ -363,7 +383,12 @@ def evaluate_meta_policy(
                                                                                  reward_prediction_intrinsic_reward_coef=args.reward_prediction_intrinsic_reward_coef,
                                                                                  decode_reward=args.decode_reward,
                                                                                  itr_idx=iter_idx,
-                                                                                 num_updates=num_updates
+                                                                                 num_updates=num_updates,
+                                                                                 memory=brim_core.brim.model.memory,
+                                                                                 episodic_reward=args.episodic_reward,
+                                                                                 episodic_reward_coef=args.episodic_reward_coef,
+                                                                                 task_inf_latent=memory_latent,
+                                                                                 epi_reward_running_normalizer=epi_reward_running_normalizer
                                                                                  )
 
                 done_mdp = list()
@@ -411,6 +436,7 @@ def visualize_policy(
         state_prediction_running_normalizer,
         action_prediction_running_normalizer,
         reward_prediction_running_normalizer,
+        epi_reward_running_normalizer,
         full_output_folder,
         num_updates):
 
@@ -488,6 +514,11 @@ def visualize_policy(
                                                    latent_sample=latent_sample,
                                                    latent_mean=latent_mean,
                                                    latent_logvar=latent_logvar)
+                memory_latent = utl.get_latent_for_policy(sample_embeddings=False,
+                                                          add_nonlinearity_to_latent=False,
+                                                          latent_sample=latent_sample,
+                                                          latent_mean=latent_mean,
+                                                          latent_logvar=latent_logvar)
                 if args.use_rim_level3:
                     if args.residual_task_inference_latent:
                         if brim_output_level3.dim() == 3:
@@ -517,7 +548,13 @@ def visualize_policy(
                     reward_prediction_intrinsic_reward_coef=args.reward_prediction_intrinsic_reward_coef,
                     decode_reward=args.decode_reward,
                     itr_idx=iter_idx,
-                    num_updates=num_updates)
+                    num_updates=num_updates,
+                    memory=brim_core.brim.model.memory,
+                    episodic_reward=args.episodic_reward,
+                    episodic_reward_coef=args.episodic_reward_coef,
+                    task_inf_latent=memory_latent,
+                    epi_reward_running_normalizer=epi_reward_running_normalizer
+                )
 
             done_mdp = list()
             for i in range(1):

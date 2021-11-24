@@ -28,7 +28,6 @@ class MetaLearner:
         utl.seed(self.args.seed, self.args.deterministic_execution)
 
         # calculate number of updates and keep count of frames/iterations
-        self.num_updates = int(args.num_frames) // args.policy_num_steps // args.num_processes
         self.in_this_run_frames = 0
         self.total_frames = 0
         self.iter_idx = 0
@@ -72,6 +71,8 @@ class MetaLearner:
         # calculate what the maximum length of the trajectories is
         self.args.max_trajectory_len = envs._max_episode_steps
         self.args.max_trajectory_len *= self.args.max_rollouts_per_task
+        self.args.policy_num_steps = self.args.max_trajectory_len
+        self.num_updates = int(args.num_frames) // args.policy_num_steps // args.num_processes
 
         # get policy input dimensions
         self.args.state_dim = envs.observation_space.shape[0]
@@ -100,10 +101,12 @@ class MetaLearner:
         self.state_prediction_running_normalizer = None
         self.action_prediction_running_normalizer = None
         self.reward_prediction_running_normalizer = None
+        self.epi_reward_running_normalizer = None
         if train_exploration:
             self.state_prediction_running_normalizer = utl.RunningMeanStd(shape=(1,))
             self.action_prediction_running_normalizer = utl.RunningMeanStd(shape=(1,))
             self.reward_prediction_running_normalizer = utl.RunningMeanStd(shape=(1,))
+            self.epi_reward_running_normalizer = utl.RunningMeanStd(shape=(1,))
 
         if self.args.load_model and os.path.exists(os.path.join(self.logger.full_output_folder, 'models', 'brim_core.pt')):
             save_path = os.path.join(self.logger.full_output_folder, 'models')
@@ -168,6 +171,8 @@ class MetaLearner:
                 self.state_prediction_running_normalizer = torch.load(os.path.join(save_path, 'state_error_rms.pkl'), map_location=device)
             if self.action_prediction_running_normalizer is not None:
                 self.action_prediction_running_normalizer = torch.load(os.path.join(save_path, 'action_error_rms.pkl'), map_location=device)
+            if self.epi_reward_running_normalizer is not None:
+                self.epi_reward_running_normalizer = torch.load(os.path.join(save_path, 'epi_reward_rms.pkl'), map_location=device)
 
     def initialise_policy_storage(self, num_processes):
         return OnlineStorage(args=self.args,
@@ -307,6 +312,7 @@ class MetaLearner:
                 state_errors = []
                 action_errors = []
                 reward_errors = []
+                epi_rewards = []
 
             if train_exploitation:
                 if hasattr(self.exploitation_policy_storage, 'latent_mean'):
@@ -370,6 +376,11 @@ class MetaLearner:
                                                        latent_sample=exploration_latent_sample,
                                                        latent_mean=exploration_latent_mean,
                                                        latent_logvar=exploration_latent_logvar)
+                    memory_latent = utl.get_latent_for_policy(sample_embeddings=False,
+                                                              add_nonlinearity_to_latent=False,
+                                                              latent_sample=exploration_latent_sample,
+                                                              latent_mean=exploration_latent_mean,
+                                                              latent_logvar=exploration_latent_logvar)
                     if self.args.use_rim_level3:
                         if self.args.residual_task_inference_latent:
                             latent = torch.cat((exploration_brim_output5.squeeze(0), latent), dim=-1)
@@ -377,7 +388,7 @@ class MetaLearner:
                             latent = exploration_brim_output5
 
                     exploration_intrinsic_rew_raw, \
-                    exploration_intrinsic_rew_normalised, state_error, action_error, reward_error = utl.compute_intrinsic_reward(
+                    exploration_intrinsic_rew_normalised, state_error, action_error, reward_error, epi_reward = utl.compute_intrinsic_reward(
                         exploration_rew_raw,
                         exploration_rew_normalised,
                         latent=latent,
@@ -398,11 +409,17 @@ class MetaLearner:
                         reward_prediction_running_normalizer=self.reward_prediction_running_normalizer,
                         rew_pred_type=self.args.rew_pred_type,
                         itr_idx=self.iter_idx,
-                        num_updates=self.num_updates
+                        num_updates=self.num_updates,
+                        memory=self.base2final.brim_core.brim.model.memory,
+                        episodic_reward=self.args.episodic_reward,
+                        episodic_reward_coef=self.args.episodic_reward_coef,
+                        task_inf_latent=memory_latent,
+                        epi_reward_running_normalizer=self.epi_reward_running_normalizer,
                         )
                     state_errors.append(state_error)
                     action_errors.append(action_error)
                     reward_errors.append(reward_error)
+                    epi_rewards.append(epi_reward)
 
                     exploration_done_episode = list()
                     for i in range(self.exploration_num_processes):
@@ -687,9 +704,12 @@ class MetaLearner:
                     self.action_prediction_running_normalizer.update(torch.cat(action_errors))
                 if self.args.decode_reward:
                     self.reward_prediction_running_normalizer.update(torch.cat(reward_errors))
+                if self.args.use_memory and self.args.episodic_reward:
+                    self.epi_reward_running_normalizer.update(torch.cat(epi_rewards))
                 state_errors = []
                 action_errors = []
                 reward_errors = []
+                epi_rewards = []
             if train_exploitation:
                 self.exploitation_policy_storage.after_update()
 
@@ -835,6 +855,7 @@ class MetaLearner:
                 state_prediction_running_normalizer=self.state_prediction_running_normalizer,
                 action_prediction_running_normalizer=self.action_prediction_running_normalizer,
                 reward_prediction_running_normalizer=self.reward_prediction_running_normalizer,
+                epi_reward_running_normalizer=self.epi_reward_running_normalizer,
                 full_output_folder=self.logger.full_output_folder,
                 reward_decoder=self.base2final.reward_decoder,
                 num_updates=self.num_updates)
@@ -858,6 +879,7 @@ class MetaLearner:
                 action_prediction_running_normalizer=self.action_prediction_running_normalizer,
                 reward_decoder=self.base2final.reward_decoder,
                 reward_prediction_running_normalizer=self.reward_prediction_running_normalizer,
+                epi_reward_running_normalizer=self.epi_reward_running_normalizer,
                 tmp=tmp,
                 num_updates=self.num_updates
                 )
@@ -953,6 +975,10 @@ class MetaLearner:
                 if self.state_prediction_running_normalizer is not None:
                     filename = os.path.join(save_path, f"state_error_rms{idx_label}.pkl")
                     torch.save(self.state_prediction_running_normalizer, filename, _use_new_zipfile_serialization=False)
+
+                if self.epi_reward_running_normalizer is not None:
+                    filename = os.path.join(save_path, f"epi_reward_rms{idx_label}.pkl")
+                    torch.save(self.epi_reward_running_normalizer, filename, _use_new_zipfile_serialization=False)
 
                 if self.action_prediction_running_normalizer is not None:
                     filename = os.path.join(save_path, f"action_error_rms{idx_label}.pkl")

@@ -167,3 +167,18 @@ class DND(nn.Module):
 
         return ret_keys.detach(), ret_values.detach(), ret_RPE.detach()
 
+    def compute_intrinsic_reward(self, memory_key):
+        if len(self.exploration_step.nonzero(as_tuple=True)[0]) < self.exploration_batch_size:
+            return torch.zeros((self.exploration_batch_size, 1), device=device)
+        query = self.key_encoder(memory_key)
+        keys = self.exploration_keys
+        step = self.exploration_step
+        batch_size = self.exploration_batch_size
+        results = []
+        for i in range(batch_size):
+            key_ = keys[:step[i], i, :].clone()
+            intrinsic_reward = torch.min(torch.sqrt(torch.sum(torch.pow(query[i] - key_, 2), dim=-1)))
+            results.append(intrinsic_reward)
+        results = torch.stack(results).unsqueeze(-1)
+        return results
+

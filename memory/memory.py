@@ -228,4 +228,8 @@ class Hippocampus(nn.Module):
                 done_process_info = self.episodic.get_done_process(done_episode.clone(), activated_branch)
                 self.hebbian.write(done_process_info[1], done_process_info[0], done_process_info[2], done_episode, activated_branch)
             self.episodic.reset(done_task=done_task, done_process_mdp=done_episode, activated_branch=activated_branch)
-        return True
+
+    def compute_intrinsic_reward(self, state, task_inf_latent):
+        state = self.state_encoder(state)
+        key_memory = self.key_encoder(torch.cat((state, task_inf_latent), dim=-1))
+        return self.episodic.compute_intrinsic_reward(key_memory)
