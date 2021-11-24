@@ -178,8 +178,6 @@ class DND(nn.Module):
         for i in range(batch_size):
             key_ = keys[:step[i], i, :].clone()
             intrinsic_reward = torch.min(torch.sqrt(torch.sum((query[i] - key_)**2, dim=-1)))
-            print(intrinsic_reward)
-            print(intrinsic_reward)
             results.append(intrinsic_reward)
         results = torch.stack(results).unsqueeze(-1)
         return results

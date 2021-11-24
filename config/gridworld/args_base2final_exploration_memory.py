@@ -53,7 +53,7 @@ def get_args(rest_args):
 
     # other hyperparameters
     parser.add_argument('--lr_policy', type=float, default=0.0007, help='learning rate (default: 7e-4)')
-    parser.add_argument('--num_processes', type=int, default=2,
+    parser.add_argument('--num_processes', type=int, default=16,
                         help='how many training CPU processes / parallel environments to use (default: 16)')
     parser.add_argument('--policy_eps', type=float, default=1e-8, help='optimizer epsilon (1e-8 for ppo, 1e-5 for a2c)')
     parser.add_argument('--policy_init_std', type=float, default=1.0, help='only used for continuous actions')
@@ -359,5 +359,5 @@ def get_args(rest_args):
     parser.add_argument('--n_step_v_loss', type=str, default='norm2_ret', help='norm2_ret/norm2_val/huber')
 
     parser.add_argument('--episodic_reward', type=boolean_argument, default=True)
-    parser.add_argument('--episodic_reward_coef', type=float, default=1.0)
+    parser.add_argument('--episodic_reward_coef', type=float, default=0.1)
     return parser.parse_args(rest_args)
