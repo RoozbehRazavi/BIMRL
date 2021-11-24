@@ -279,6 +279,29 @@ class MetaLearner:
             self.exploitation_policy_storage.prev_state[0].copy_(exploitation_prev_state)
 
         vae_is_pretrained = False
+        with torch.no_grad():
+            if train_exploration:
+                self.log(None,
+                         None,
+                         start_time,
+                         policy=self.exploration_policy,
+                         policy_storage=self.exploration_policy_storage,
+                         envs=self.exploration_envs,
+                         policy_type='exploration',
+                         meta_eval=train_exploration and train_exploitation,
+                         tmp=train_exploration and not train_exploitation
+                         )
+            if train_exploitation:
+                self.log(None,
+                         None,
+                         start_time,
+                         policy=self.exploitation_policy,
+                         policy_storage=self.exploitation_policy_storage,
+                         envs=self.exploitation_envs,
+                         policy_type='exploitation',
+                         meta_eval=train_exploration and train_exploitation,
+                         tmp=train_exploration and not train_exploitation
+                         )
         for self.iter_idx in range(self.start_idx, self.num_updates):
 
             # First, re-compute the hidden states given the current rollouts (since the VAE might've changed)
