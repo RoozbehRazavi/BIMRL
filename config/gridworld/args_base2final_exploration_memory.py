@@ -53,7 +53,7 @@ def get_args(rest_args):
 
     # other hyperparameters
     parser.add_argument('--lr_policy', type=float, default=0.0007, help='learning rate (default: 7e-4)')
-    parser.add_argument('--num_processes', type=int, default=16,
+    parser.add_argument('--num_processes', type=int, default=2,
                         help='how many training CPU processes / parallel environments to use (default: 16)')
     parser.add_argument('--policy_eps', type=float, default=1e-8, help='optimizer epsilon (1e-8 for ppo, 1e-5 for a2c)')
     parser.add_argument('--policy_init_std', type=float, default=1.0, help='only used for continuous actions')
@@ -200,15 +200,15 @@ def get_args(rest_args):
                         help='predict action between two state')
 
     # use 0.00n for key and door and 0.0n for other task
-    parser.add_argument('--state_prediction_intrinsic_reward_coef', type=float, default=0.000,
+    parser.add_argument('--state_prediction_intrinsic_reward_coef', type=float, default=0.03,
                         help='coefficient for state pred error in intrinsic reward')
 
-    parser.add_argument('--action_prediction_intrinsic_reward_coef', type=float, default=0.000,
+    parser.add_argument('--action_prediction_intrinsic_reward_coef', type=float, default=0.03,
                         help='coefficient for action pred error in intrinsic reward')
 
-    parser.add_argument('--reward_prediction_intrinsic_reward_coef', type=float, default=0.000)
+    parser.add_argument('--reward_prediction_intrinsic_reward_coef', type=float, default=0.04)
 
-    parser.add_argument('--extrinsic_reward_intrinsic_reward_coef', type=float, default=10.0,
+    parser.add_argument('--extrinsic_reward_intrinsic_reward_coef', type=float, default=50.0,
                         help='coefficient for action pred error in intrinsic reward')
 
     parser.add_argument('--residual_task_inference_latent', type=boolean_argument, default=True)
@@ -360,4 +360,5 @@ def get_args(rest_args):
 
     parser.add_argument('--episodic_reward', type=boolean_argument, default=True)
     parser.add_argument('--episodic_reward_coef', type=float, default=0.1)
+    parser.add_argument('--exponential_temp_epi', type=float, default=50.0)
     return parser.parse_args(rest_args)

@@ -11,7 +11,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 from environments.parallel_envs import make_vec_envs
-
+import math
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 def reset_env(env, args, indices=None, state=None):
@@ -154,7 +154,8 @@ def compute_intrinsic_reward(rew_raw,
                              episodic_reward,
                              episodic_reward_coef,
                              task_inf_latent,
-                             epi_reward_running_normalizer):
+                             epi_reward_running_normalizer,
+                             exponential_temp_epi):
     if decode_action:
         action_pred = action_decoder(latent_state=latent, state=prev_state, next_state=next_state, n_step_next_state=None, n_step_action_prediction=False)[0].detach()
         action_error = F.nll_loss(action_pred, action.squeeze(-1).long(), reduction='none').unsqueeze(-1)
@@ -183,6 +184,7 @@ def compute_intrinsic_reward(rew_raw,
         epi_reward = 0.0
         norm_epi_reward = 0.0
     annealing_tmp = 1 - (itr_idx / num_updates)
+    exponential_epi = math.e**(-itr_idx/exponential_temp_epi)
     state_pred = state_decoder(latent_state=latent, state=prev_state, action=action, n_step_action=None,
                                n_step_state_prediction=False)[0].detach()
     state_error = (state_pred - next_state).pow(2).mean(dim=-1).unsqueeze(-1)
@@ -193,13 +195,13 @@ def compute_intrinsic_reward(rew_raw,
     intrinsic_rew_normalised = ((norm_state_error * state_prediction_intrinsic_reward_coef +\
         norm_action_error * action_prediction_intrinsic_reward_coef + \
         norm_reward_error * reward_prediction_intrinsic_reward_coef + \
-        norm_epi_reward * episodic_reward_coef) * annealing_tmp + \
+        norm_epi_reward * exponential_epi * episodic_reward_coef) * annealing_tmp + \
         rew_normalised * extrinsic_reward_intrinsic_reward_coef)/(annealing_tmp + extrinsic_reward_intrinsic_reward_coef)
 
     intrinsic_rew_raw = (state_error * state_prediction_intrinsic_reward_coef +\
         action_error * action_prediction_intrinsic_reward_coef + \
         reward_error * reward_prediction_intrinsic_reward_coef +\
-        epi_reward * episodic_reward_coef) * annealing_tmp + \
+        epi_reward * exponential_epi * episodic_reward_coef) * annealing_tmp + \
         rew_raw * extrinsic_reward_intrinsic_reward_coef
     
     if isinstance(state_error, torch.Tensor):
