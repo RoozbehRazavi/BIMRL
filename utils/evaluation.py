@@ -160,8 +160,8 @@ def evaluate(args,
                                                                              episodic_reward=args.episodic_reward,
                                                                              episodic_reward_coef=args.episodic_reward_coef,
                                                                              task_inf_latent=memory_latent,
-                                                                             epi_reward_running_normalizer=epi_reward_running_normalizer
-                                                                            )
+                                                                                   epi_reward_running_normalizer=epi_reward_running_normalizer,
+                                                                                   exponential_temp_epi=args.exponential_temp_epi)
 
             done_mdp = list()
             for i in range(num_processes):
@@ -388,7 +388,8 @@ def evaluate_meta_policy(
                                                                                  episodic_reward=args.episodic_reward,
                                                                                  episodic_reward_coef=args.episodic_reward_coef,
                                                                                  task_inf_latent=memory_latent,
-                                                                                 epi_reward_running_normalizer=epi_reward_running_normalizer
+                                                                                 epi_reward_running_normalizer=epi_reward_running_normalizer,
+                                                                                       exponential_temp_epi=args.exponential_temp_epi
                                                                                  )
 
                 done_mdp = list()
@@ -553,7 +554,8 @@ def visualize_policy(
                     episodic_reward=args.episodic_reward,
                     episodic_reward_coef=args.episodic_reward_coef,
                     task_inf_latent=memory_latent,
-                    epi_reward_running_normalizer=epi_reward_running_normalizer
+                    epi_reward_running_normalizer=epi_reward_running_normalizer,
+                    exponential_temp_epi=args.exponential_temp_epi
                 )
 
             done_mdp = list()

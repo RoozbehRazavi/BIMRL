@@ -438,6 +438,7 @@ class MetaLearner:
                         episodic_reward_coef=self.args.episodic_reward_coef,
                         task_inf_latent=memory_latent,
                         epi_reward_running_normalizer=self.epi_reward_running_normalizer,
+                        exponential_temp_epi=self.args.exponential_temp_epi,
                         )
                     state_errors.append(state_error)
                     action_errors.append(action_error)
