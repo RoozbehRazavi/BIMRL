@@ -184,7 +184,10 @@ def compute_intrinsic_reward(rew_raw,
         epi_reward = 0.0
         norm_epi_reward = 0.0
     annealing_tmp = 1 - (itr_idx / num_updates)
-    exponential_epi = math.e**(-itr_idx/exponential_temp_epi)
+    if exponential_temp_epi is not None:
+        exponential_epi = math.e**(-itr_idx/exponential_temp_epi)
+    else:
+        exponential_epi = 1.0
     state_pred = state_decoder(latent_state=latent, state=prev_state, action=action, n_step_action=None,
                                n_step_state_prediction=False)[0].detach()
     state_error = (state_pred - next_state).pow(2).mean(dim=-1).unsqueeze(-1)
