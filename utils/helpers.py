@@ -201,10 +201,10 @@ def compute_intrinsic_reward(rew_raw,
         norm_epi_reward * exponential_epi * episodic_reward_coef) * annealing_tmp + \
         rew_normalised * extrinsic_reward_intrinsic_reward_coef)/(annealing_tmp + extrinsic_reward_intrinsic_reward_coef)
 
-    intrinsic_rew_raw = (state_error * state_prediction_intrinsic_reward_coef +\
+    intrinsic_rew_raw = (torch.minimum(torch.maximum(state_error * state_prediction_intrinsic_reward_coef +\
         action_error * action_prediction_intrinsic_reward_coef + \
-        reward_error * reward_prediction_intrinsic_reward_coef +\
-        epi_reward * exponential_epi * episodic_reward_coef) * annealing_tmp + \
+        reward_error * reward_prediction_intrinsic_reward_coef, torch.ones_like(state_error)*1), torch.ones_like(state_error)*5) *
+        epi_reward * episodic_reward_coef) * annealing_tmp + \
         rew_raw * extrinsic_reward_intrinsic_reward_coef
     
     if isinstance(state_error, torch.Tensor):

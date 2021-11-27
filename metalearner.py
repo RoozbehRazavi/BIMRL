@@ -25,6 +25,7 @@ class MetaLearner:
     def __init__(self, args):
 
         self.args = args
+        self.args.exponential_temp_epi = self.args.num_frames // (2 * 1e5)
         utl.seed(self.args.seed, self.args.deterministic_execution)
 
         # calculate number of updates and keep count of frames/iterations

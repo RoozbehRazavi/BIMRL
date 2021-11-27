@@ -360,5 +360,4 @@ def get_args(rest_args):
 
     parser.add_argument('--episodic_reward', type=boolean_argument, default=True)
     parser.add_argument('--episodic_reward_coef', type=float, default=0.1)
-    parser.add_argument('--exponential_temp_epi', type=float, default=10.0)
     return parser.parse_args(rest_args)
