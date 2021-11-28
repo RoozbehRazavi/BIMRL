@@ -155,7 +155,9 @@ def compute_intrinsic_reward(rew_raw,
                              episodic_reward_coef,
                              task_inf_latent,
                              epi_reward_running_normalizer,
-                             exponential_temp_epi):
+                             exponential_temp_epi,
+                             intrinsic_reward_running_normalizer,
+                             state_encoder):
     if decode_action:
         action_pred = action_decoder(latent_state=latent, state=prev_state, next_state=next_state, n_step_next_state=None, n_step_action_prediction=False)[0].detach()
         action_error = F.nll_loss(action_pred, action.squeeze(-1).long(), reduction='none').unsqueeze(-1)
@@ -179,40 +181,27 @@ def compute_intrinsic_reward(rew_raw,
         reward_error = 0
     if memory is not None and episodic_reward:
         epi_reward = memory.compute_intrinsic_reward(next_state, task_inf_latent).detach()
-        norm_epi_reward = (epi_reward - epi_reward_running_normalizer.mean) / torch.sqrt(epi_reward_running_normalizer.var + 1e-8)
     else:
         epi_reward = 0.0
-        norm_epi_reward = 0.0
     annealing_tmp = 1 - (itr_idx / num_updates)
-    if exponential_temp_epi is not None:
-        exponential_epi = math.e**(-itr_idx/exponential_temp_epi)
-    else:
-        exponential_epi = 1.0
     state_pred = state_decoder(latent_state=latent, state=prev_state, action=action, n_step_action=None,
                                n_step_state_prediction=False)[0].detach()
-    state_error = (state_pred - next_state).pow(2).mean(dim=-1).unsqueeze(-1)
-
-    norm_state_error = (state_error - state_prediction_running_normalizer.mean) / torch.sqrt(state_prediction_running_normalizer.var + 1e-8)
-    norm_action_error = (action_error - action_prediction_running_normalizer.mean) / torch.sqrt(action_prediction_running_normalizer.var + 1e-8)
-    norm_reward_error = (reward_error - reward_prediction_running_normalizer.mean) / torch.sqrt(reward_prediction_running_normalizer.var + 1e-8)
-    intrinsic_rew_normalised = ((norm_state_error * state_prediction_intrinsic_reward_coef +\
-        norm_action_error * action_prediction_intrinsic_reward_coef + \
-        norm_reward_error * reward_prediction_intrinsic_reward_coef + \
-        norm_epi_reward * exponential_epi * episodic_reward_coef) * annealing_tmp + \
-        rew_normalised * extrinsic_reward_intrinsic_reward_coef)/(annealing_tmp + extrinsic_reward_intrinsic_reward_coef)
-
+    state_error = (state_pred - state_encoder(next_state).detach()).pow(2).mean(dim=-1).unsqueeze(-1)
     intrinsic_reward = state_error * state_prediction_intrinsic_reward_coef + \
     action_error * action_prediction_intrinsic_reward_coef + \
     reward_error * reward_prediction_intrinsic_reward_coef
     modulation = torch.minimum(torch.maximum(intrinsic_reward,
-                                torch.ones_like(state_error) * 1.0), torch.ones_like(state_error) * 10.0)
-    intrinsic_rew_raw = (episodic_reward_coef * modulation * epi_reward) * annealing_tmp + \
+                                torch.ones_like(state_error) * 1.0), torch.ones_like(state_error) * 3.0)
+    intrinsic_rew_raw = (modulation * (episodic_reward_coef * epi_reward)) * annealing_tmp + \
         rew_raw * extrinsic_reward_intrinsic_reward_coef
+
+    intrinsic_rew_normalised = (intrinsic_rew_raw - intrinsic_reward_running_normalizer.mean) / torch.sqrt(intrinsic_reward_running_normalizer.var + 1e-8)
+
     # print('intrinsic_reward ', intrinsic_reward)
     # print('modulation ', modulation)
     # print('epi_reward ', epi_reward)
     # print('intrinsic_rew_raw ', intrinsic_rew_raw)
-    
+
     if isinstance(state_error, torch.Tensor):
         state_error = state_error.detach()
     

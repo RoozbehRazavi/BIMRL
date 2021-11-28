@@ -31,21 +31,19 @@ class ValueDecoder(nn.Module):
             self.fc_layers.append(nn.Linear(curr_input_dim, layers[i]))
             curr_input_dim = layers[i]
 
-
-        # RNN for simulate future state base on current state and future actions
         self.h_to_hidden_state = nn.Sequential(
-            nn.Linear(curr_input_dim, value_simulator_hidden_size*2),
+            nn.Linear(curr_input_dim, curr_input_dim*2),
             nn.ReLU(),
-            nn.Linear(value_simulator_hidden_size*2, value_simulator_hidden_size)
+            nn.Linear(curr_input_dim*2, curr_input_dim)
         )
-        self.value_simulator = nn.GRUCell(action_embed_dim, value_simulator_hidden_size)
-        self.n_step_fc_out = nn.ModuleList([])
-        for i in range(self.n_prediction):
-            if pred_type == 'gaussian':
-                self.n_step_fc_out.append(nn.Linear(value_simulator_hidden_size, 2))
-            else:
-                self.n_step_fc_out.append(nn.Linear(value_simulator_hidden_size, 1))
-        self.n_step_action_encoder = utl.FeatureExtractor(action_dim, action_embed_dim, F.relu)
+        self.value_simulator = nn.GRUCell(action_embed_dim, curr_input_dim)
+        # self.n_step_fc_out = nn.ModuleList([])
+        # for i in range(self.n_prediction):
+        #     if pred_type == 'gaussian':
+        #         self.n_step_fc_out.append(nn.Linear(curr_input_dim, 2))
+        #     else:
+        #         self.n_step_fc_out.append(nn.Linear(curr_input_dim, 1))
+        # self.n_step_action_encoder = utl.FeatureExtractor(action_dim, action_embed_dim, F.relu)
 
         # output layer
         if pred_type == 'gaussian':
@@ -68,13 +66,13 @@ class ValueDecoder(nn.Module):
         #n step value prediction
         h = self.h_to_hidden_state(h)
         for i in range(self.n_prediction):
-            ha = self.n_step_action_encoder(n_step_action[i])
+            ha = self.action_encoder(n_step_action[i])
             ha = ha.reshape((-1, ha.shape[-1]))
             h_size = h.shape
             h = h.reshape((-1, h.shape[-1]))
             h = self.value_simulator(ha, h)
             h = h.reshape((*h_size[:-1], h.shape[-1]))
-            value_prediction.append(self.n_step_fc_out[i](h))
+            value_prediction.append(self.one_step_fc_out[i](h))
         return value_prediction
 
 
@@ -96,7 +94,6 @@ class ActionDecoder(nn.Module):
         self.action_log_dim = action_space.n
 
         self.state_t_encoder = utl.FeatureExtractor(state_dim, state_embed_dim, F.relu)
-        self.state_t_1_encoder = utl.FeatureExtractor(state_dim, state_embed_dim, F.relu)
 
         curr_input_dim = latent_dim + state_embed_dim + state_embed_dim
         self.fc_layers = nn.ModuleList([])
@@ -107,18 +104,11 @@ class ActionDecoder(nn.Module):
         if n_step_action_prediction:
             # RNN for simulate future state base on current state and future actions
             self.h_to_hidden_state = nn.Sequential(
-                nn.Linear(curr_input_dim, state_simulator_hidden_size*2),
+                nn.Linear(curr_input_dim, curr_input_dim*2),
                 nn.ReLU(),
-                nn.Linear(state_simulator_hidden_size*2, state_simulator_hidden_size)
+                nn.Linear(curr_input_dim*2, curr_input_dim)
             )
-            self.action_simulator = nn.GRUCell(state_embed_dim, state_simulator_hidden_size)
-            self.n_step_fc_out = nn.ModuleList([])
-            for i in range(self.n_prediction):
-                if pred_type == 'gaussian':
-                    self.n_step_fc_out.append(nn.Linear(state_simulator_hidden_size, 2*self.action_log_dim))
-                else:
-                    self.n_step_fc_out.append(nn.Linear(state_simulator_hidden_size, self.action_log_dim))
-            self.n_step_next_state_encoder = utl.FeatureExtractor(state_dim, state_embed_dim, F.relu)
+            self.action_simulator = nn.GRUCell(state_embed_dim, curr_input_dim)
 
         # output layer
         if pred_type == 'gaussian':
@@ -137,7 +127,7 @@ class ActionDecoder(nn.Module):
         action_prediction = []
 
         hs_t = self.state_t_encoder(state)
-        hs_t_1 = self.state_t_1_encoder(next_state)
+        hs_t_1 = self.state_t_encoder(next_state)
         h = torch.cat((latent_state, hs_t, hs_t_1), dim=-1)
 
         for i in range(len(self.fc_layers)):
@@ -147,13 +137,13 @@ class ActionDecoder(nn.Module):
         if n_step_action_prediction:
             h = self.h_to_hidden_state(h)
             for i in range(self.n_prediction):
-                hs_t_1 = self.n_step_next_state_encoder(n_step_next_state[i])
+                hs_t_1 = self.state_t_encoder(n_step_next_state[i])
                 hs_t_1 = hs_t_1.reshape((-1, hs_t_1.shape[-1]))
                 h_size = h.shape
                 h = h.reshape((-1, h.shape[-1]))
                 h = self.action_simulator(hs_t_1, h)
                 h = h.reshape((*h_size[:-1], h.shape[-1]))
-                action_prediction.append(self.log_softmax(self.n_step_fc_out[i](h)))
+                action_prediction.append(self.log_softmax(self.one_step_fc_out[i](h)))
         return action_prediction
 
 
@@ -168,7 +158,7 @@ class StateTransitionDecoder(nn.Module):
                  action_simulator_hidden_size,
                  pred_type='deterministic',
                  n_step_state_prediction=True,
-                 n_prediction=3
+                 n_prediction=3,
                  ):
         super(StateTransitionDecoder, self).__init__()
         self.n_step_state_prediction = n_step_state_prediction
@@ -186,31 +176,24 @@ class StateTransitionDecoder(nn.Module):
         if n_step_state_prediction:
             # RNN for simulate future state base on current state and future actions
             self.h_to_hidden_state = nn.Sequential(
-                nn.Linear(curr_input_dim, action_simulator_hidden_size*2),
+                nn.Linear(curr_input_dim, curr_input_dim*2),
                 nn.ReLU(),
-                nn.Linear(action_simulator_hidden_size*2, action_simulator_hidden_size)
+                nn.Linear(curr_input_dim*2, curr_input_dim)
             )
-            self.action_simulator = nn.GRUCell(action_embed_dim, action_simulator_hidden_size)
-            self.n_step_fc_out = nn.ModuleList([])
-            for i in range(self.n_prediction):
-                if pred_type == 'gaussian':
-                    self.n_step_fc_out.append(nn.Linear(action_simulator_hidden_size, 2 * state_dim))
-                else:
-                    self.n_step_fc_out.append(nn.Linear(action_simulator_hidden_size, state_dim))
-            self.n_step_action_encoder = utl.FeatureExtractor(action_dim, action_embed_dim, F.relu)
+            self.action_simulator = nn.GRUCell(action_embed_dim, curr_input_dim)
 
         # output layer
         if pred_type == 'gaussian':
-            self.one_step_fc_out = nn.Linear(curr_input_dim, 2 * state_dim)
+            self.one_step_fc_out = nn.Linear(curr_input_dim, 2 * state_embed_dim)
         else:
-            self.one_step_fc_out = nn.Linear(curr_input_dim, state_dim)
+            self.one_step_fc_out = nn.Linear(curr_input_dim, state_embed_dim)
 
-    def forward(self, latent_state, state, action, n_step_action, n_step_state_prediction):
+    def forward(self, latent_state, state, action, n_step_action, n_step_state_prediction, state_encoder=None):
         assert n_step_action is not None or not n_step_state_prediction
         state_prediction = []
 
         ha = self.action_encoder(action)
-        hs = self.state_encoder(state)
+        hs = self.state_encoder(state) if state_encoder is None else state_encoder(state)
         h = torch.cat((latent_state, hs, ha), dim=-1)
 
         for i in range(len(self.fc_layers)):
@@ -220,13 +203,13 @@ class StateTransitionDecoder(nn.Module):
         if n_step_state_prediction:
             h = self.h_to_hidden_state(h)
             for i in range(self.n_prediction):
-                ha = self.n_step_action_encoder(n_step_action[i])
+                ha = self.action_encoder(n_step_action[i]) if state_encoder is None else state_encoder(n_step_action[i])
                 ha = ha.reshape((-1, ha.shape[-1]))
                 h_size = h.shape
                 h = h.reshape((-1, h.shape[-1]))
                 h = self.action_simulator(ha, h)
                 h = h.reshape((*h_size[:-1], h.shape[-1]))
-                state_prediction.append(self.n_step_fc_out[i](h))
+                state_prediction.append(self.one_step_fc_out[i](h))
         return state_prediction
 
 
@@ -286,29 +269,16 @@ class RewardDecoder(nn.Module):
 
         if self.n_step_reward_prediction:
             self.h_to_hidden_state = nn.Sequential(
-                nn.Linear(curr_input_dim, reward_simulator_hidden_size * 2),
+                nn.Linear(curr_input_dim, curr_input_dim * 2),
                 nn.ReLU(),
-                nn.Linear(reward_simulator_hidden_size * 2, reward_simulator_hidden_size)
-            )
+                nn.Linear(curr_input_dim * 2, curr_input_dim))
 
-            curr_input_dim = state_embed_dim
+            gru_input_dim = state_embed_dim
             if input_prev_state:
-                curr_input_dim += state_embed_dim
+                gru_input_dim += state_embed_dim
             if input_action:
-                curr_input_dim += action_embed_dim
-            self.reward_simulator = nn.GRUCell(curr_input_dim, reward_simulator_hidden_size)
-
-            self.n_step_fc_out = nn.ModuleList([])
-            for i in range(self.n_prediction):
-                if pred_type == 'gaussian':
-                    self.n_step_fc_out.append(nn.Linear(reward_simulator_hidden_size, 2))
-                else:
-                    self.n_step_fc_out.append(nn.Linear(reward_simulator_hidden_size, 1))
-            self.n_step_next_state_encoder = utl.FeatureExtractor(state_dim, state_embed_dim, F.relu)
-            if input_action:
-                self.n_step_action_encoder = utl.FeatureExtractor(action_dim, action_embed_dim, F.relu)
-            if input_prev_state:
-                self.n_step_prev_state_encoder = utl.FeatureExtractor(state_dim, state_embed_dim, F.relu)
+                gru_input_dim += action_embed_dim
+            self.reward_simulator = nn.GRUCell(gru_input_dim, curr_input_dim)
 
     def forward(self, latent_state, next_state, prev_state=None, action=None, n_step_next_obs=None, n_step_actions=None, n_step_reward_prediction=None):
         if n_step_reward_prediction is None:
@@ -337,16 +307,16 @@ class RewardDecoder(nn.Module):
         if n_step_reward_prediction:
             h = self.h_to_hidden_state(h)
             for i in range(self.n_prediction):
-                nhs = self.n_step_next_state_encoder(n_step_next_obs[i])
+                nhs = self.state_encoder(n_step_next_obs[i])
                 if self.input_action:
-                    ha = self.n_step_action_encoder(n_step_actions[i])
+                    ha = self.action_encoder(n_step_actions[i])
                 else:
                     ha = torch.zeros(size=(0, ))
                 if self.input_prev_state:
                     if i == 0:
-                        hps = self.n_step_prev_state_encoder(prev_state)
+                        hps = self.state_encoder(prev_state)
                     else:
-                        hps = self.n_step_prev_state_encoder(n_step_next_obs[i-1])
+                        hps = self.state_encoder(n_step_next_obs[i-1])
                 else:
                     hps = torch.zeros(size=(0,), device=device)
 
@@ -357,7 +327,7 @@ class RewardDecoder(nn.Module):
                 h = h.reshape((-1, h.shape[-1]))
                 h = self.reward_simulator(hr, h)
                 h = h.reshape((*h_size[:-1], h.shape[-1]))
-                reward_prediction.append(self.n_step_fc_out[i](h))
+                reward_prediction.append(self.one_step_fc_out[i](h))
         return reward_prediction
 
 

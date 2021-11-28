@@ -7,6 +7,7 @@ import torch
 
 from algorithms.online_storage import OnlineStorage
 from algorithms.ppo import PPO
+from algorithms.a2c import A2C
 from environments.parallel_envs import make_vec_envs
 from models.policy import Policy
 from utils import evaluation as utl_eval
@@ -103,11 +104,13 @@ class MetaLearner:
         self.action_prediction_running_normalizer = None
         self.reward_prediction_running_normalizer = None
         self.epi_reward_running_normalizer = None
+        self.intrinsic_reward_running_normalizer = None
         if train_exploration:
             self.state_prediction_running_normalizer = utl.RunningMeanStd(shape=(1,))
             self.action_prediction_running_normalizer = utl.RunningMeanStd(shape=(1,))
             self.reward_prediction_running_normalizer = utl.RunningMeanStd(shape=(1,))
             self.epi_reward_running_normalizer = utl.RunningMeanStd(shape=(1,))
+            self.intrinsic_reward_running_normalizer = utl.RunningMeanStd(shape=(1,))
 
         if self.args.load_model and os.path.exists(os.path.join(self.logger.full_output_folder, 'models', 'brim_core.pt')):
             save_path = os.path.join(self.logger.full_output_folder, 'models')
@@ -174,6 +177,8 @@ class MetaLearner:
                 self.action_prediction_running_normalizer = torch.load(os.path.join(save_path, 'action_error_rms.pkl'), map_location=device)
             if self.epi_reward_running_normalizer is not None:
                 self.epi_reward_running_normalizer = torch.load(os.path.join(save_path, 'epi_reward_rms.pkl'), map_location=device)
+            if self.intrinsic_reward_running_normalizer is not None:
+                self.intrinsic_reward_running_normalizer = torch.load(os.path.join(save_path, 'int_reward_rms.pkl'), map_location=device)
 
     def initialise_policy_storage(self, num_processes):
         return OnlineStorage(args=self.args,
@@ -246,7 +251,19 @@ class MetaLearner:
                 use_huber_loss=self.args.ppo_use_huberloss,
                 use_clipped_value_loss=self.args.ppo_use_clipped_value_loss,
                 clip_param=self.args.ppo_clip_param,
+                optimiser_vae=self.base2final.optimiser_vae)
+        elif self.args.policy == 'a2c':
+            policy = A2C(
+                self.args,
+                policy_net,
+                self.args.policy_value_loss_coef,
+                self.args.policy_entropy_coef,
+                policy_optimiser=self.args.policy_optimiser,
+                policy_anneal_lr=self.args.policy_anneal_lr,
+                train_steps=self.num_updates,
                 optimiser_vae=self.base2final.optimiser_vae,
+                lr=self.args.lr_policy,
+                eps=self.args.policy_eps,
             )
         else:
             raise NotImplementedError
@@ -337,6 +354,7 @@ class MetaLearner:
                 action_errors = []
                 reward_errors = []
                 epi_rewards = []
+                intrins_rewards = []
 
             if train_exploitation:
                 if hasattr(self.exploitation_policy_storage, 'latent_mean'):
@@ -440,11 +458,14 @@ class MetaLearner:
                         task_inf_latent=memory_latent,
                         epi_reward_running_normalizer=self.epi_reward_running_normalizer,
                         exponential_temp_epi=self.args.exponential_temp_epi,
+                        intrinsic_reward_running_normalizer=self.intrinsic_reward_running_normalizer,
+                        state_encoder=self.base2final.action_decoder.state_t_encoder
                         )
                     state_errors.append(state_error)
                     action_errors.append(action_error)
                     reward_errors.append(reward_error)
                     epi_rewards.append(epi_reward)
+                    intrins_rewards.append(exploration_intrinsic_rew_raw)
 
                     exploration_done_episode = list()
                     for i in range(self.exploration_num_processes):
@@ -731,10 +752,13 @@ class MetaLearner:
                     self.reward_prediction_running_normalizer.update(torch.cat(reward_errors))
                 if self.args.use_memory and self.args.episodic_reward:
                     self.epi_reward_running_normalizer.update(torch.cat(epi_rewards))
+                if train_exploration:
+                    self.intrinsic_reward_running_normalizer.update(torch.cat(intrins_rewards))
                 state_errors = []
                 action_errors = []
                 reward_errors = []
                 epi_rewards = []
+                intrins_rewards = []
             if train_exploitation:
                 self.exploitation_policy_storage.after_update()
 
@@ -847,7 +871,7 @@ class MetaLearner:
 
     def log(self, run_stats, train_stats, start_time, policy, policy_storage, envs, policy_type, meta_eval, tmp):
 
-        if (self.iter_idx % self.args.meta_evaluate_interval == 0) and meta_eval and policy_type=='exploitation':
+        if (self.iter_idx % self.args.meta_evaluate_interval == 0) and meta_eval and policy_type == 'exploitation':
             utl_eval.evaluate_meta_policy(
                 self.args,
                 self.exploration_policy,
@@ -861,7 +885,8 @@ class MetaLearner:
                 self.reward_prediction_running_normalizer,
                 self.base2final.brim_core,
                 self.args.exploration_num_episodes,
-                save_path=self.logger.full_output_folder)
+                save_path=self.logger.full_output_folder,
+                state_encoder=self.base2final.action_decoder.state_t_encoder)
 
         # --- visualize policy ----
         if self.iter_idx % self.args.vis_interval == self.args.vis_interval-1 and not policy_type == 'meta_policy':
@@ -881,9 +906,11 @@ class MetaLearner:
                 action_prediction_running_normalizer=self.action_prediction_running_normalizer,
                 reward_prediction_running_normalizer=self.reward_prediction_running_normalizer,
                 epi_reward_running_normalizer=self.epi_reward_running_normalizer,
+                intrinsic_reward_running_normalizer=self.intrinsic_reward_running_normalizer,
                 full_output_folder=self.logger.full_output_folder,
                 reward_decoder=self.base2final.reward_decoder,
-                num_updates=self.num_updates)
+                num_updates=self.num_updates,
+                state_encoder=self.base2final.action_decoder.state_t_encoder)
 
         # --- evaluate policy ----
 
@@ -905,8 +932,10 @@ class MetaLearner:
                 reward_decoder=self.base2final.reward_decoder,
                 reward_prediction_running_normalizer=self.reward_prediction_running_normalizer,
                 epi_reward_running_normalizer=self.epi_reward_running_normalizer,
+                intrinsic_reward_running_normalizer=self.intrinsic_reward_running_normalizer,
                 tmp=tmp,
-                num_updates=self.num_updates
+                num_updates=self.num_updates,
+                state_encoder=self.base2final.action_decoder.state_t_encoder
                 )
 
             # log the return avg/std across tasks (=processes)
@@ -1004,6 +1033,10 @@ class MetaLearner:
                 if self.epi_reward_running_normalizer is not None:
                     filename = os.path.join(save_path, f"epi_reward_rms{idx_label}.pkl")
                     torch.save(self.epi_reward_running_normalizer, filename, _use_new_zipfile_serialization=False)
+
+                if self.intrinsic_reward_running_normalizer is not None:
+                    filename = os.path.join(save_path, f"int_reward_rms{idx_label}.pkl")
+                    torch.save(self.intrinsic_reward_running_normalizer, filename, _use_new_zipfile_serialization=False)
 
                 if self.action_prediction_running_normalizer is not None:
                     filename = os.path.join(save_path, f"action_error_rms{idx_label}.pkl")

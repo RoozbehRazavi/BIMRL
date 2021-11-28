@@ -31,7 +31,7 @@ def get_args(rest_args):
     parser.add_argument('--norm_task_inference_latent_for_policy', type=boolean_argument, default=True, help='normalise latent input')
     parser.add_argument('--norm_belief_for_policy', type=boolean_argument, default=True, help='normalise belief input')
     parser.add_argument('--norm_task_for_policy', type=boolean_argument, default=True, help='normalise task input')
-    parser.add_argument('--norm_rew_for_policy', type=boolean_argument, default=False, help='normalise rew for RL train')
+    parser.add_argument('--norm_rew_for_policy', type=boolean_argument, default=False, help='normalise rew for RL train always set to False')
     parser.add_argument('--norm_actions_of_policy', type=boolean_argument, default=True, help='normalise policy output')
 
     # network
@@ -41,7 +41,7 @@ def get_args(rest_args):
     parser.add_argument('--policy_anneal_lr', type=boolean_argument, default=False)
 
     # RL algorithm
-    parser.add_argument('--policy', type=str, default='ppo', help='choose: a2c, ppo')
+    parser.add_argument('--policy', type=str, default='a2c', help='choose: a2c, ppo')
     parser.add_argument('--policy_optimiser', type=str, default='adam', help='choose: rmsprop, adam')
 
     # PPO specific
@@ -55,7 +55,7 @@ def get_args(rest_args):
     parser.add_argument('--lr_policy', type=float, default=0.0007, help='learning rate (default: 7e-4)')
     parser.add_argument('--num_processes', type=int, default=16,
                         help='how many training CPU processes / parallel environments to use (default: 16)')
-    parser.add_argument('--policy_eps', type=float, default=1e-8, help='optimizer epsilon (1e-8 for ppo, 1e-5 for a2c)')
+    parser.add_argument('--policy_eps', type=float, default=1e-5, help='optimizer epsilon (1e-8 for ppo, 1e-5 for a2c)')
     parser.add_argument('--policy_init_std', type=float, default=1.0, help='only used for continuous actions')
     parser.add_argument('--policy_value_loss_coef', type=float, default=0.5, help='value loss coefficient')
     parser.add_argument('--policy_entropy_coef', type=float, default=0.1, help='entropy term coefficient')

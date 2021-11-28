@@ -96,7 +96,7 @@ class PPO:
 
         # -- get action values --
         advantages = policy_storage.returns[:-1] - policy_storage.value_preds[:-1]
-        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-5)
+        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
 
         # if this is true, we will update the VAE at every PPO update
         # otherwise, we update it after we update the policy
@@ -143,6 +143,10 @@ class PPO:
                                                        belief=belief_batch, task=task_batch,
                                                        action=actions_batch, return_action_mean=True
                                                        )
+                # zero out the gradients
+                self.optimiser.zero_grad()
+                if rlloss_through_encoder:
+                    self.optimiser_vae.zero_grad()
 
                 ratio = torch.exp(action_log_probs -
                                   old_action_log_probs_batch)
@@ -167,10 +171,6 @@ class PPO:
                 else:
                     value_loss = 0.5 * (return_batch - values).pow(2).mean()
 
-                # zero out the gradients
-                self.optimiser.zero_grad()
-                if rlloss_through_encoder:
-                    self.optimiser_vae.zero_grad()
                 # compute policy loss and backprop
                 loss = value_loss * self.value_loss_coef + action_loss - dist_entropy * self.entropy_coef
                 # compute vae loss and backprop

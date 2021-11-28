@@ -23,11 +23,13 @@ def evaluate(args,
              action_prediction_running_normalizer,
              reward_prediction_running_normalizer,
              epi_reward_running_normalizer,
+             intrinsic_reward_running_normalizer,
              brim_core,
              policy_type,
              num_updates,
              num_episodes=None,
              tmp=False,
+             state_encoder=None
              ):
     env_name = args.env_name
     if hasattr(args, 'test_env_name'):
@@ -161,7 +163,9 @@ def evaluate(args,
                                                                              episodic_reward_coef=args.episodic_reward_coef,
                                                                              task_inf_latent=memory_latent,
                                                                                    epi_reward_running_normalizer=epi_reward_running_normalizer,
-                                                                                   exponential_temp_epi=args.exponential_temp_epi)
+                                                                                   exponential_temp_epi=args.exponential_temp_epi,
+                                                                                   intrinsic_reward_running_normalizer=intrinsic_reward_running_normalizer,
+                                                                                   state_encoder=state_encoder)
 
             done_mdp = list()
             for i in range(num_processes):
@@ -230,10 +234,12 @@ def evaluate_meta_policy(
         action_prediction_running_normalizer,
         reward_prediction_running_normalizer,
         epi_reward_running_normalizer,
+        intrinsic_reward_running_normalizer,
         brim_core,
         exploration_num_episodes,
         save_path,
-        num_updates):
+        num_updates,
+        state_encoder):
 
     env_name = args.env_name
     if hasattr(args, 'test_env_name'):
@@ -389,7 +395,9 @@ def evaluate_meta_policy(
                                                                                  episodic_reward_coef=args.episodic_reward_coef,
                                                                                  task_inf_latent=memory_latent,
                                                                                  epi_reward_running_normalizer=epi_reward_running_normalizer,
-                                                                                       exponential_temp_epi=args.exponential_temp_epi
+                                                                                       exponential_temp_epi=args.exponential_temp_epi,
+                                                                                       intrinsic_reward_running_normalizer=intrinsic_reward_running_normalizer,
+                                                                                       state_encoder=state_encoder
                                                                                  )
 
                 done_mdp = list()
@@ -438,8 +446,10 @@ def visualize_policy(
         action_prediction_running_normalizer,
         reward_prediction_running_normalizer,
         epi_reward_running_normalizer,
+        intrinsic_reward_running_normalizer,
         full_output_folder,
-        num_updates):
+        num_updates,
+        state_encoder):
 
     env_name = args.env_name
     envs = make_vec_envs(env_name, seed=int(args.seed * 1e6 + iter_idx), num_processes=1,
@@ -555,7 +565,9 @@ def visualize_policy(
                     episodic_reward_coef=args.episodic_reward_coef,
                     task_inf_latent=memory_latent,
                     epi_reward_running_normalizer=epi_reward_running_normalizer,
-                    exponential_temp_epi=args.exponential_temp_epi
+                    exponential_temp_epi=args.exponential_temp_epi,
+                    intrinsic_reward_running_normalizer=intrinsic_reward_running_normalizer,
+                    state_encoder=state_encoder
                 )
 
             done_mdp = list()

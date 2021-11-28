@@ -275,6 +275,20 @@ class Base2Final:
             if self.args.disable_stochasticity_in_latent:
                 latent_dim *= 2
 
+        if self.args.decode_action:
+            action_decoder = ActionDecoder(
+                layers=self.args.action_decoder_layers,
+                latent_dim=latent_dim,
+                state_dim=self.args.state_dim,
+                state_embed_dim=self.args.state_embedding_size,
+                state_simulator_hidden_size=self.args.state_simulator_hidden_size,
+                action_space=self.args.action_space,
+                n_step_action_prediction=self.args.n_step_action_prediction,
+                n_prediction=self.args.n_prediction
+            ).to(device)
+        else:
+            action_decoder = None
+
         # initialise state decoder for VAE
         if self.args.decode_state:
             state_decoder = StateTransitionDecoder(
@@ -287,7 +301,7 @@ class Base2Final:
                 action_simulator_hidden_size=self.args.action_simulator_hidden_size,
                 pred_type=self.args.state_pred_type,
                 n_step_state_prediction=self.args.n_step_state_prediction,
-                n_prediction=self.args.n_prediction
+                n_prediction=self.args.n_prediction,
             ).to(device)
         else:
             state_decoder = None
@@ -337,20 +351,6 @@ class Base2Final:
         else:
             exploration_value_decoder = None
             exploitation_value_decoder = None
-
-        if self.args.decode_action:
-            action_decoder = ActionDecoder(
-                layers=self.args.action_decoder_layers,
-                latent_dim=latent_dim,
-                state_dim=self.args.state_dim,
-                state_embed_dim=self.args.state_embedding_size,
-                state_simulator_hidden_size=self.args.state_simulator_hidden_size,
-                action_space=self.args.action_space,
-                n_step_action_prediction=self.args.n_step_action_prediction,
-                n_prediction=self.args.n_prediction
-            ).to(device)
-        else:
-            action_decoder = None
 
         # initialise task decoder for VAE
         if self.args.decode_task:
@@ -411,11 +411,12 @@ class Base2Final:
                                         prev_obs,
                                         action,
                                         n_step_action,
-                                        n_step_state_prediction=n_step_state_prediction)
+                                        n_step_state_prediction=n_step_state_prediction,
+                                        state_encoder=self.action_decoder.state_t_encoder)
 
         if not n_step_state_prediction:
             state_pred = state_pred[0]
-            loss_state = compute_loss_state(state_pred, next_obs, self.args.state_pred_type)
+            loss_state = compute_loss_state(state_pred, self.action_decoder.state_t_encoder(next_obs).detach(), self.args.state_pred_type)
             if return_predictions:
                 return loss_state, state_pred
             else:
@@ -424,9 +425,9 @@ class Base2Final:
             losses = list()
             for i in range(self.args.n_prediction+1):
                 if i == 0:
-                    losses.append(compute_loss_state(state_pred[i], next_obs, self.args.state_pred_type))
+                    losses.append(compute_loss_state(state_pred[i], self.action_decoder.state_t_encoder(next_obs).detach(), self.args.state_pred_type))
                 else:
-                    losses.append(compute_loss_state(state_pred[i], n_step_next_obs[i-1], self.args.state_pred_type))
+                    losses.append(compute_loss_state(state_pred[i], self.action_decoder.state_t_encoder(n_step_next_obs[i-1]).detach(), self.args.state_pred_type))
             if return_predictions:
                 # just return prediction of next step
                 return losses, state_pred[0]
