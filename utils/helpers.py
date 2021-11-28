@@ -208,10 +208,10 @@ def compute_intrinsic_reward(rew_raw,
                                 torch.ones_like(state_error) * 1.0), torch.ones_like(state_error) * 10.0)
     intrinsic_rew_raw = (episodic_reward_coef * modulation * epi_reward) * annealing_tmp + \
         rew_raw * extrinsic_reward_intrinsic_reward_coef
-    print('intrinsic_reward ', intrinsic_reward)
-    print('modulation ', modulation)
-    print('epi_reward ', epi_reward)
-    print('intrinsic_rew_raw ', intrinsic_rew_raw)
+    # print('intrinsic_reward ', intrinsic_reward)
+    # print('modulation ', modulation)
+    # print('epi_reward ', epi_reward)
+    # print('intrinsic_rew_raw ', intrinsic_rew_raw)
     
     if isinstance(state_error, torch.Tensor):
         state_error = state_error.detach()
