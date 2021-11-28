@@ -201,11 +201,17 @@ def compute_intrinsic_reward(rew_raw,
         norm_epi_reward * exponential_epi * episodic_reward_coef) * annealing_tmp + \
         rew_normalised * extrinsic_reward_intrinsic_reward_coef)/(annealing_tmp + extrinsic_reward_intrinsic_reward_coef)
 
-    intrinsic_rew_raw = (torch.minimum(torch.maximum(state_error * state_prediction_intrinsic_reward_coef +\
-        action_error * action_prediction_intrinsic_reward_coef + \
-        reward_error * reward_prediction_intrinsic_reward_coef, torch.ones_like(state_error)*0.5), torch.ones_like(state_error)*10.0) *
-        epi_reward * episodic_reward_coef) * annealing_tmp + \
+    intrinsic_reward = state_error * state_prediction_intrinsic_reward_coef + \
+    action_error * action_prediction_intrinsic_reward_coef + \
+    reward_error * reward_prediction_intrinsic_reward_coef
+    modulation = torch.minimum(torch.maximum(intrinsic_reward,
+                                torch.ones_like(state_error) * 1.0), torch.ones_like(state_error) * 10.0)
+    intrinsic_rew_raw = (episodic_reward_coef * modulation * epi_reward) * annealing_tmp + \
         rew_raw * extrinsic_reward_intrinsic_reward_coef
+    print('intrinsic_reward ', intrinsic_reward)
+    print('modulation ', modulation)
+    print('epi_reward ', epi_reward)
+    print('intrinsic_rew_raw ', intrinsic_rew_raw)
     
     if isinstance(state_error, torch.Tensor):
         state_error = state_error.detach()

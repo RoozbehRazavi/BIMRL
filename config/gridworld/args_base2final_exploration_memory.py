@@ -200,15 +200,15 @@ def get_args(rest_args):
                         help='predict action between two state')
 
     # use 0.00n for key and door and 0.0n for other task
-    parser.add_argument('--state_prediction_intrinsic_reward_coef', type=float, default=0.03,
+    parser.add_argument('--state_prediction_intrinsic_reward_coef', type=float, default=3,
                         help='coefficient for state pred error in intrinsic reward')
 
-    parser.add_argument('--action_prediction_intrinsic_reward_coef', type=float, default=0.03,
+    parser.add_argument('--action_prediction_intrinsic_reward_coef', type=float, default=3,
                         help='coefficient for action pred error in intrinsic reward')
 
-    parser.add_argument('--reward_prediction_intrinsic_reward_coef', type=float, default=0.04)
+    parser.add_argument('--reward_prediction_intrinsic_reward_coef', type=float, default=4)
 
-    parser.add_argument('--extrinsic_reward_intrinsic_reward_coef', type=float, default=50.0,
+    parser.add_argument('--extrinsic_reward_intrinsic_reward_coef', type=float, default=1000.0,
                         help='coefficient for action pred error in intrinsic reward')
 
     parser.add_argument('--residual_task_inference_latent', type=boolean_argument, default=True)
@@ -359,5 +359,5 @@ def get_args(rest_args):
     parser.add_argument('--n_step_v_loss', type=str, default='norm2_ret', help='norm2_ret/norm2_val/huber')
 
     parser.add_argument('--episodic_reward', type=boolean_argument, default=True)
-    parser.add_argument('--episodic_reward_coef', type=float, default=0.1)
+    parser.add_argument('--episodic_reward_coef', type=float, default=1.0)
     return parser.parse_args(rest_args)
