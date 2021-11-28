@@ -72,7 +72,7 @@ class ValueDecoder(nn.Module):
             h = h.reshape((-1, h.shape[-1]))
             h = self.value_simulator(ha, h)
             h = h.reshape((*h_size[:-1], h.shape[-1]))
-            value_prediction.append(self.one_step_fc_out[i](h))
+            value_prediction.append(self.one_step_fc_out(h))
         return value_prediction
 
 
@@ -143,7 +143,7 @@ class ActionDecoder(nn.Module):
                 h = h.reshape((-1, h.shape[-1]))
                 h = self.action_simulator(hs_t_1, h)
                 h = h.reshape((*h_size[:-1], h.shape[-1]))
-                action_prediction.append(self.log_softmax(self.one_step_fc_out[i](h)))
+                action_prediction.append(self.log_softmax(self.one_step_fc_out(h)))
         return action_prediction
 
 
@@ -209,7 +209,7 @@ class StateTransitionDecoder(nn.Module):
                 h = h.reshape((-1, h.shape[-1]))
                 h = self.action_simulator(ha, h)
                 h = h.reshape((*h_size[:-1], h.shape[-1]))
-                state_prediction.append(self.one_step_fc_out[i](h))
+                state_prediction.append(self.one_step_fc_out(h))
         return state_prediction
 
 
@@ -327,7 +327,7 @@ class RewardDecoder(nn.Module):
                 h = h.reshape((-1, h.shape[-1]))
                 h = self.reward_simulator(hr, h)
                 h = h.reshape((*h_size[:-1], h.shape[-1]))
-                reward_prediction.append(self.one_step_fc_out[i](h))
+                reward_prediction.append(self.one_step_fc_out(h))
         return reward_prediction
 
 
