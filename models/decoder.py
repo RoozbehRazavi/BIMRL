@@ -203,7 +203,7 @@ class StateTransitionDecoder(nn.Module):
         if n_step_state_prediction:
             h = self.h_to_hidden_state(h)
             for i in range(self.n_prediction):
-                ha = self.action_encoder(n_step_action[i]) if state_encoder is None else state_encoder(n_step_action[i])
+                ha = self.action_encoder(n_step_action[i])
                 ha = ha.reshape((-1, ha.shape[-1]))
                 h_size = h.shape
                 h = h.reshape((-1, h.shape[-1]))
