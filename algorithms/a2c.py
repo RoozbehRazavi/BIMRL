@@ -75,7 +75,7 @@ class A2C:
 
         # call this to make sure that the action_log_probs are computed
         # (needs to be done right here because of some caching thing when normalising actions)
-        policy_storage.before_update(self.actor_critic)
+        #policy_storage.before_update(self.actor_critic)
 
         data_generator = policy_storage.feed_forward_generator(advantages, 1)
         for sample in data_generator:

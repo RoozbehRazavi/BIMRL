@@ -197,6 +197,9 @@ def compute_intrinsic_reward(rew_raw,
 
     intrinsic_rew_normalised = (intrinsic_rew_raw - intrinsic_reward_running_normalizer.mean) / torch.sqrt(intrinsic_reward_running_normalizer.var + 1e-8)
 
+    # print('state_error ', state_error)
+    # print('action_error ', action_error)
+    # print('reward_error ', reward_error)
     # print('intrinsic_reward ', intrinsic_reward)
     # print('modulation ', modulation)
     # print('epi_reward ', epi_reward)

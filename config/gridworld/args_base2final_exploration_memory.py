@@ -203,10 +203,10 @@ def get_args(rest_args):
     parser.add_argument('--state_prediction_intrinsic_reward_coef', type=float, default=3,
                         help='coefficient for state pred error in intrinsic reward')
 
-    parser.add_argument('--action_prediction_intrinsic_reward_coef', type=float, default=3,
+    parser.add_argument('--action_prediction_intrinsic_reward_coef', type=float, default=0.4,
                         help='coefficient for action pred error in intrinsic reward')
 
-    parser.add_argument('--reward_prediction_intrinsic_reward_coef', type=float, default=4)
+    parser.add_argument('--reward_prediction_intrinsic_reward_coef', type=float, default=3)
 
     parser.add_argument('--extrinsic_reward_intrinsic_reward_coef', type=float, default=1000.0,
                         help='coefficient for action pred error in intrinsic reward')
