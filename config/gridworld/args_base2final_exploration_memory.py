@@ -41,7 +41,7 @@ def get_args(rest_args):
     parser.add_argument('--policy_anneal_lr', type=boolean_argument, default=False)
 
     # RL algorithm
-    parser.add_argument('--policy', type=str, default='ppo', help='choose: a2c, ppo')
+    parser.add_argument('--policy', type=str, default='a2c', help='choose: a2c, ppo')
     parser.add_argument('--policy_optimiser', type=str, default='adam', help='choose: rmsprop, adam')
 
     # PPO specific
