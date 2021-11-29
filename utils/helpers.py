@@ -190,10 +190,13 @@ def compute_intrinsic_reward(rew_raw,
     intrinsic_reward = state_error * state_prediction_intrinsic_reward_coef + \
     action_error * action_prediction_intrinsic_reward_coef + \
     reward_error * reward_prediction_intrinsic_reward_coef
-    modulation = torch.minimum(torch.maximum(intrinsic_reward,
-                                torch.ones_like(state_error) * 1.0), torch.ones_like(state_error) * 1.0)
-    intrinsic_rew_raw = (modulation * (episodic_reward_coef * epi_reward)) * annealing_tmp + \
-        rew_raw * extrinsic_reward_intrinsic_reward_coef
+    if episodic_reward:
+        modulation = torch.minimum(torch.maximum(intrinsic_reward,
+                                    torch.ones_like(state_error) * 1.0), torch.ones_like(state_error) * 1.0)
+        intrinsic_rew_raw = (modulation * (episodic_reward_coef * epi_reward)) * annealing_tmp + \
+            rew_raw * extrinsic_reward_intrinsic_reward_coef
+    else:
+        intrinsic_rew_raw = intrinsic_reward * annealing_tmp + rew_raw * extrinsic_reward_intrinsic_reward_coef
 
     intrinsic_rew_normalised = (intrinsic_rew_raw - intrinsic_reward_running_normalizer.mean) / torch.sqrt(intrinsic_reward_running_normalizer.var + 1e-8)
 

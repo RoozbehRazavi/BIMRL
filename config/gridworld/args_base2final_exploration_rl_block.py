@@ -200,7 +200,7 @@ def get_args(rest_args):
                         help='predict action between two state')
 
     # use 0.00n for key and door and 0.0n for other task
-    parser.add_argument('--state_prediction_intrinsic_reward_coef', type=float, default=0.004,
+    parser.add_argument('--state_prediction_intrinsic_reward_coef', type=float, default=0.04,
                         help='coefficient for state pred error in intrinsic reward')
 
     parser.add_argument('--action_prediction_intrinsic_reward_coef', type=float, default=0.003,
