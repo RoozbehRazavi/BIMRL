@@ -7,10 +7,10 @@ def get_args(rest_args):
 
     # --- GENERAL ---
 
-    parser.add_argument('--num_frames', type=int, default=3e6, help='number of frames to train')
+    parser.add_argument('--num_frames', type=int, default=4e6, help='number of frames to train')
     parser.add_argument('--max_rollouts_per_task', type=int, default=4, help='number of MDP episodes for adaptation')
     parser.add_argument('--exp_label', default='A1_meta_eval2', help='label (typically name of method)')
-    parser.add_argument('--env_name', default='MiniGrid-MultiRoom-N2-S4-v0', help='environment to train on')
+    parser.add_argument('--env_name', default='MiniGrid-MultiRoom-N6-v0', help='environment to train on')
 
     # --- POLICY ---
 
@@ -160,7 +160,7 @@ def get_args(rest_args):
     parser.add_argument('--results_log_dir', default=None, help='directory to save results (None uses ./logs)')
 
     # general settings
-    parser.add_argument('--seed',  nargs='+', type=int, default=[87])
+    parser.add_argument('--seed',  nargs='+', type=int, default=[73])
     parser.add_argument('--deterministic_execution', type=boolean_argument, default=False,
                         help='Make code fully deterministic. Expects 1 process and uses deterministic CUDNN')
 

@@ -7,10 +7,10 @@ def get_args(rest_args):
 
     # --- GENERAL ---
 
-    parser.add_argument('--num_frames', type=int, default=2e6, help='number of frames to train')
+    parser.add_argument('--num_frames', type=int, default=4e6, help='number of frames to train')
     parser.add_argument('--max_rollouts_per_task', type=int, default=4, help='number of MDP episodes for adaptation')
     parser.add_argument('--exp_label', default='A1_meta_eval2', help='label (typically name of method)')
-    parser.add_argument('--env_name', default='MiniGrid-KeyCorridorS3R1-v0', help='environment to train on')
+    parser.add_argument('--env_name', default='MiniGrid-MultiRoom-N6-v0', help='environment to train on')
 
     # --- POLICY ---
 
@@ -58,7 +58,7 @@ def get_args(rest_args):
     parser.add_argument('--policy_eps', type=float, default=1e-8, help='optimizer epsilon (1e-8 for ppo, 1e-5 for a2c)')
     parser.add_argument('--policy_init_std', type=float, default=1.0, help='only used for continuous actions')
     parser.add_argument('--policy_value_loss_coef', type=float, default=0.5, help='value loss coefficient')
-    parser.add_argument('--policy_entropy_coef', type=float, default=0.01, help='entropy term coefficient')
+    parser.add_argument('--policy_entropy_coef', type=float, default=0.1, help='entropy term coefficient')
     parser.add_argument('--policy_gamma', type=float, default=0.95, help='discount factor for rewards')
     parser.add_argument('--policy_use_gae', type=boolean_argument, default=True,
                         help='use generalized advantage estimation')
@@ -92,7 +92,7 @@ def get_args(rest_args):
     parser.add_argument('--num_vae_updates', type=int, default=3,
                         help='how many VAE update steps to take per meta-iteration')
     parser.add_argument('--pretrain_len', type=int, default=0, help='for how many updates to pre-train the VAE')
-    parser.add_argument('--kl_weight', type=float, default=0.01, help='weight for the KL term')
+    parser.add_argument('--kl_weight', type=float, default=0.1, help='weight for the KL term')
 
     parser.add_argument('--split_batches_by_task', type=boolean_argument, default=False,
                         help='split batches up by task (to save memory or if tasks are of different length)')
@@ -200,15 +200,15 @@ def get_args(rest_args):
                         help='predict action between two state')
 
     # use 0.00n for key and door and 0.0n for other task
-    parser.add_argument('--state_prediction_intrinsic_reward_coef', type=float, default=1.0,
+    parser.add_argument('--state_prediction_intrinsic_reward_coef', type=float, default=0.0,
                         help='coefficient for state pred error in intrinsic reward')
 
-    parser.add_argument('--action_prediction_intrinsic_reward_coef', type=float, default=1.0,
+    parser.add_argument('--action_prediction_intrinsic_reward_coef', type=float, default=0.0,
                         help='coefficient for action pred error in intrinsic reward')
 
-    parser.add_argument('--reward_prediction_intrinsic_reward_coef', type=float, default=1.0)
+    parser.add_argument('--reward_prediction_intrinsic_reward_coef', type=float, default=0.0)
 
-    parser.add_argument('--extrinsic_reward_intrinsic_reward_coef', type=float, default=1000.0,
+    parser.add_argument('--extrinsic_reward_intrinsic_reward_coef', type=float, default=10.0,
                         help='coefficient for action pred error in intrinsic reward')
 
     parser.add_argument('--residual_task_inference_latent', type=boolean_argument, default=True)
@@ -310,7 +310,7 @@ def get_args(rest_args):
     # memory
     parser.add_argument('--use_memory', type=boolean_argument, default=True,
                         help='whatever or not use memory in model')
-    parser.add_argument('--use_hebb', type=boolean_argument, default=True,
+    parser.add_argument('--use_hebb', type=boolean_argument, default=False,
                         help='whatever or not use hebbian memory in memory module')
     parser.add_argument('--use_gen', type=boolean_argument, default=True,
                         help='whatever or not use generative memory in memory module')
