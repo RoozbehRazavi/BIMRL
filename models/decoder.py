@@ -190,6 +190,7 @@ class StateTransitionDecoder(nn.Module):
 
     def forward(self, latent_state, state, action, n_step_action, n_step_state_prediction, state_encoder=None):
         assert n_step_action is not None or not n_step_state_prediction
+        assert state_encoder is not None
         state_prediction = []
 
         ha = self.action_encoder(action)
