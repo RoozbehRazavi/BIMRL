@@ -416,7 +416,7 @@ class Base2Final:
 
         if not n_step_state_prediction:
             state_pred = state_pred[0]
-            loss_state = compute_loss_state(state_pred, self.action_decoder.state_t_encoder(next_obs).detach(), self.args.state_pred_type)
+            loss_state = compute_loss_state(state_pred, next_obs, self.args.state_pred_type)
             if return_predictions:
                 return loss_state, state_pred
             else:
@@ -425,9 +425,9 @@ class Base2Final:
             losses = list()
             for i in range(self.args.n_prediction+1):
                 if i == 0:
-                    losses.append(compute_loss_state(state_pred[i], self.action_decoder.state_t_encoder(next_obs).detach(), self.args.state_pred_type))
+                    losses.append(compute_loss_state(state_pred[i], next_obs, self.args.state_pred_type))
                 else:
-                    losses.append(compute_loss_state(state_pred[i], self.action_decoder.state_t_encoder(n_step_next_obs[i-1]).detach(), self.args.state_pred_type))
+                    losses.append(compute_loss_state(state_pred[i], n_step_next_obs[i-1], self.args.state_pred_type))
             if return_predictions:
                 # just return prediction of next step
                 return losses, state_pred[0]

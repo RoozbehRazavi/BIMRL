@@ -184,9 +184,9 @@ class StateTransitionDecoder(nn.Module):
 
         # output layer
         if pred_type == 'gaussian':
-            self.one_step_fc_out = nn.Linear(curr_input_dim, 2 * state_embed_dim)
+            self.one_step_fc_out = nn.Linear(curr_input_dim, 2 * state_dim)
         else:
-            self.one_step_fc_out = nn.Linear(curr_input_dim, state_embed_dim)
+            self.one_step_fc_out = nn.Linear(curr_input_dim, state_dim)
 
     def forward(self, latent_state, state, action, n_step_action, n_step_state_prediction, state_encoder=None):
         assert n_step_action is not None or not n_step_state_prediction
