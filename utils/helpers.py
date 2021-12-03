@@ -185,7 +185,7 @@ def compute_intrinsic_reward(rew_raw,
         epi_reward = 0.0
     annealing_tmp = 1 #- (itr_idx / num_updates)
     state_pred = state_decoder(latent_state=latent, state=prev_state, action=action, n_step_action=None,
-                               n_step_state_prediction=False, state_encoder=state_encoder)[0].detach()
+                               n_step_state_prediction=False)[0].detach()
     state_error = (state_pred - next_state).pow(2).mean(dim=-1).unsqueeze(-1)
     intrinsic_reward = state_error * state_prediction_intrinsic_reward_coef + \
     action_error * action_prediction_intrinsic_reward_coef + \

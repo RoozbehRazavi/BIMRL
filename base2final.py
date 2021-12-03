@@ -411,8 +411,7 @@ class Base2Final:
                                         prev_obs,
                                         action,
                                         n_step_action,
-                                        n_step_state_prediction=n_step_state_prediction,
-                                        state_encoder=self.action_decoder.state_t_encoder)
+                                        n_step_state_prediction=n_step_state_prediction)
 
         if not n_step_state_prediction:
             state_pred = state_pred[0]
