@@ -187,7 +187,7 @@ def compute_intrinsic_reward(rew_raw,
     state_pred = state_decoder(latent_state=latent, state=prev_state, action=action, n_step_action=None,
                                n_step_state_prediction=False)[0].detach()
     state_error = (state_pred - next_state).pow(2).mean(dim=-1).unsqueeze(-1)
-    intrinsic_reward = torch.minimum(state_error, torch.ones_like(state_error)*0.125) * state_prediction_intrinsic_reward_coef + \
+    intrinsic_reward = torch.minimum(state_error, torch.ones_like(state_error)*0.5) * state_prediction_intrinsic_reward_coef + \
     action_error * action_prediction_intrinsic_reward_coef + \
     reward_error * reward_prediction_intrinsic_reward_coef
     if episodic_reward:
