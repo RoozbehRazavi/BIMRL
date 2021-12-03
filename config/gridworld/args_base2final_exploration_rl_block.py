@@ -208,7 +208,7 @@ def get_args(rest_args):
 
     parser.add_argument('--reward_prediction_intrinsic_reward_coef', type=float, default=0.0)
 
-    parser.add_argument('--extrinsic_reward_intrinsic_reward_coef', type=float, default=10.0,
+    parser.add_argument('--extrinsic_reward_intrinsic_reward_coef', type=float, default=100.0,
                         help='coefficient for action pred error in intrinsic reward')
 
     parser.add_argument('--residual_task_inference_latent', type=boolean_argument, default=True)
