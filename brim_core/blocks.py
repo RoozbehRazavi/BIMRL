@@ -929,5 +929,3 @@ class Blocks(nn.Module):
 
         brim_hidden_state = torch.stack((brim_hidden_state1, brim_hidden_state2, brim_hidden_state3, brim_hidden_state4, brim_hidden_state5), dim=1)
         return brim_output1, brim_output2, brim_output3, brim_output4, brim_output5, brim_hidden_state, extra_information
-
-
