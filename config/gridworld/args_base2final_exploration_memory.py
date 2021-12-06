@@ -189,7 +189,7 @@ def get_args(rest_args):
 
     parser.add_argument('--rl_loss_throughout_vae_encoder', type=boolean_argument, default=False,
                         help='detach output of task inference module when pass it to policy network')
-    parser.add_argument('--vae_loss_throughout_vae_encoder_from_rim_level3', type=boolean_argument, default=True)
+    parser.add_argument('--vae_loss_throughout_vae_encoder_from_rim_level3', type=boolean_argument, default=False)
 
     parser.add_argument('--n_step_value_prediction_coeff', type=float, default=1.0,
                         help='weight for n step value prediction vs (VAE loss and RL loss)')
@@ -310,7 +310,7 @@ def get_args(rest_args):
     # memory
     parser.add_argument('--use_memory', type=boolean_argument, default=True,
                         help='whatever or not use memory in model')
-    parser.add_argument('--use_hebb', type=boolean_argument, default=False,
+    parser.add_argument('--use_hebb', type=boolean_argument, default=True,
                         help='whatever or not use hebbian memory in memory module')
     parser.add_argument('--use_gen', type=boolean_argument, default=False,
                         help='whatever or not use generative memory in memory module')
