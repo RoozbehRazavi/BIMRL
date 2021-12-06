@@ -189,7 +189,7 @@ def get_args(rest_args):
 
     parser.add_argument('--rl_loss_throughout_vae_encoder', type=boolean_argument, default=False,
                         help='detach output of task inference module when pass it to policy network')
-    parser.add_argument('--vae_loss_throughout_vae_encoder_from_rim_level3', type=boolean_argument, default=False)
+    parser.add_argument('--vae_loss_throughout_vae_encoder_from_rim_level3', type=boolean_argument, default=True)
 
     parser.add_argument('--n_step_value_prediction_coeff', type=float, default=1.0,
                         help='weight for n step value prediction vs (VAE loss and RL loss)')
@@ -341,14 +341,14 @@ def get_args(rest_args):
                         help='RL vs Recons loss for memory training')
 
     # vision core
-    parser.add_argument('--use_stateful_vision_core', type=boolean_argument, default=True,
+    parser.add_argument('--use_stateful_vision_core', type=boolean_argument, default=False,
                         help='use attentional visual process unit')
     parser.add_argument('--visual_attention_value_size', type=int, default=8)
     parser.add_argument('--visual_attention_key_size', type=int, default=4)
     parser.add_argument('--visual_attention_spatial', type=int, default=4)
     parser.add_argument('--visual_attention_num_queries', type=int, default=4)
     parser.add_argument('--rim_output_size_to_vision_core', type=int, default=16)
-    parser.add_argument('--pass_gradient_to_rim_from_state_encoder', type=boolean_argument, default=True)
+    parser.add_argument('--pass_gradient_to_rim_from_state_encoder', type=boolean_argument, default=False)
     parser.add_argument('--use_discount_n_prediction', type=boolean_argument, default=True)
     parser.add_argument('--discount_n_prediction_coef', type=float, default=0.8)
 
