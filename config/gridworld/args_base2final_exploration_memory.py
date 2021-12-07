@@ -335,7 +335,7 @@ def get_args(rest_args):
     parser.add_argument('--read_memory_to_value_layer', type=int, nargs='+', default=[])
     parser.add_argument('--read_memory_to_key_layer', type=int, nargs='+', default=[])
     parser.add_argument('--use_rpe', type=boolean_argument, default=False)
-    parser.add_argument('--hebb_learning_rate', type=float, default=0.0001)
+    parser.add_argument('--hebb_learning_rate', type=float, default=0.001)
     parser.add_argument('--reconstruction_memory_loss', type=boolean_argument, default=False)
     parser.add_argument('--reconstruction_memory_loss_coef', type=float, default=0.5,
                         help='RL vs Recons loss for memory training')
