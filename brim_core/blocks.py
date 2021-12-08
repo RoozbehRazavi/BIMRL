@@ -296,7 +296,7 @@ class Blocks(nn.Module):
         if use_rim_level1:
             if use_gru_or_rim == 'GRU':
                 blocks_level1.append(nn.GRUCell(rim_level1_input_dim, rim_level1_hidden_size))
-                #blocks_level1.append(nn.GRUCell(rim_level1_input_dim, rim_level1_hidden_size))
+                blocks_level1.append(nn.GRUCell(rim_level1_input_dim, rim_level1_hidden_size))
             elif use_gru_or_rim == 'RIM':
                 if new_impl:
                     blocks_level1.append(BRIMCell(
@@ -310,17 +310,17 @@ class Blocks(nn.Module):
                         input_dropout=0.0,
                         comm_dropout=0.0,
                     ))
-                    # blocks_level1.append(BRIMCell(
-                    #     device=device,
-                    #     use_higher=rim_top_down_level2_level1,
-                    #     input_size=rim_level1_input_dim,
-                    #     hidden_size=int(rim_level1_hidden_size/rim_level1_num_modules),
-                    #     num_units=rim_level1_num_modules,
-                    #     k=rim_level1_topk,
-                    #     rnn_cell='GRU',
-                    #     input_dropout=0.0,
-                    #     comm_dropout=0.0,
-                    # ))
+                    blocks_level1.append(BRIMCell(
+                        device=device,
+                        use_higher=rim_top_down_level2_level1,
+                        input_size=rim_level1_input_dim,
+                        hidden_size=int(rim_level1_hidden_size/rim_level1_num_modules),
+                        num_units=rim_level1_num_modules,
+                        k=rim_level1_topk,
+                        rnn_cell='GRU',
+                        input_dropout=0.0,
+                        comm_dropout=0.0,
+                    ))
                 else:
                     blocks_level1.append(BlocksCore(ninp=rim_level1_input_dim,
                                                     nhid=rim_level1_hidden_size,
@@ -331,20 +331,20 @@ class Blocks(nn.Module):
                                                     num_modules_read_input=2,
                                                     use_higher=rim_top_down_level2_level1,
                                                     higher_separate_att=True))
-                    # blocks_level1.append(BlocksCore(ninp=rim_level1_input_dim,
-                    #                                 nhid=rim_level1_hidden_size,
-                    #                                 num_blocks_in=1,
-                    #                                 num_blocks_out=rim_level1_num_modules,
-                    #                                 topkval=rim_level1_topk,
-                    #                                 do_gru=True,
-                    #                                 num_modules_read_input=2,
-                    #                                 use_higher=rim_top_down_level2_level1,
-                    #                                 higher_separate_att=True))
+                    blocks_level1.append(BlocksCore(ninp=rim_level1_input_dim,
+                                                    nhid=rim_level1_hidden_size,
+                                                    num_blocks_in=1,
+                                                    num_blocks_out=rim_level1_num_modules,
+                                                    topkval=rim_level1_topk,
+                                                    do_gru=True,
+                                                    num_modules_read_input=2,
+                                                    use_higher=rim_top_down_level2_level1,
+                                                    higher_separate_att=True))
         if use_rim_level2:
             rim_level2_input_dim = rim_level2_input_dim
             if use_gru_or_rim == 'GRU':
                 blocks_level2.append(nn.GRUCell(rim_level2_input_dim, rim_level2_hidden_size))
-                #blocks_level2.append(nn.GRUCell(rim_level2_input_dim, rim_level2_hidden_size))
+                blocks_level2.append(nn.GRUCell(rim_level2_input_dim, rim_level2_hidden_size))
             elif use_gru_or_rim == 'RIM':
                 if new_impl:
                     blocks_level2.append(BRIMCell(
@@ -358,17 +358,17 @@ class Blocks(nn.Module):
                         input_dropout=0.0,
                         comm_dropout=0.0
                     ))
-                    # blocks_level2.append(BRIMCell(
-                    #     device=device,
-                    #     use_higher=rim_top_down_level3_level2,
-                    #     input_size=rim_level2_input_dim,
-                    #     hidden_size=int(rim_level2_hidden_size / rim_level2_num_modules),
-                    #     num_units=rim_level2_num_modules,
-                    #     k=rim_level2_topk,
-                    #     rnn_cell='GRU',
-                    #     input_dropout=0.0,
-                    #     comm_dropout=0.0
-                    # ))
+                    blocks_level2.append(BRIMCell(
+                        device=device,
+                        use_higher=rim_top_down_level3_level2,
+                        input_size=rim_level2_input_dim,
+                        hidden_size=int(rim_level2_hidden_size / rim_level2_num_modules),
+                        num_units=rim_level2_num_modules,
+                        k=rim_level2_topk,
+                        rnn_cell='GRU',
+                        input_dropout=0.0,
+                        comm_dropout=0.0
+                    ))
                 else:
                     blocks_level2.append(BlocksCore(ninp=rim_level2_input_dim,
                                                     nhid=rim_level2_hidden_size,
@@ -379,15 +379,15 @@ class Blocks(nn.Module):
                                                     num_modules_read_input=2,
                                                     use_higher=rim_top_down_level3_level2,
                                                     higher_separate_att=True))
-                    # blocks_level2.append(BlocksCore(ninp=rim_level2_input_dim,
-                    #                                 nhid=rim_level2_hidden_size,
-                    #                                 num_blocks_in=1,
-                    #                                 num_blocks_out=rim_level2_num_modules,
-                    #                                 topkval=rim_level2_topk,
-                    #                                 do_gru=True,
-                    #                                 num_modules_read_input=2,
-                    #                                 use_higher=rim_top_down_level3_level2,
-                    #                                 higher_separate_att=True))
+                    blocks_level2.append(BlocksCore(ninp=rim_level2_input_dim,
+                                                    nhid=rim_level2_hidden_size,
+                                                    num_blocks_in=1,
+                                                    num_blocks_out=rim_level2_num_modules,
+                                                    topkval=rim_level2_topk,
+                                                    do_gru=True,
+                                                    num_modules_read_input=2,
+                                                    use_higher=rim_top_down_level3_level2,
+                                                    higher_separate_att=True))
         if use_rim_level3:
             if use_gru_or_rim == 'GRU':
                 blocks_level3 = nn.GRUCell(rim_level3_input_dim, rim_level3_hidden_size)
@@ -446,7 +446,7 @@ class Blocks(nn.Module):
                     level1_2.append(nn.Linear(curr_input_dim, brim_layers_before_rim_level1[i]))
                     curr_input_dim = brim_layers_before_rim_level1[i]
             level1.append(nn.Sequential(*level1_1))
-            #level1.append(nn.Sequential(*level1_2))
+            level1.append(nn.Sequential(*level1_2))
 
         if use_rim_level2:
             level2_1 = nn.ModuleList([])
@@ -464,7 +464,7 @@ class Blocks(nn.Module):
                     level2_2.append(nn.Linear(curr_input_dim, brim_layers_before_rim_level2[i]))
                     curr_input_dim = brim_layers_before_rim_level2[i]
             level2.append(nn.Sequential(*level2_1))
-            #level2.append(nn.Sequential(*level2_2))
+            level2.append(nn.Sequential(*level2_2))
 
         if use_rim_level3:
             if len(brim_layers_before_rim_level3) > 0:
@@ -512,7 +512,7 @@ class Blocks(nn.Module):
                     curr_output_dim = brim_layers_after_rim_level1[i]
             level1_2.append(nn.Linear(curr_output_dim, rim_level1_output_dim))
             level1.append(nn.Sequential(*level1_1))
-            #level1.append(nn.Sequential(*level1_2))
+            level1.append(nn.Sequential(*level1_2))
 
         if use_rim_level2:
             level2_1 = nn.ModuleList([])
@@ -533,7 +533,7 @@ class Blocks(nn.Module):
                     curr_output_dim = brim_layers_after_rim_level2[i]
             level2_2.append(nn.Linear(curr_output_dim, rim_level2_output_dim))
             level2.append(nn.Sequential(*level2_1))
-            #level2.append(nn.Sequential(*level2_2))
+            level2.append(nn.Sequential(*level2_2))
 
         if use_rim_level3:
             curr_output_dim = rim_level3_hidden_size
@@ -622,15 +622,15 @@ class Blocks(nn.Module):
 
         if self.use_rim_level1:
             brim_output1 = self.output_layer_level1[0](h1)
-            brim_output2 = torch.zeros(size=(1, batch_size, self.rim_level1_output_dim), device=device)
+            brim_output2 = self.output_layer_level1[1](h2)
             if embedd_state:
                 if self.use_stateful_vision_core:
                     if self.pass_gradient_to_rim_from_state_encoder:
                         rim_output1_to_vision_core = self.output_layer_to_vision_core[0](h1)
-                        rim_output2_to_vision_core = h2 #self.output_layer_to_vision_core[1](h2)
+                        rim_output2_to_vision_core = self.output_layer_to_vision_core[1](h2)
                     else:
                         rim_output1_to_vision_core = self.output_layer_to_vision_core[0](h1.detach())
-                        rim_output2_to_vision_core = h2.detach() #self.output_layer_to_vision_core[1](h2.detach())
+                        rim_output2_to_vision_core = self.output_layer_to_vision_core[1](h2.detach())
                     extra_information['exploration_policy_embedded_state'] = state_process(state, rim_output1_to_vision_core)
                     extra_information['exploitation_policy_embedded_state'] = state_process(state, rim_output2_to_vision_core)
                 else:
@@ -929,5 +929,3 @@ class Blocks(nn.Module):
 
         brim_hidden_state = torch.stack((brim_hidden_state1, brim_hidden_state2, brim_hidden_state3, brim_hidden_state4, brim_hidden_state5), dim=1)
         return brim_output1, brim_output2, brim_output3, brim_output4, brim_output5, brim_hidden_state, extra_information
-
-
