@@ -24,6 +24,7 @@ class DND(nn.Module):
         for i in range(len(key_encoder_layer)):
             self.key_encoder.append(nn.Linear(curr_dim, key_encoder_layer[i]))
             self.key_encoder.append(nn.ReLU())
+            curr_dim = key_encoder_layer[i]
         self.key_encoder.append(nn.Linear(curr_dim, key_size))
         self.key_encoder = nn.Sequential(*self.key_encoder)
 
@@ -32,6 +33,7 @@ class DND(nn.Module):
         for i in range(len(value_encoder_layer)):
             self.value_encoder.append(nn.Linear(curr_dim, value_encoder_layer[i]))
             self.value_encoder.append(nn.ReLU())
+            curr_dim = value_encoder_layer[i]
         self.value_encoder.append(nn.Linear(curr_dim, value_size))
         self.value_encoder = nn.Sequential(*self.value_encoder)
 

@@ -87,6 +87,7 @@ class Hippocampus(nn.Module):
         for i in range(len(rim_hidden_state_to_query_layers)):
             rim_hidden_to_query.append(nn.Linear(curr_dim, rim_hidden_state_to_query_layers[i]))
             rim_hidden_to_query.append(nn.ReLU())
+            curr_dim = rim_hidden_state_to_query_layers[i]
         rim_hidden_to_query.append(nn.Linear(curr_dim, rim_query_size))
         rim_hidden_to_query = nn.Sequential(*rim_hidden_to_query)
 
@@ -95,6 +96,7 @@ class Hippocampus(nn.Module):
         for i in range(len(read_memory_to_value_layer)):
             read_memory_to_value.append(nn.Linear(curr_dim, read_memory_to_value_layer[i]))
             read_memory_to_value.append(nn.ReLU())
+            curr_dim = read_memory_to_value_layer[i]
         read_memory_to_value.append(nn.Linear(curr_dim, value_size))
         read_memory_to_value = nn.Sequential(*read_memory_to_value)
 
@@ -103,6 +105,7 @@ class Hippocampus(nn.Module):
         for i in range(len(read_memory_to_key_layer)):
             read_memory_to_key.append(nn.Linear(curr_dim, read_memory_to_key_layer[i]))
             read_memory_to_key.append(nn.ReLU())
+            curr_dim = read_memory_to_key_layer[i]
         read_memory_to_key.append(nn.Linear(curr_dim, rim_query_size))
         read_memory_to_key = nn.Sequential(*read_memory_to_key)
 
@@ -165,6 +168,7 @@ class Hippocampus(nn.Module):
         for i in range(len(general_key_encoder_layer)):
             key_encoder.append(nn.Linear(curr_dim, general_key_encoder_layer[i]))
             key_encoder.append(nn.ReLU())
+            curr_dim = general_key_encoder_layer[i]
         key_encoder.append(nn.Linear(curr_dim, key_size))
         key_encoder = nn.Sequential(*key_encoder)
 
@@ -173,6 +177,7 @@ class Hippocampus(nn.Module):
         for i in range(len(general_value_encoder_layer)):
             value_encoder.append(nn.Linear(curr_dim, general_value_encoder_layer[i]))
             value_encoder.append(nn.ReLU())
+            curr_dim = general_value_encoder_layer[i]
         value_encoder.append(nn.Linear(curr_dim, value_size))
         value_encoder = nn.Sequential(*value_encoder)
 
@@ -181,6 +186,7 @@ class Hippocampus(nn.Module):
         for i in range(len(general_query_encoder_layer)):
             query_encoder.append(nn.Linear(curr_dim, general_query_encoder_layer[i]))
             query_encoder.append(nn.ReLU())
+            curr_dim = general_query_encoder_layer[i]
         query_encoder.append(nn.Linear(curr_dim, key_size))
         query_encoder = nn.Sequential(*query_encoder)
         return key_encoder, value_encoder, query_encoder
