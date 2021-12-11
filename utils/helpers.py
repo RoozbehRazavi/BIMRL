@@ -158,12 +158,13 @@ def compute_intrinsic_reward(rew_raw,
                              exponential_temp_epi,
                              intrinsic_reward_running_normalizer,
                              state_encoder):
-    if decode_action:
+    if decode_action and not action_prediction_intrinsic_reward_coef == 0.0:
         action_pred = action_decoder(latent_state=latent, state=prev_state, next_state=next_state, n_step_next_state=None, n_step_action_prediction=False)[0].detach()
         action_error = F.nll_loss(action_pred, action.squeeze(-1).long(), reduction='none').unsqueeze(-1)
     else:
         action_error = 0.0
-    if decode_reward:
+
+    if decode_reward and not reward_prediction_intrinsic_reward_coef == 0.0:
         reward_pred = reward_decoder(latent_state=latent, next_state=next_state, prev_state=prev_state, action=action, n_step_reward_prediction=False)[0].detach()
         if rew_pred_type == 'categorical':
             reward_pred = F.softmax(reward_pred, dim=-1)
@@ -179,14 +180,20 @@ def compute_intrinsic_reward(rew_raw,
             raise NotImplementedError
     else:
         reward_error = 0
+
     if memory is not None and episodic_reward:
         epi_reward = memory.compute_intrinsic_reward(next_state, task_inf_latent).detach()
     else:
         epi_reward = 0.0
-    annealing_tmp = 1 #- (itr_idx / num_updates)
-    state_pred = state_decoder(latent_state=latent, state=prev_state, action=action, n_step_action=None,
-                               n_step_state_prediction=False)[0].detach()
-    state_error = (state_pred - next_state).pow(2).mean(dim=-1).unsqueeze(-1)
+
+    if not state_prediction_intrinsic_reward_coef == 0.0:
+        state_pred = state_decoder(latent_state=latent, state=prev_state, action=action, n_step_action=None,
+                                   n_step_state_prediction=False)[0].detach()
+        state_error = (state_pred - next_state).pow(2).mean(dim=-1).unsqueeze(-1)
+    else:
+        state_error = 0.0
+
+    annealing_tmp = 1
     intrinsic_reward = state_error * state_prediction_intrinsic_reward_coef + \
     action_error * action_prediction_intrinsic_reward_coef + \
     reward_error * reward_prediction_intrinsic_reward_coef
@@ -198,14 +205,6 @@ def compute_intrinsic_reward(rew_raw,
         intrinsic_rew_raw = intrinsic_reward * annealing_tmp + rew_raw * extrinsic_reward_intrinsic_reward_coef
 
     intrinsic_rew_normalised = (intrinsic_rew_raw - intrinsic_reward_running_normalizer.mean) / torch.sqrt(intrinsic_reward_running_normalizer.var + 1e-8)
-
-    #print('state_error ', state_error)
-    # print('action_error ', action_error)
-    # print('reward_error ', reward_error)
-    # print('intrinsic_reward ', intrinsic_reward)
-    # print('modulation ', modulation)
-    # print('epi_reward ', epi_reward)
-    # print('intrinsic_rew_raw ', intrinsic_rew_raw)
 
     if isinstance(state_error, torch.Tensor):
         state_error = state_error.detach()
@@ -229,11 +228,15 @@ def compute_intrinsic_reward(rew_raw,
 
 
 def count_params_number(base2final, policy):
-    params_number = sum(p.numel() for p in base2final.brim_core.parameters() if p.requires_grad)* 4/5
-    params_number += sum(p.numel() for p in base2final.reward_decoder.parameters() if p.requires_grad)
-    params_number += sum(p.numel() for p in base2final.action_decoder.parameters() if p.requires_grad)
-    params_number += sum(p.numel() for p in base2final.state_decoder.parameters() if p.requires_grad)
-    params_number += sum(p.numel() for p in base2final.exploration_value_decoder.parameters() if p.requires_grad)
+    params_number = sum(p.numel() for p in base2final.brim_core.parameters() if p.requires_grad)
+    if base2final.reward_decoder is not None:
+        params_number += sum(p.numel() for p in base2final.reward_decoder.parameters() if p.requires_grad)
+    if base2final.action_decoder is not None:
+        params_number += sum(p.numel() for p in base2final.action_decoder.parameters() if p.requires_grad)
+    if base2final.state_decoder is not None:
+        params_number += sum(p.numel() for p in base2final.state_decoder.parameters() if p.requires_grad)
+    if base2final.exploration_value_decoder is not None:
+        params_number += sum(p.numel() for p in base2final.exploration_value_decoder.parameters() if p.requires_grad)
     params_number += sum(p.numel() for p in policy.parameters() if p.requires_grad)
     return params_number
 

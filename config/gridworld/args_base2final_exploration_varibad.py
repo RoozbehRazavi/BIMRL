@@ -102,7 +102,7 @@ def get_args(rest_args):
     # - encoder
     parser.add_argument('--state_embedding_size', type=int, default=32)
     parser.add_argument('--vae_encoder_layers_before_gru', nargs='+', type=int, default=[])
-    parser.add_argument('--vae_encoder_gru_hidden_size', type=int, default=2048, help='dimensionality of RNN hidden state')
+    parser.add_argument('--vae_encoder_gru_hidden_size', type=int, default=128, help='dimensionality of RNN hidden state')
     parser.add_argument('--vae_encoder_layers_after_gru', nargs='+', type=int, default=[])
     parser.add_argument('--task_inference_latent_dim', type=int, default=8, help='dimensionality of latent space')
 
@@ -196,7 +196,7 @@ def get_args(rest_args):
 
     parser.add_argument('--action_loss_coeff', type=float, default=1.0, help='weight for state loss')
 
-    parser.add_argument('--decode_action', type=boolean_argument, default=True,
+    parser.add_argument('--decode_action', type=boolean_argument, default=False,
                         help='predict action between two state')
 
     # use 0.00n for key and door and 0.0n for other task
@@ -208,7 +208,7 @@ def get_args(rest_args):
 
     parser.add_argument('--reward_prediction_intrinsic_reward_coef', type=float, default=0.0)
 
-    parser.add_argument('--extrinsic_reward_intrinsic_reward_coef', type=float, default=2.0,
+    parser.add_argument('--extrinsic_reward_intrinsic_reward_coef', type=float, default=1.0,
                         help='coefficient for action pred error in intrinsic reward')
 
     parser.add_argument('--residual_task_inference_latent', type=boolean_argument, default=None)

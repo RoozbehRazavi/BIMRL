@@ -459,7 +459,7 @@ class MetaLearner:
                         epi_reward_running_normalizer=self.epi_reward_running_normalizer,
                         exponential_temp_epi=self.args.exponential_temp_epi,
                         intrinsic_reward_running_normalizer=self.intrinsic_reward_running_normalizer,
-                        state_encoder=self.base2final.action_decoder.state_t_encoder
+                        state_encoder=self.base2final.action_decoder.state_t_encoder if self.base2final.action_decoder is not None else None
                         )
                     state_errors.append(state_error)
                     action_errors.append(action_error)
@@ -744,11 +744,11 @@ class MetaLearner:
             # clean up after update
             if train_exploration:
                 self.exploration_policy_storage.after_update()
-                if self.args.decode_state:
+                if self.args.decode_state and not self.args.state_prediction_intrinsic_reward_coef == 0.0:
                     self.state_prediction_running_normalizer.update(torch.cat(state_errors))
-                if self.args.decode_action:
+                if self.args.decode_action and not self.args.action_prediction_intrinsic_reward_coef == 0.0:
                     self.action_prediction_running_normalizer.update(torch.cat(action_errors))
-                if self.args.decode_reward:
+                if self.args.decode_reward and not self.args.reward_prediction_intrinsic_reward_coef == 0.0:
                     self.reward_prediction_running_normalizer.update(torch.cat(reward_errors))
                 if self.args.use_memory and self.args.episodic_reward:
                     self.epi_reward_running_normalizer.update(torch.cat(epi_rewards))
@@ -910,7 +910,7 @@ class MetaLearner:
                 full_output_folder=self.logger.full_output_folder,
                 reward_decoder=self.base2final.reward_decoder,
                 num_updates=self.num_updates,
-                state_encoder=self.base2final.action_decoder.state_t_encoder)
+                state_encoder=self.base2final.action_decoder.state_t_encoder if self.base2final.action_decoder is not None else None)
 
         # --- evaluate policy ----
 
@@ -935,7 +935,7 @@ class MetaLearner:
                 intrinsic_reward_running_normalizer=self.intrinsic_reward_running_normalizer,
                 tmp=tmp,
                 num_updates=self.num_updates,
-                state_encoder=self.base2final.action_decoder.state_t_encoder
+                state_encoder=self.base2final.action_decoder.state_t_encoder if self.base2final.action_decoder is not None else None
                 )
 
             # log the return avg/std across tasks (=processes)
