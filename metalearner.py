@@ -73,7 +73,8 @@ class MetaLearner:
         # calculate what the maximum length of the trajectories is
         self.args.max_trajectory_len = envs._max_episode_steps
         self.args.max_trajectory_len *= self.args.max_rollouts_per_task
-        self.args.policy_num_steps = self.args.max_trajectory_len
+        if self.args.policy_num_steps is None:
+            self.args.policy_num_steps = self.args.max_trajectory_len
         self.num_updates = int(args.num_frames) // args.policy_num_steps // args.num_processes
 
         # get policy input dimensions

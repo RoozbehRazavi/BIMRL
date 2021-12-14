@@ -213,6 +213,9 @@ def get_args(rest_args):
 
     parser.add_argument('--residual_task_inference_latent', type=boolean_argument, default=True)
 
+    parser.add_argument('--policy_num_steps', type=int, default=None,
+                        help='number of env steps to do (per process) before updating')
+
     # Coefficient in Base2Final
     parser.add_argument('--add_extrinsic_reward_to_intrinsic', type=boolean_argument, default=True,
                         help='for compute intrinsic reward add extrinsic also')

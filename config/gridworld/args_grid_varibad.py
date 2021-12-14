@@ -350,7 +350,6 @@ def get_args(rest_args):
     parser.add_argument('--pass_gradient_to_rim_from_state_encoder', type=boolean_argument, default=True)
     parser.add_argument('--use_discount_n_prediction', type=boolean_argument, default=True)
     parser.add_argument('--discount_n_prediction_coef', type=float, default=0.8)
-
     ####
     parser.add_argument('--exploration_num_episodes', type=int, default=4)
     parser.add_argument('--meta_evaluate_interval', type=int, default=1000)
