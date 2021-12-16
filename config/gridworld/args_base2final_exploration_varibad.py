@@ -148,7 +148,8 @@ def get_args(rest_args):
                         help='only decoder past observations, not the future')
     parser.add_argument('--condition_policy_on_state', type=boolean_argument, default=True,
                         help='after the encoder, concatenate env state and latent variable')
-
+    parser.add_argument('--policy_num_steps', type=int, default=None,
+                        help='number of env steps to do (per process) before updating')
     # --- OTHERS ---
 
     # logging, saving, evaluation

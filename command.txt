@@ -1,0 +1,10 @@
+!python main.py  --exp_label Full_Model_73 --env-type gridworld_b2f_exploration_memory --seed 73
+
+!python main.py  --exp_label Full_Model_Without_n_Step_Model_Prediction_73 --env-type gridworld_b2f_exploration_memory --seed 73 --n_step_state_prediction False --n_step_action_prediction False --n_step_reward_prediction False
+
+!python main.py  --exp_label Full_Model_Without_n_Step_Value_Prediction_73 --env-type gridworld_b2f_exploration_memory --seed 73 --use_rim_level2 False --rim_top_down_level2_level1 False
+
+!python main.py  --exp_label Full_Model_Without_Memory_73 --env-type gridworld_b2f_exploration_memory --seed 73 --use_mem False --episodic_reward False
+
+!python main.py  --exp_label Full_Model_73_600 --env-type gridworld_b2f_exploration_memory --env_name MiniGrid-KeyCorridorS3R2-v0 --policy_num_steps 600 --vae_subsample_elbos 100 --vae_subsample_decodes 100 --save_interval 2
+
