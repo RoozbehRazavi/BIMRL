@@ -262,11 +262,11 @@ def get_args(rest_args):
     parser.add_argument('--use_rim_level3', type=boolean_argument, default=True,
                         help='whatever create rim level3 (use for decode VAE terms) or not')
 
-    parser.add_argument('--rim_level1_hidden_size', type=int, default=32,
+    parser.add_argument('--rim_level1_hidden_size', type=int, default=128,
                         help='hidden size of level 1 rim (output of this level use for policy head)')
-    parser.add_argument('--rim_level2_hidden_size', type=int, default=32,
+    parser.add_argument('--rim_level2_hidden_size', type=int, default=128,
                         help='hidden size of level 1 rim (output of this level use for n step value prediction head)')
-    parser.add_argument('--rim_level3_hidden_size', type=int, default=32,
+    parser.add_argument('--rim_level3_hidden_size', type=int, default=128,
                         help='hidden size of level 3 rim (output of this level use decode VAE term)')
 
     parser.add_argument('--rim_level1_num_modules', type=int, default=4,
@@ -295,7 +295,7 @@ def get_args(rest_args):
                         help='output size of rim level1')
     parser.add_argument('--rim_level2_output_dim', type=int, default=16,
                         help='output size of rim level2')
-    parser.add_argument('--rim_level3_output_dim', type=int, default=8,
+    parser.add_argument('--rim_level3_output_dim', type=int, default=16,
                         help='output size of rim level3')
 
     parser.add_argument('--norm_rim_level1_output', type=boolean_argument, default=True, help='normalise rim level 1 output')
