@@ -347,7 +347,7 @@ def get_args(rest_args):
     parser.add_argument('--use_stateful_vision_core', type=boolean_argument, default=False,
                         help='use attentional visual process unit')
     parser.add_argument('--visual_attention_value_size', type=int, default=16)
-    parser.add_argument('--visual_attention_key_size', type=int, default=4)
+    parser.add_argument('--visual_attention_key_size', type=int, default=8)
     parser.add_argument('--visual_attention_spatial', type=int, default=4)
     parser.add_argument('--visual_attention_num_queries', type=int, default=4)
     parser.add_argument('--rim_output_size_to_vision_core', type=int, default=32)
