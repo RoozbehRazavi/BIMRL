@@ -344,7 +344,7 @@ def get_args(rest_args):
                         help='RL vs Recons loss for memory training')
 
     # vision core
-    parser.add_argument('--use_stateful_vision_core', type=boolean_argument, default=False,
+    parser.add_argument('--use_stateful_vision_core', type=boolean_argument, default=True,
                         help='use attentional visual process unit')
     parser.add_argument('--visual_attention_value_size', type=int, default=32)
     parser.add_argument('--visual_attention_key_size', type=int, default=16)
