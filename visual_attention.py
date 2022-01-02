@@ -141,14 +141,14 @@ class VisionNetwork(nn.Module):
             ),
             nn.Conv2d(
                 in_channels=8,
-                out_channels=12,
+                out_channels=24,
                 kernel_size=(3, 3),
                 stride=1,
                 padding=1,
             ),
         )
         self.vision_lstm = ConvLSTMCell(
-            input_channels=8, hidden_channels=12, kernel_size=3
+            input_channels=8, hidden_channels=24, kernel_size=3
         )
 
     def reset(self, done):
