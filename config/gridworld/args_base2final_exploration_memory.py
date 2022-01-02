@@ -313,7 +313,7 @@ def get_args(rest_args):
     # memory
     parser.add_argument('--use_memory', type=boolean_argument, default=True,
                         help='whatever or not use memory in model')
-    parser.add_argument('--use_hebb', type=boolean_argument, default=True,
+    parser.add_argument('--use_hebb', type=boolean_argument, default=False,
                         help='whatever or not use hebbian memory in memory module')
     parser.add_argument('--use_gen', type=boolean_argument, default=False,
                         help='whatever or not use generative memory in memory module')
@@ -323,20 +323,20 @@ def get_args(rest_args):
     parser.add_argument('--key_size', type=int, default=16)
     parser.add_argument('--memory_state_embedding', type=int, default=32)
     parser.add_argument('--w_max', type=float, default=0.1)
-    parser.add_argument('--general_key_encoder_layer', type=int, nargs='+', default=[])
-    parser.add_argument('--general_value_encoder_layer', type=int, nargs='+', default=[])
-    parser.add_argument('--general_query_encoder_layer', type=int, nargs='+', default=[])
+    parser.add_argument('--general_key_encoder_layer', type=int, nargs='+', default=[32])
+    parser.add_argument('--general_value_encoder_layer', type=int, nargs='+', default=[32])
+    parser.add_argument('--general_query_encoder_layer', type=int, nargs='+', default=[32])
 
-    parser.add_argument('--episodic_key_encoder_layer', type=int, nargs='+', default=[])
-    parser.add_argument('--episodic_value_encoder_layer', type=int, nargs='+', default=[])
+    parser.add_argument('--episodic_key_encoder_layer', type=int, nargs='+', default=[32])
+    parser.add_argument('--episodic_value_encoder_layer', type=int, nargs='+', default=[32])
 
-    parser.add_argument('--hebbian_key_encoder_layer', type=int, nargs='+', default=[])
-    parser.add_argument('--hebbian_value_encoder_layer', type=int, nargs='+', default=[])
+    parser.add_argument('--hebbian_key_encoder_layer', type=int, nargs='+', default=[32])
+    parser.add_argument('--hebbian_value_encoder_layer', type=int, nargs='+', default=[32])
 
     parser.add_argument('--rim_query_size', type=int, default=16)
-    parser.add_argument('--rim_hidden_state_to_query_layers', type=int, nargs='+', default=[])
-    parser.add_argument('--read_memory_to_value_layer', type=int, nargs='+', default=[])
-    parser.add_argument('--read_memory_to_key_layer', type=int, nargs='+', default=[])
+    parser.add_argument('--rim_hidden_state_to_query_layers', type=int, nargs='+', default=[32])
+    parser.add_argument('--read_memory_to_value_layer', type=int, nargs='+', default=[32])
+    parser.add_argument('--read_memory_to_key_layer', type=int, nargs='+', default=[32])
     parser.add_argument('--use_rpe', type=boolean_argument, default=False)
     parser.add_argument('--hebb_learning_rate', type=float, default=0.0001)
     parser.add_argument('--reconstruction_memory_loss', type=boolean_argument, default=False)
@@ -346,11 +346,11 @@ def get_args(rest_args):
     # vision core
     parser.add_argument('--use_stateful_vision_core', type=boolean_argument, default=False,
                         help='use attentional visual process unit')
-    parser.add_argument('--visual_attention_value_size', type=int, default=8)
-    parser.add_argument('--visual_attention_key_size', type=int, default=4)
-    parser.add_argument('--visual_attention_spatial', type=int, default=4)
+    parser.add_argument('--visual_attention_value_size', type=int, default=32)
+    parser.add_argument('--visual_attention_key_size', type=int, default=16)
+    parser.add_argument('--visual_attention_spatial', type=int, default=16)
     parser.add_argument('--visual_attention_num_queries', type=int, default=4)
-    parser.add_argument('--rim_output_size_to_vision_core', type=int, default=16)
+    parser.add_argument('--rim_output_size_to_vision_core', type=int, default=32)
     parser.add_argument('--pass_gradient_to_rim_from_state_encoder', type=boolean_argument, default=False)
     parser.add_argument('--use_discount_n_prediction', type=boolean_argument, default=True)
     parser.add_argument('--discount_n_prediction_coef', type=float, default=0.8)
