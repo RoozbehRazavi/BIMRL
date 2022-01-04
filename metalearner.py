@@ -181,6 +181,10 @@ class MetaLearner:
             if self.intrinsic_reward_running_normalizer is not None:
                 self.intrinsic_reward_running_normalizer = torch.load(os.path.join(save_path, 'int_reward_rms.pkl'), map_location=device)
 
+            if self.args.policy_anneal_lr is not None:
+                self.exploration_policy.lr_scheduler_policy = torch.load(os.path.join(save_path, 'lr_scheduler_policy.pkl'), map_location=device)
+                self.exploration_policy.lr_scheduler_encoder = torch.load(os.path.join(save_path, 'lr_scheduler_encoder.pkl'), map_location=device)
+
     def initialise_policy_storage(self, num_processes):
         return OnlineStorage(args=self.args,
                              num_steps=self.args.policy_num_steps,
@@ -1054,6 +1058,14 @@ class MetaLearner:
                 if self.args.norm_rim_level1_output and self.args.use_rim_level1:
                     filename = os.path.join(save_path, f"policy_rim_level1_rms_{policy_type}{idx_label}.pkl")
                     torch.save(policy.actor_critic.rim_level1_output_rms, filename, _use_new_zipfile_serialization=False)
+                if self.args.policy_anneal_lr:
+                    filename = os.path.join(save_path, f"lr_scheduler_policy{idx_label}.pkl")
+                    torch.save(policy.lr_scheduler_policy, filename,
+                               _use_new_zipfile_serialization=False)
+
+                    filename = os.path.join(save_path, f"lr_scheduler_encoder{idx_label}.pkl")
+                    torch.save(policy.lr_scheduler_encoder, filename,
+                               _use_new_zipfile_serialization=False)
 
         # --- log some other things ---
 

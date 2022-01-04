@@ -6,6 +6,14 @@ import torch.optim as optim
 from utils import helpers as utl
 
 
+class LRPolicy(object):
+    def __init__(self, train_steps):
+        self.train_steps = train_steps
+
+    def __call__(self, epoch):
+        return 1 - epoch / self.train_steps
+
+
 class PPO:
     def __init__(self,
                  args,
@@ -79,10 +87,9 @@ class PPO:
         self.lr_scheduler_policy = None
         self.lr_scheduler_encoder = None
         if policy_anneal_lr:
-            lam = lambda f: 1 - f / train_steps
-            self.lr_scheduler_policy = optim.lr_scheduler.LambdaLR(self.optimiser, lr_lambda=lam)
+            self.lr_scheduler_policy = optim.lr_scheduler.LambdaLR(self.optimiser, lr_lambda=LRPolicy(train_steps=train_steps))
             if hasattr(self.args, 'rlloss_through_encoder') and self.args.rlloss_through_encoder:
-                self.lr_scheduler_encoder = optim.lr_scheduler.LambdaLR(self.optimiser_vae, lr_lambda=lam)
+                self.lr_scheduler_encoder = optim.lr_scheduler.LambdaLR(self.optimiser_vae, lr_lambda=LRPolicy(train_steps=train_steps))
 
     def update(self,
                policy_storage,

@@ -7,7 +7,7 @@ def get_args(rest_args):
 
     # --- GENERAL ---
 
-    parser.add_argument('--num_frames', type=int, default=4e6, help='number of frames to train')
+    parser.add_argument('--num_frames', type=int, default=1e6, help='number of frames to train')
     parser.add_argument('--max_rollouts_per_task', type=int, default=4, help='number of MDP episodes for adaptation')
     parser.add_argument('--exp_label', default='A1_meta_eval2', help='label (typically name of method)')
     parser.add_argument('--env_name', default='MiniGrid-MultiRoom-N4-S5-v0', help='environment to train on')
@@ -38,7 +38,7 @@ def get_args(rest_args):
     parser.add_argument('--policy_layers', nargs='+', default=[32])
     parser.add_argument('--policy_activation_function', type=str, default='tanh', help='tanh/relu/leaky-relu')
     parser.add_argument('--policy_initialisation', type=str, default='normc', help='normc/orthogonal')
-    parser.add_argument('--policy_anneal_lr', type=boolean_argument, default=False)
+    parser.add_argument('--policy_anneal_lr', type=boolean_argument, default=True)
 
     # RL algorithm
     parser.add_argument('--policy', type=str, default='ppo', help='choose: a2c, ppo')
@@ -53,7 +53,7 @@ def get_args(rest_args):
 
     # other hyperparameters
     parser.add_argument('--lr_policy', type=float, default=0.0007, help='learning rate (default: 7e-4)')
-    parser.add_argument('--num_processes', type=int, default=16,
+    parser.add_argument('--num_processes', type=int, default=2,
                         help='how many training CPU processes / parallel environments to use (default: 16)')
     parser.add_argument('--policy_eps', type=float, default=1e-8, help='optimizer epsilon (1e-8 for ppo, 1e-5 for a2c)')
     parser.add_argument('--policy_init_std', type=float, default=1.0, help='only used for continuous actions')
@@ -70,7 +70,7 @@ def get_args(rest_args):
     # --- VAE TRAINING ---
 
     # general
-    parser.add_argument('--lr_vae', type=float, default=0.002)
+    parser.add_argument('--lr_vae', type=float, default=0.001)
     parser.add_argument('--size_vae_buffer', type=int, default=1000,
                         help='how many trajectories (!) to keep in VAE buffer')
     parser.add_argument('--precollect_len', type=int, default=5000,
