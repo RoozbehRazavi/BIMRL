@@ -7,7 +7,7 @@ def get_args(rest_args):
 
     # --- GENERAL ---
 
-    parser.add_argument('--num_frames', type=int, default=1e6, help='number of frames to train')
+    parser.add_argument('--num_frames', type=int, default=2e6, help='number of frames to train')
     parser.add_argument('--max_rollouts_per_task', type=int, default=4, help='number of MDP episodes for adaptation')
     parser.add_argument('--exp_label', default='A1_meta_eval2', help='label (typically name of method)')
     parser.add_argument('--env_name', default='MiniGrid-MultiRoom-N4-S5-v0', help='environment to train on')
@@ -208,7 +208,7 @@ def get_args(rest_args):
 
     parser.add_argument('--reward_prediction_intrinsic_reward_coef', type=float, default=0.0)
 
-    parser.add_argument('--extrinsic_reward_intrinsic_reward_coef', type=float, default=100.0,
+    parser.add_argument('--extrinsic_reward_intrinsic_reward_coef', type=float, default=50.0,
                         help='coefficient for action pred error in intrinsic reward')
 
     parser.add_argument('--residual_task_inference_latent', type=boolean_argument, default=True)
