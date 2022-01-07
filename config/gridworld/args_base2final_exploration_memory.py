@@ -322,7 +322,7 @@ def get_args(rest_args):
     parser.add_argument('--combination_num_head', type=int, default=2)
     parser.add_argument('--key_size', type=int, default=16)
     parser.add_argument('--memory_state_embedding', type=int, default=32)
-    parser.add_argument('--w_max', type=float, default=0.1)
+    parser.add_argument('--w_max', type=float, default=0.5)
     parser.add_argument('--general_key_encoder_layer', type=int, nargs='+', default=[32])
     parser.add_argument('--general_value_encoder_layer', type=int, nargs='+', default=[32])
     parser.add_argument('--general_query_encoder_layer', type=int, nargs='+', default=[32])
@@ -338,7 +338,7 @@ def get_args(rest_args):
     parser.add_argument('--read_memory_to_value_layer', type=int, nargs='+', default=[32])
     parser.add_argument('--read_memory_to_key_layer', type=int, nargs='+', default=[32])
     parser.add_argument('--use_rpe', type=boolean_argument, default=False)
-    parser.add_argument('--hebb_learning_rate', type=float, default=0.0001)
+    parser.add_argument('--hebb_learning_rate', type=float, default=0.001)
     parser.add_argument('--reconstruction_memory_loss', type=boolean_argument, default=False)
     parser.add_argument('--reconstruction_memory_loss_coef', type=float, default=0.5,
                         help='RL vs Recons loss for memory training')
