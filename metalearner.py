@@ -1100,11 +1100,11 @@ class MetaLearner:
             ]
             if self.args.use_memory:
                 model_params.append([self.base2final.brim_core.brim.model.memory, 'memory'])
-                if self.args.use_hebb:
-                    model_params.append(
-                        [self.base2final.brim_core.brim.model.memory.hebbian.exploration_w_assoc, 'hebbian_memory'])
-                    model_params.append([self.base2final.brim_core.brim.model.memory.hebbian.A, 'A_meta_params'])
-                    model_params.append([self.base2final.brim_core.brim.model.memory.hebbian.B, 'B_meta_params'])
+                # if self.args.use_hebb:
+                #     model_params.append(
+                #         [self.base2final.brim_core.brim.model.memory.hebbian.exploration_w_assoc, 'hebbian_memory'])
+                #     model_params.append([self.base2final.brim_core.brim.model.memory.hebbian.A, 'A_meta_params'])
+                #     model_params.append([self.base2final.brim_core.brim.model.memory.hebbian.B, 'B_meta_params'])
             for [model, name] in model_params:
                 if model is not None:
                     param_list = list(model.named_parameters())
