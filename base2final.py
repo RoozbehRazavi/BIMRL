@@ -139,7 +139,7 @@ class Base2Final:
             self.args.combination_num_head, \
             self.args.memory_state_embedding + 2*self.args.task_inference_latent_dim,\
             self.args.rim_level1_output_dim,\
-            self.args.policy_num_steps,\
+            self.args.max_trajectory_len,\
             self.args.max_rollouts_per_task,\
             self.args.w_max,\
             self.args.memory_state_embedding,\
