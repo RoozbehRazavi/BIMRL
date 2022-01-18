@@ -7,7 +7,19 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 class DND(nn.Module):
-    def __init__(self, num_head, key_size, value_size, key_encoder_layer, value_encoder_layer, episode_len, policy_num_steps):
+    def __init__(self, num_head, key_size, value_size,
+                 key_encoder_layer, value_encoder_layer, episode_len,
+                 general_key_encoder_layer,
+                 general_value_encoder_layer,
+                 general_query_encoder_layer,
+                 read_memory_to_key_layer,
+                 read_memory_to_value_layer,
+                 rim_query_size,
+                 rim_level1_hidden_size,
+                 memory_state_embedding,
+                 state_dim,
+                 use_hebb
+                 ):
         super(DND, self).__init__()
         self.key_size = key_size
         self.value_size = value_size
@@ -17,6 +29,11 @@ class DND(nn.Module):
             self.exploitation_keys = self.exploration_vals = self.exploitation_vals = \
             self.exploration_referenced_times = self.exploitation_referenced_times = self.exploration_RPE_read_modulation = self.exploitation_RPE_read_modulation =\
             self.exploration_step = self.exploitation_step = None
+        self.saved_keys = self.saved_values = None
+        self.rim_level1_hidden_size = rim_level1_hidden_size
+        self.memory_state_embedding = memory_state_embedding
+        self.state_dim = state_dim
+        self.use_hebb = use_hebb
 
         # they should be shallow
         self.key_encoder = nn.ModuleList([])
@@ -40,6 +57,84 @@ class DND(nn.Module):
         self.query_encoder = nn.Linear(key_size, num_head*key_size)
         self.value_aggregator = nn.Linear(num_head*value_size, value_size)
 
+        self.concat_key_encoder, self.concat_value_encoder, self.concat_query_encoder = self.initialise_encoder(
+            key_size,
+            value_size,
+            general_key_encoder_layer,
+            general_value_encoder_layer,
+            general_query_encoder_layer)
+
+        self.read_memory_to_value, self.read_memory_to_key = self.initialise_readout_attention(
+            read_memory_to_key_layer,
+            read_memory_to_value_layer,
+            rim_query_size,
+            value_size)
+
+        self.state_encoder = nn.Linear(state_dim, memory_state_embedding)
+
+    @staticmethod
+    def initialise_encoder(key_size,
+                           value_size,
+                           general_key_encoder_layer,
+                           general_value_encoder_layer,
+                           general_query_encoder_layer
+                           ):
+
+        curr_dim = key_size
+        key_encoder = nn.ModuleList([])
+        for i in range(len(general_key_encoder_layer)):
+            key_encoder.append(nn.Linear(curr_dim, general_key_encoder_layer[i]))
+            # key_encoder.append(nn.ReLU())
+            curr_dim = general_key_encoder_layer[i]
+        key_encoder.append(nn.Linear(curr_dim, key_size))
+        key_encoder = nn.Sequential(*key_encoder)
+
+        value_encoder = nn.ModuleList([])
+        curr_dim = value_size
+        for i in range(len(general_value_encoder_layer)):
+            value_encoder.append(nn.Linear(curr_dim, general_value_encoder_layer[i]))
+            # value_encoder.append(nn.ReLU())
+            curr_dim = general_value_encoder_layer[i]
+        value_encoder.append(nn.Linear(curr_dim, value_size))
+        value_encoder = nn.Sequential(*value_encoder)
+
+        query_encoder = nn.ModuleList([])
+        curr_dim = key_size
+        for i in range(len(general_query_encoder_layer)):
+            query_encoder.append(nn.Linear(curr_dim, general_query_encoder_layer[i]))
+            # query_encoder.append(nn.ReLU())
+            curr_dim = general_query_encoder_layer[i]
+        query_encoder.append(nn.Linear(curr_dim, key_size))
+        query_encoder = nn.Sequential(*query_encoder)
+        return key_encoder, value_encoder, query_encoder
+
+    @staticmethod
+    def initialise_readout_attention(read_memory_to_key_layer,
+                                     read_memory_to_value_layer,
+                                     rim_query_size,
+                                     value_size,
+                                     ):
+
+        read_memory_to_value = nn.ModuleList([])
+        curr_dim = value_size
+        for i in range(len(read_memory_to_value_layer)):
+            read_memory_to_value.append(nn.Linear(curr_dim, read_memory_to_value_layer[i]))
+            # read_memory_to_value.append(nn.ReLU())
+            curr_dim = read_memory_to_value_layer[i]
+        read_memory_to_value.append(nn.Linear(curr_dim, value_size))
+        read_memory_to_value = nn.Sequential(*read_memory_to_value)
+
+        read_memory_to_key = nn.ModuleList([])
+        curr_dim = value_size
+        for i in range(len(read_memory_to_key_layer)):
+            read_memory_to_key.append(nn.Linear(curr_dim, read_memory_to_key_layer[i]))
+            # read_memory_to_key.append(nn.ReLU())
+            curr_dim = read_memory_to_key_layer[i]
+        read_memory_to_key.append(nn.Linear(curr_dim, rim_query_size))
+        read_memory_to_key = nn.Sequential(*read_memory_to_key)
+
+        return read_memory_to_value, read_memory_to_key,
+
     def prior(self, batch_size, activated_branch):
         if activated_branch == 'exploration':
             self.exploration_batch_size = batch_size
@@ -48,13 +143,9 @@ class DND(nn.Module):
             self.exploration_referenced_times = torch.zeros(size=(self.episode_len, batch_size, 1), requires_grad=False, device=device)
             self.exploration_RPE_read_modulation = 1.0 * torch.ones(size=(self.episode_len, batch_size, 1), requires_grad=False, device=device)
             self.exploration_step = torch.zeros(size=(batch_size, 1), dtype=torch.long, requires_grad=False, device=device)
-        elif activated_branch == 'exploitation':
-            self.exploitation_batch_size = batch_size
-            self.exploitation_keys = torch.zeros(size=(self.episode_len, batch_size, self.key_size), requires_grad=False, device=device)
-            self.exploitation_vals = torch.zeros(size=(self.episode_len, batch_size, self.value_size), requires_grad=False, device=device)
-            self.exploitation_referenced_times = torch.zeros(size=(self.episode_len, batch_size, 1), requires_grad=False, device=device)
-            self.exploitation_RPE_read_modulation = 1.0 * torch.ones(size=(self.episode_len, batch_size, 1), requires_grad=False, device=device)
-            self.exploitation_step = torch.zeros(size=(batch_size, 1), dtype=torch.long, requires_grad=False, device=device)
+            if self.use_hebb:
+                self.saved_keys = torch.zeros(size=(self.episode_len, batch_size, self.key_size - self.memory_state_embedding + self.state_dim), requires_grad=False, device=device)
+                self.saved_values = torch.zeros(size=(self.episode_len, batch_size, self.value_size), requires_grad=False, device=device)
         else:
             raise NotImplementedError
 
@@ -67,45 +158,38 @@ class DND(nn.Module):
         else:
             raise NotImplementedError
 
-    def write(self, memory_key, memory_val, rpe, activated_branch):
-        key = self.key_encoder(memory_key)
-        value = self.value_encoder(memory_val)
+    def write(self, state, task_inference_latent, value, rpe, activated_branch):
+        if self.use_hebb:
+            self.saved_keys[self.exploration_step, torch.arange(self.exploration_batch_size), :] = torch.cat((state, task_inference_latent), dim=-1)
+            self.saved_values[self.exploration_step, torch.arange(self.exploration_batch_size), :] = value
+        state = self.state_encoder(state)
+        key = self.concat_key_encoder(torch.cat((state, task_inference_latent), dim=-1)) # from memory.py
+        key = self.key_encoder(key)
+        value = self.concat_value_encoder(value) # from memory.py
+        value = self.value_encoder(value)#.squeeze(0)
         if activated_branch == 'exploration':
             self.exploration_keys[self.exploration_step, torch.arange(self.exploration_batch_size), :] = key
             self.exploration_vals[self.exploration_step, torch.arange(self.exploration_batch_size), :] = value
             if isinstance(rpe, torch.Tensor):
                 self.exploration_RPE_read_modulation[self.exploration_step, torch.arange(self.exploration_batch_size), :] = torch.abs(rpe.detach())
             self.exploration_step = (self.exploration_step + 1) % self.episode_len
-        elif activated_branch == 'exploitation':
-            self.exploitation_keys[self.exploitation_step, torch.arange(self.exploitation_batch_size), :] = key
-            self.exploitation_vals[self.exploitation_step, torch.arange(self.exploitation_batch_size), :] = value
-            if isinstance(rpe, torch.Tensor):
-                self.exploitation_RPE_read_modulation[self.exploitation_step, torch.arange(self.exploitation_batch_size), :] = torch.abs(rpe.detach())
-            self.exploitation_step = (self.exploitation_step + 1) % self.episode_len
         else:
             raise NotImplementedError
 
-    def read(self, query, activated_branch):
+    def read(self, state, task_inference_latent, activated_branch):
+        state = self.state_encoder(state)
+        query = self.concat_query_encoder(torch.cat((state, task_inference_latent), dim=-1)) # from memory.py
         if activated_branch == 'exploration':
             assert query.shape[0] == self.exploration_batch_size
             if len(self.exploration_step.nonzero(as_tuple=True)[0]) < self.exploration_batch_size:
-                return torch.zeros((self.exploration_batch_size, self.value_size), device=device)
+                results = torch.zeros((self.exploration_batch_size, self.value_size), device=device).unsqueeze(1)
+                return self.read_memory_to_key(results), self.read_memory_to_value(results)
             keys = self.exploration_keys
             vals = self.exploration_vals
             RPE_read_modulation = self.exploration_RPE_read_modulation
             step = self.exploration_step
             batch_size = self.exploration_batch_size
             referenced_times = self.exploration_referenced_times
-        elif activated_branch == 'exploitation':
-            assert query.shape[0] == self.exploitation_batch_size
-            if len(self.exploitation_step.nonzero(as_tuple=True)[0]) < self.exploitation_batch_size:
-                return torch.zeros((self.exploitation_batch_size, self.value_size), device=device)
-            keys = self.exploitation_keys
-            vals = self.exploitation_vals
-            RPE_read_modulation = self.exploitation_RPE_read_modulation
-            step = self.exploitation_step
-            batch_size = self.exploitation_batch_size
-            referenced_times = self.exploitation_referenced_times
         else:
             raise NotImplementedError
 
@@ -131,20 +215,17 @@ class DND(nn.Module):
             self.exploration_referenced_times = referenced_times
         if activated_branch == 'exploitation':
             self.exploitation_referenced_times = referenced_times
-        results = torch.cat(results, dim=0)
-        return results
+        results = torch.cat(results, dim=0).unsqueeze(1)
+        k = self.read_memory_to_key(results)
+        v = self.read_memory_to_value(results)
+        return k, v
 
     def get_done_process(self, done_process_mdp, activated_branch):
         if activated_branch == 'exploration':
             referenced_times = self.exploration_referenced_times
-            keys = self.exploration_keys
-            vals = self.exploration_vals
+            keys = self.saved_keys
+            vals = self.saved_values
             RPE_read_modulation = self.exploration_RPE_read_modulation
-        elif activated_branch == 'exploitation':
-            referenced_times = self.exploitation_referenced_times
-            keys = self.exploitation_keys
-            vals = self.exploitation_vals
-            RPE_read_modulation = self.exploitation_RPE_read_modulation
         else:
             raise NotImplementedError
         times = torch.range(1, self.episode_len).flip(dims=[-1]).unsqueeze(-1).unsqueeze(-1).expand(size=referenced_times.size()).to(device)
@@ -161,15 +242,20 @@ class DND(nn.Module):
 
         idx = torch.cat(idx, dim=-1)
         tmp_keys = keys[:, done_process_mdp.nonzero(as_tuple=True)[0], :]
-        ret_keys = tmp_keys.view(-1, self.key_size)[idx].view(len(done_process_mdp_), self.episode_len//2, -1)
+        ret_keys = tmp_keys.view(-1, self.key_size - self.memory_state_embedding + self.state_dim)[idx].view(len(done_process_mdp_), self.episode_len//2, -1)
         tmp_values = vals[:, done_process_mdp.nonzero(as_tuple=True)[0], :]
         ret_values = tmp_values.view(-1, self.value_size)[idx].view(len(done_process_mdp_), self.episode_len//2, -1)
         tmp_RPE = RPE_read_modulation[:, done_process_mdp.nonzero(as_tuple=True)[0], :]
         ret_RPE = tmp_RPE.view(-1, 1)[idx].view(len(done_process_mdp_), self.episode_len//2, -1)
 
-        return ret_keys.detach(), ret_values.detach(), ret_RPE.detach()
+        ret_state = ret_keys[:, :, :self.state_dim].detach()
+        ret_task_inf_latent = ret_keys[:, :, self.state_dim:].detach()
 
-    def compute_intrinsic_reward(self, memory_key):
+        return ret_state, ret_task_inf_latent, ret_values.detach(), ret_RPE.detach()
+
+    def compute_intrinsic_reward(self, state, task_inf_latent):
+        state = self.state_encoder(state)
+        memory_key = self.key_encoder(torch.cat((state, task_inf_latent), dim=-1))
         if len(self.exploration_step.nonzero(as_tuple=True)[0]) < self.exploration_batch_size:
             return torch.zeros((self.exploration_batch_size, 1), device=device)
         query = self.key_encoder(memory_key)

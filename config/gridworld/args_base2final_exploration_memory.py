@@ -164,7 +164,7 @@ def get_args(rest_args):
     parser.add_argument('--deterministic_execution', type=boolean_argument, default=False,
                         help='Make code fully deterministic. Expects 1 process and uses deterministic CUDNN')
 
-    parser.add_argument('--load_model', type=boolean_argument, default=True)
+    parser.add_argument('--load_model', type=boolean_argument, default=False)
 
     # General Base2Final
     parser.add_argument('--vae_fill_just_with_exploration_experience', type=boolean_argument, default=True,
@@ -313,7 +313,7 @@ def get_args(rest_args):
     # memory
     parser.add_argument('--use_memory', type=boolean_argument, default=True,
                         help='whatever or not use memory in model')
-    parser.add_argument('--use_hebb', type=boolean_argument, default=False,
+    parser.add_argument('--use_hebb', type=boolean_argument, default=True,
                         help='whatever or not use hebbian memory in memory module')
     parser.add_argument('--use_gen', type=boolean_argument, default=False,
                         help='whatever or not use generative memory in memory module')
@@ -323,15 +323,15 @@ def get_args(rest_args):
     parser.add_argument('--key_size', type=int, default=16)
     parser.add_argument('--memory_state_embedding', type=int, default=32)
     parser.add_argument('--w_max', type=float, default=0.5)
-    parser.add_argument('--general_key_encoder_layer', type=int, nargs='+', default=[32])
-    parser.add_argument('--general_value_encoder_layer', type=int, nargs='+', default=[32])
-    parser.add_argument('--general_query_encoder_layer', type=int, nargs='+', default=[32])
+    parser.add_argument('--general_key_encoder_layer', type=int, nargs='+', default=[32], help='just for episodic')
+    parser.add_argument('--general_value_encoder_layer', type=int, nargs='+', default=[32], help='just for episodic')
+    parser.add_argument('--general_query_encoder_layer', type=int, nargs='+', default=[32, 32], help='for both episodic')
 
     parser.add_argument('--episodic_key_encoder_layer', type=int, nargs='+', default=[32])
     parser.add_argument('--episodic_value_encoder_layer', type=int, nargs='+', default=[32])
 
-    parser.add_argument('--hebbian_key_encoder_layer', type=int, nargs='+', default=[])
-    parser.add_argument('--hebbian_value_encoder_layer', type=int, nargs='+', default=[])
+    parser.add_argument('--hebbian_key_encoder_layer', type=int, nargs='+', default=[32, 32])
+    parser.add_argument('--hebbian_value_encoder_layer', type=int, nargs='+', default=[32, 32])
 
     parser.add_argument('--rim_query_size', type=int, default=16)
     parser.add_argument('--rim_hidden_state_to_query_layers', type=int, nargs='+', default=[32])
@@ -344,7 +344,7 @@ def get_args(rest_args):
                         help='RL vs Recons loss for memory training')
 
     # vision core
-    parser.add_argument('--use_stateful_vision_core', type=boolean_argument, default=True,
+    parser.add_argument('--use_stateful_vision_core', type=boolean_argument, default=False,
                         help='use attentional visual process unit')
     parser.add_argument('--visual_attention_value_size', type=int, default=8)
     parser.add_argument('--visual_attention_key_size', type=int, default=4)
