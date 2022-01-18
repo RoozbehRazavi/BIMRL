@@ -496,7 +496,7 @@ def visualize_policy(
 
     for episode_idx in range(num_episodes):
 
-        for step_idx in range(num_steps):
+        for step_idx in range(50):
             a = envs.render("rgb_array", True)
             frames.append(numpy.moveaxis(a, 2, 0))
             with torch.no_grad():
