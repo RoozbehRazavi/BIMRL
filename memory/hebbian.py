@@ -19,8 +19,8 @@ class Hebbian(nn.Module):
         self.num_head = num_head
         self.value_size = value_size
         self.w_max = w_max
-        self.hebb_input = 1024
-        self.hebb_output = 1024
+        self.hebb_input = 512
+        self.hebb_output = 512
         # hebbian parameters
         A = torch.zeros(size=(1, self.hebb_input, self.hebb_output), device=device)
         torch.nn.init.normal_(A, mean=0, std=0.01)
