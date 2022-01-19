@@ -176,7 +176,7 @@ class Hippocampus(nn.Module):
         if self.use_hebb:
             hebb_k, hebb_v = self.hebbian.read(state, task_inference_latent, activated_branch)
         else:
-            hebb_k = hebb_v = torch.zeros(size=(0,))
+            hebb_k = hebb_v = torch.zeros(size=(0,), device=device)
 
         q = self.rim_hidden_to_query(rim_hidden_state)
         k = torch.cat((epi_k, hebb_k), dim=1)
