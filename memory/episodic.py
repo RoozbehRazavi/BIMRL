@@ -255,7 +255,7 @@ class DND(nn.Module):
 
     def compute_intrinsic_reward(self, state, task_inf_latent):
         state = self.state_encoder(state)
-        memory_key = self.key_encoder(torch.cat((state, task_inf_latent), dim=-1))
+        memory_key = self.concat_key_encoder(torch.cat((state, task_inf_latent), dim=-1))
         if len(self.exploration_step.nonzero(as_tuple=True)[0]) < self.exploration_batch_size:
             return torch.zeros((self.exploration_batch_size, 1), device=device)
         query = self.key_encoder(memory_key)
