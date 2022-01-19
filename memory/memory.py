@@ -174,6 +174,8 @@ class Hippocampus(nn.Module):
         task_inference_latent = task_inference_latent.detach()
         epi_k, epi_v = self.episodic.read(state, task_inference_latent, activated_branch)
         if self.use_hebb:
+            state = (state - state.mean(dim=0)) / (state.std(dim=0) + 1e-8)
+            task_inference_latent = (task_inference_latent - task_inference_latent.mean(dim=0)) / (task_inference_latent.std(dim=0) + 1e-8)
             hebb_k, hebb_v = self.hebbian.read(state, task_inference_latent, activated_branch)
         else:
             hebb_k = hebb_v = torch.zeros(size=(0,), device=device)
@@ -197,7 +199,11 @@ class Hippocampus(nn.Module):
         if torch.sum(done_episode) > 0:
             if self.use_hebb:
                 done_process_info = self.episodic.get_done_process(done_episode.clone(), activated_branch)
-                self.hebbian.write(state=done_process_info[0], task_inference_latent=done_process_info[1], value=done_process_info[2], modulation=done_process_info[3], done_process_mdp=done_episode, activated_branch=activated_branch)
+                # normalize
+                state = (done_process_info[0] - done_process_info[0].mean(dim=0)) / (done_process_info[0].std(dim=0) + 1e-8)
+                task_inference_latent = (done_process_info[1] - done_process_info[1].mean(dim=0)) / (done_process_info[1].std(dim=0) + 1e-8)
+                value = (done_process_info[2] - done_process_info[2].mean(dim=0)) / (done_process_info[2].std(dim=0) + 1e-8)
+                self.hebbian.write(state=state, task_inference_latent=task_inference_latent, value=value, modulation=done_process_info[3], done_process_mdp=done_episode, activated_branch=activated_branch)
             self.episodic.reset(done_task=done_task, done_process_mdp=done_episode, activated_branch=activated_branch)
 
     def compute_intrinsic_reward(self, state, task_inf_latent):

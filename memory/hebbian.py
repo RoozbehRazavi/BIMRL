@@ -19,38 +19,37 @@ class Hebbian(nn.Module):
         self.num_head = num_head
         self.value_size = value_size
         self.w_max = w_max
-        self.hebb_input = 512
-        self.hebb_output = 512
+        # self.hebb_input = 512
+        # self.hebb_output = 512
         # hebbian parameters
-        A = torch.zeros(size=(1, self.hebb_input, self.hebb_output), device=device)
+        A = torch.zeros(size=(1, self.key_size, self.value_size), device=device)
         torch.nn.init.normal_(A, mean=0, std=0.01)
-        B = torch.zeros(size=(1, self.hebb_output, self.hebb_output), device=device)
+        B = torch.zeros(size=(1, self.value_size, self.value_size), device=device)
         torch.nn.init.normal_(B, mean=0, std=0.01)
         self.A = nn.Parameter(A)
         self.B = nn.Parameter(B)
         self.rim_query_size = rim_query_size
 
-        self.key_encoder = nn.ModuleList([])
+        key_encoder = nn.ModuleList([])
         curr_dim = key_size
         for i in range(len(key_encoder_layer)):
-            self.key_encoder.append(nn.Linear(curr_dim, key_encoder_layer[i]))
+            key_encoder.append(nn.Linear(curr_dim, key_encoder_layer[i]))
             curr_dim = key_encoder_layer[i]
-        self.key_encoder.append(nn.Linear(curr_dim, self.hebb_input))
-        self.key_encoder = nn.Sequential(*self.key_encoder)
+        key_encoder.append(nn.Linear(curr_dim, key_size))
+        self.key_encoder = nn.Sequential(*key_encoder)
 
-        self.value_encoder = nn.ModuleList([])
+        value_encoder = nn.ModuleList([])
         curr_dim = value_size
         for i in range(len(value_encoder_layer)):
-            self.value_encoder.append(nn.Linear(curr_dim, value_encoder_layer[i]))
+            value_encoder.append(nn.Linear(curr_dim, value_encoder_layer[i]))
             curr_dim = value_encoder_layer[i]
-        self.value_encoder.append(nn.Linear(curr_dim, self.hebb_output))
-        self.value_encoder = nn.Sequential(*self.value_encoder)
+        value_encoder.append(nn.Linear(curr_dim, self.value_size))
+        self.value_encoder = nn.Sequential(*value_encoder)
 
-        self.query_encoder = nn.Linear(key_size, num_head * self.hebb_input)
+        self.query_encoder = nn.Linear(key_size, num_head * self.key_size)
         self.value_aggregator = nn.Linear(num_head * value_size, value_size)
         self.concat_query_encoder = self.initialise_encoder(key_size, general_query_encoder_layer)
         self.state_encoder = nn.Linear(state_dim, memory_state_embedding)
-        self.value_decoder = nn.Linear(self.hebb_output, self.value_size)
 
         self.read_memory_to_value, self.read_memory_to_key = self.initialise_readout_attention(
             read_memory_to_key_layer,
@@ -106,7 +105,7 @@ class Hebbian(nn.Module):
     def prior(self, batch_size, activated_branch):
         if activated_branch == 'exploration':
             self.exploration_batch_size = batch_size
-            self.exploration_w_assoc = torch.zeros((self.exploration_batch_size, self.hebb_input, self.hebb_output), requires_grad=False, device=device)
+            self.exploration_w_assoc = torch.zeros((self.exploration_batch_size, self.key_size, self.value_size), requires_grad=False, device=device)
             torch.nn.init.normal_(self.exploration_w_assoc, mean=0, std=0.1)
             self.exploration_write_flag = torch.zeros(size=(batch_size, 1), dtype=torch.long, requires_grad=False, device=device)
         else:
@@ -115,7 +114,7 @@ class Hebbian(nn.Module):
     def reset(self, done_task, activated_branch):
         done_task_idx = done_task.view(len(done_task)).nonzero(as_tuple=True)[0]
         tmp = torch.zeros(
-            size=(len(done_task_idx), self.hebb_input, self.hebb_output),
+            size=(len(done_task_idx), self.key_size, self.value_size),
             requires_grad=False, device=device)
         torch.nn.init.normal_(tmp, mean=0, std=0.1)
         if activated_branch == 'exploration':
@@ -150,7 +149,7 @@ class Hebbian(nn.Module):
     def read(self, state, task_inference_latent, activated_branch):
         state = self.state_encoder(state)
         query = self.concat_query_encoder(torch.cat((state, task_inference_latent), dim=-1))  # from memory.py
-        query = self.query_encoder(query).reshape(-1, self.num_head, self.hebb_input)
+        query = self.query_encoder(query).reshape(-1, self.num_head, self.key_size)
         if activated_branch == 'exploration':
             w_assoc = self.exploration_w_assoc.clone()
             batch_size = self.exploration_batch_size
@@ -160,7 +159,6 @@ class Hebbian(nn.Module):
         else:
             raise NotImplementedError
         value = torch.bmm(query, w_assoc)
-        value = self.value_decoder(value)
         value = value.reshape(batch_size, self.num_head*self.value_size)
         value = self.value_aggregator(value)
         k = self.read_memory_to_key(value)
