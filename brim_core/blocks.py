@@ -741,7 +741,7 @@ class Blocks(nn.Module):
                     brim_hidden_state1 = self.bc_list[0][0](level1_input, brim_hidden_state1)
                 brim_output1 = self.output_layer_level1[0](brim_hidden_state1)
                 if torch.isnan(brim_output1).any():
-                    print('self.output_layer_level1[0]: ', self.output_layer_level1[0].parameters())
+                    print('self.output_layer_level1[0]: ', list(self.output_layer_level1[0].parameters()))
                     print('level1_input: ', level1_input)
                     print('RIGHT AFTER NN NAN ***************')
                 if self.use_memory:
