@@ -159,7 +159,7 @@ class Hebbian(nn.Module):
         else:
             raise NotImplementedError
         value = torch.bmm(query, w_assoc)
-        if torch.isnan(query).any():
+        if torch.isnan(w_assoc).any():
             print('!!!!!!!!!!!!!!!!!!!!!!!!!!')
         if torch.isnan(value).any():
             print('############################value is Nan')
