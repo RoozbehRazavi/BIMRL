@@ -261,7 +261,13 @@ class Policy(nn.Module):
         print('latent: ', latent)
         print('brim_output_level1: ', brim_output_level1)
         value, actor_features = self.forward(embedded_state=embedded_state, task_inference_latent=latent, brim_output_level1=brim_output_level1, belief=belief, task=task)
-        dist = self.dist(actor_features)
+        try:
+            dist = self.dist(actor_features)
+        except:
+            print('embedded_state: ', embedded_state)
+            print('latent: ', latent)
+            print('brim_output_level1: ', brim_output_level1)
+            exit()
         if deterministic:
             action = dist.mode()
         else:
