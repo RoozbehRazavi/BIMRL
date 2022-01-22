@@ -1,7 +1,7 @@
 {
   "num_frames": 5000000,
   "max_rollouts_per_task": 4,
-  "exp_label": "hebb_regulator",
+  "exp_label": "hebb_regulator_added_new",
   "env_name": "MiniGrid-MultiRoom-N6-v0",
   "pass_state_to_policy": true,
   "pass_task_inference_latent_to_policy": true,
@@ -93,7 +93,7 @@
   "decode_only_past": false,
   "condition_policy_on_state": true,
   "log_interval": 5,
-  "save_interval": 1,
+  "save_interval": 2,
   "save_intermediate_models": false,
   "eval_interval": 5,
   "vis_interval": 20,
@@ -184,7 +184,7 @@
   "combination_num_head": 2,
   "key_size": 16,
   "memory_state_embedding": 32,
-  "w_max": 0.1,
+  "w_max": 0.05,
   "general_key_encoder_layer": [
     32
   ],
