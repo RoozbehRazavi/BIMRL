@@ -1,0 +1,243 @@
+{
+  "num_frames": 5000000,
+  "max_rollouts_per_task": 4,
+  "exp_label": "inc_size_Full_Model_new_arch_epoch_hebb",
+  "env_name": "MiniGrid-MultiRoom-N6-v0",
+  "pass_state_to_policy": true,
+  "pass_task_inference_latent_to_policy": true,
+  "pass_belief_to_policy": false,
+  "pass_task_to_policy": false,
+  "policy_state_embedding_dim": 16,
+  "policy_task_inference_latent_embedding_dim": 16,
+  "policy_belief_embedding_dim": null,
+  "policy_task_embedding_dim": null,
+  "norm_state_for_policy": true,
+  "norm_task_inference_latent_for_policy": true,
+  "norm_belief_for_policy": true,
+  "norm_task_for_policy": true,
+  "norm_rew_for_policy": false,
+  "norm_actions_of_policy": true,
+  "policy_layers": [
+    32
+  ],
+  "policy_activation_function": "tanh",
+  "policy_initialisation": "normc",
+  "policy_anneal_lr": true,
+  "policy": "ppo",
+  "policy_optimiser": "adam",
+  "ppo_num_epochs": 2,
+  "ppo_num_minibatch": 4,
+  "ppo_use_huberloss": true,
+  "ppo_use_clipped_value_loss": true,
+  "ppo_clip_param": 0.05,
+  "lr_policy": 0.0007,
+  "num_processes": 16,
+  "policy_eps": 1e-08,
+  "policy_init_std": 1.0,
+  "policy_value_loss_coef": 0.5,
+  "policy_entropy_coef": 0.01,
+  "policy_gamma": 0.95,
+  "policy_use_gae": true,
+  "policy_tau": 0.95,
+  "use_proper_time_limits": false,
+  "policy_max_grad_norm": 0.5,
+  "lr_vae": 0.001,
+  "size_vae_buffer": 1000,
+  "precollect_len": 5000,
+  "vae_buffer_add_thresh": 1,
+  "vae_batch_num_trajs": 25,
+  "tbptt_stepsize": null,
+  "vae_subsample_elbos": 150,
+  "vae_subsample_decodes": 150,
+  "vae_avg_elbo_terms": false,
+  "vae_avg_reconstruction_terms": false,
+  "num_vae_updates": 3,
+  "pretrain_len": 0,
+  "kl_weight": 0.1,
+  "split_batches_by_task": false,
+  "split_batches_by_elbo": false,
+  "state_embedding_size": 32,
+  "vae_encoder_layers_before_gru": [],
+  "vae_encoder_gru_hidden_size": 64,
+  "vae_encoder_layers_after_gru": [],
+  "task_inference_latent_dim": 8,
+  "decode_reward": true,
+  "rew_loss_coeff": 1.0,
+  "input_prev_state": false,
+  "reward_decoder_layers": [
+    32,
+    32
+  ],
+  "multihead_for_reward": false,
+  "rew_pred_type": "bernoulli",
+  "decode_state": true,
+  "state_loss_coeff": 1.0,
+  "state_decoder_layers": [
+    32,
+    32
+  ],
+  "state_pred_type": "deterministic",
+  "decode_task": false,
+  "task_loss_coeff": 1.0,
+  "task_decoder_layers": [
+    32,
+    32
+  ],
+  "task_pred_type": "task_id",
+  "add_nonlinearity_to_latent": false,
+  "disable_decoder": false,
+  "disable_stochasticity_in_latent": false,
+  "sample_embeddings": false,
+  "vae_loss_coeff": 1.0,
+  "kl_to_gauss_prior": false,
+  "decode_only_past": false,
+  "condition_policy_on_state": true,
+  "log_interval": 5,
+  "save_interval": 2,
+  "save_intermediate_models": false,
+  "eval_interval": 5,
+  "vis_interval": 20,
+  "results_log_dir": null,
+  "seed": 73,
+  "deterministic_execution": false,
+  "load_model": true,
+  "vae_fill_just_with_exploration_experience": true,
+  "exploration_processes_portion": 1.0,
+  "rlloss_through_encoder": true,
+  "n_step_state_prediction": true,
+  "n_step_reward_prediction": true,
+  "n_step_action_prediction": true,
+  "n_prediction": 2,
+  "rl_loss_throughout_vae_encoder": false,
+  "vae_loss_throughout_vae_encoder_from_rim_level3": false,
+  "n_step_value_prediction_coeff": 1.0,
+  "action_loss_coeff": 1.0,
+  "decode_action": true,
+  "state_prediction_intrinsic_reward_coef": 0.1,
+  "action_prediction_intrinsic_reward_coef": 0.0,
+  "reward_prediction_intrinsic_reward_coef": 0.0,
+  "extrinsic_reward_intrinsic_reward_coef": 50.0,
+  "residual_task_inference_latent": true,
+  "policy_num_steps": null,
+  "add_extrinsic_reward_to_intrinsic": true,
+  "vae_avg_n_step_prediction": false,
+  "action_embedding_size": 8,
+  "reward_embedding_size": 16,
+  "action_simulator_hidden_size": 16,
+  "reward_simulator_hidden_size": 16,
+  "value_simulator_hidden_size": 16,
+  "state_simulator_hidden_size": 16,
+  "value_decoder_layers": [
+    32,
+    32
+  ],
+  "action_decoder_layers": [
+    32,
+    32
+  ],
+  "input_action": true,
+  "new_impl": true,
+  "use_gru_or_rim": "RIM",
+  "use_rim_level1": true,
+  "use_rim_level2": true,
+  "use_rim_level3": true,
+  "rim_level1_hidden_size": 32,
+  "rim_level2_hidden_size": 32,
+  "rim_level3_hidden_size": 32,
+  "rim_level1_num_modules": 4,
+  "rim_level2_num_modules": 4,
+  "rim_level3_num_modules": 4,
+  "rim_level1_topk": 3,
+  "rim_level2_topk": 3,
+  "rim_level3_topk": 3,
+  "brim_layers_before_rim_level1": [
+    16
+  ],
+  "brim_layers_before_rim_level2": [
+    16
+  ],
+  "brim_layers_before_rim_level3": [
+    16
+  ],
+  "brim_layers_after_rim_level1": [
+    8
+  ],
+  "brim_layers_after_rim_level2": [
+    8
+  ],
+  "brim_layers_after_rim_level3": [
+    8
+  ],
+  "rim_level1_output_dim": 16,
+  "rim_level2_output_dim": 16,
+  "rim_level3_output_dim": 8,
+  "norm_rim_level1_output": true,
+  "policy_rim_level1_output_embedding_dim": null,
+  "rim_level1_condition_on_task_inference_latent": true,
+  "rim_level2_condition_on_task_inference_latent": true,
+  "rim_top_down_level3_level2": true,
+  "rim_top_down_level2_level1": true,
+  "use_memory": true,
+  "use_hebb": true,
+  "use_gen": false,
+  "read_num_head": 4,
+  "combination_num_head": 2,
+  "key_size": 16,
+  "memory_state_embedding": 32,
+  "w_max": 0.1,
+  "general_key_encoder_layer": [
+    32
+  ],
+  "general_value_encoder_layer": [
+    32
+  ],
+  "general_query_encoder_layer": [
+    32,
+    32
+  ],
+  "episodic_key_encoder_layer": [
+    32
+  ],
+  "episodic_value_encoder_layer": [
+    32
+  ],
+  "hebbian_key_encoder_layer": [
+    32,
+    32
+  ],
+  "hebbian_value_encoder_layer": [
+    32,
+    32
+  ],
+  "rim_query_size": 16,
+  "rim_hidden_state_to_query_layers": [
+    32
+  ],
+  "read_memory_to_value_layer": [
+    32
+  ],
+  "read_memory_to_key_layer": [
+    32
+  ],
+  "use_rpe": false,
+  "hebb_learning_rate": 0.001,
+  "reconstruction_memory_loss": false,
+  "reconstruction_memory_loss_coef": 0.5,
+  "use_stateful_vision_core": false,
+  "visual_attention_value_size": 8,
+  "visual_attention_key_size": 4,
+  "visual_attention_spatial": 4,
+  "visual_attention_num_queries": 4,
+  "rim_output_size_to_vision_core": 32,
+  "pass_gradient_to_rim_from_state_encoder": false,
+  "use_discount_n_prediction": true,
+  "discount_n_prediction_coef": 0.8,
+  "exploration_num_episodes": 4,
+  "meta_evaluate_interval": 1000,
+  "shared_embedding_network": false,
+  "n_step_v_loss": "norm2_ret",
+  "episodic_reward": true,
+  "episodic_reward_coef": 0.1,
+  "exponential_temp_epi": 25.0,
+  "device": "cuda"
+}
