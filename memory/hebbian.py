@@ -37,7 +37,7 @@ class Hebbian(nn.Module):
             key_encoder.append(nn.Linear(curr_dim, key_encoder_layer[i]))
             curr_dim = key_encoder_layer[i]
         key_encoder.append(nn.Linear(curr_dim, key_size))
-        key_encoder.encoder.append(nn.ReLU())
+        key_encoder.append(nn.ReLU())
         self.key_encoder = nn.Sequential(*key_encoder)
 
         value_encoder = nn.ModuleList([])
@@ -46,7 +46,7 @@ class Hebbian(nn.Module):
             value_encoder.append(nn.Linear(curr_dim, value_encoder_layer[i]))
             curr_dim = value_encoder_layer[i]
         value_encoder.append(nn.Linear(curr_dim, self.value_size))
-        value_encoder.encoder.append(nn.ReLU())
+        value_encoder.append(nn.ReLU())
         self.value_encoder = nn.Sequential(*value_encoder)
 
         self.query_encoder = nn.Linear(key_size, num_head * self.key_size)
