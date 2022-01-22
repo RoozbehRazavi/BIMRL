@@ -741,10 +741,11 @@ class Blocks(nn.Module):
                     brim_hidden_state1 = self.bc_list[0][0](level1_input, brim_hidden_state1)
                 brim_output1 = self.output_layer_level1[0](brim_hidden_state1)
                 if torch.isnan(brim_output1).any():
+                    print('self.output_layer_level1[0]: ', self.output_layer_level1[0].parameters())
                     print('level1_input: ', level1_input)
                     print('RIGHT AFTER NN NAN ***************')
                 if self.use_memory:
-                    self.memory.write((memory_state, brim_level1_task_inference_latent), brim_output1.clone(), rpe, activated_branch)
+                    self.memory.write((memory_state, brim_level1_task_inference_latent), brim_output1.clone().detach(), rpe, activated_branch)
                 if self.use_stateful_vision_core:
                     if self.pass_gradient_to_rim_from_state_encoder:
                         rim_output1_to_vision_core = self.output_layer_to_vision_core[0](brim_hidden_state1)
