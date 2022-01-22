@@ -208,7 +208,7 @@ def get_args(rest_args):
 
     parser.add_argument('--reward_prediction_intrinsic_reward_coef', type=float, default=0.0)
 
-    parser.add_argument('--extrinsic_reward_intrinsic_reward_coef', type=float, default=50.0,
+    parser.add_argument('--extrinsic_reward_intrinsic_reward_coef', type=float, default=10.0,
                         help='coefficient for action pred error in intrinsic reward')
 
     parser.add_argument('--residual_task_inference_latent', type=boolean_argument, default=True)
@@ -338,7 +338,7 @@ def get_args(rest_args):
     parser.add_argument('--read_memory_to_value_layer', type=int, nargs='+', default=[32])
     parser.add_argument('--read_memory_to_key_layer', type=int, nargs='+', default=[32])
     parser.add_argument('--use_rpe', type=boolean_argument, default=False)
-    parser.add_argument('--hebb_learning_rate', type=float, default=0.001)
+    parser.add_argument('--hebb_learning_rate', type=float, default=0.0001)
     parser.add_argument('--reconstruction_memory_loss', type=boolean_argument, default=False)
     parser.add_argument('--reconstruction_memory_loss_coef', type=float, default=0.5,
                         help='RL vs Recons loss for memory training')

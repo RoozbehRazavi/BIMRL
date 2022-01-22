@@ -186,8 +186,11 @@ class PPO:
                     if self.args.use_rim_level2:
                         value_prediction_loss = compute_n_step_value_prediction_loss(self.actor_critic, activated_branch)
                         loss += self.args.n_step_value_prediction_coeff * value_prediction_loss
-                    if self.args.use_memory and self.args.reconstruction_memory_loss:
-                        loss += self.args.reconstruction_memory_loss_coef * compute_memory_loss(self.actor_critic, activated_branch)
+                    if self.args.use_memory:
+                        loss += 0.1 * torch.linalg.norm(encoder.brim_core.brim.model.memory.heabbian.A)
+                        loss += 0.1 * torch.linalg.norm(encoder.brim_core.brim.model.memory.heabbian.B)
+                        if self.args.reconstruction_memory_loss:
+                            loss += self.args.reconstruction_memory_loss_coef * compute_memory_loss(self.actor_critic, activated_branch)
 
                 # compute gradients (will attach to all networks involved in this computation)
                 loss.backward()
