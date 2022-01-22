@@ -723,6 +723,8 @@ class Blocks(nn.Module):
                 if self.use_memory:
                     read_rim_output1 = self.memory.read((memory_state, brim_level1_task_inference_latent), brim_hidden_state1, activated_branch)
                     extra_information['read_rim_output1'] = read_rim_output1
+                    if torch.isnan(read_rim_output1).any():
+                        print('*****************NOOOOOOOOOOOOOOO************************')
                     level1_input = torch.cat((level1_input, read_rim_output1), dim=-1)
                 if self.use_fix_dim_level1:
                     brim_hidden_state3_ = self.rim1_input_fix_dim[0](brim_hidden_state3.detach())
