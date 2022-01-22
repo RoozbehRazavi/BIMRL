@@ -164,8 +164,6 @@ class Hebbian(nn.Module):
         k = self.read_memory_to_key(value)
         v = self.read_memory_to_value(value)
         exploration_write_flag = (1 - self.exploration_write_flag).view(-1).nonzero(as_tuple=True)[0]
-        if len(exploration_write_flag) > 0:
-            print('OHHH shit')
         k[exploration_write_flag] = torch.zeros(size=(len(exploration_write_flag), self.rim_query_size), device=device)
         v[exploration_write_flag] = torch.zeros(size=(len(exploration_write_flag), self.value_size), device=device)
         return k.unsqueeze(1), v.unsqueeze(1)
