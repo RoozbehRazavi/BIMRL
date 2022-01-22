@@ -159,10 +159,10 @@ class Hebbian(nn.Module):
         else:
             raise NotImplementedError
         value = torch.bmm(query, w_assoc)
-        value = value.reshape(batch_size, self.num_head*self.value_size)
-        value = self.value_aggregator(value)
         if torch.isnan(value).any():
             print('############################value is Nan')
+        value = value.reshape(batch_size, self.num_head*self.value_size)
+        value = self.value_aggregator(value)
         k = self.read_memory_to_key(value)
         v = self.read_memory_to_value(value)
         if torch.isnan(k).any():
