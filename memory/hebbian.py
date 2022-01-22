@@ -163,7 +163,7 @@ class Hebbian(nn.Module):
             print('!!!!!!!!!!!!!!!!!!!!!!!!!!')
         if torch.isnan(value).any():
             print('############################value is Nan')
-            print('############################w_assoc: ', w_assoc)
+            print('############################w_assoc: ', torch.linalg.norm(w_assoc))
         value = value.reshape(batch_size, self.num_head*self.value_size)
         value = self.value_aggregator(value)
         k = self.read_memory_to_key(value)
