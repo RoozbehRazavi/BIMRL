@@ -257,9 +257,6 @@ class Policy(nn.Module):
         return self.critic_linear(hidden_critic), hidden_actor
 
     def act(self, embedded_state, latent, brim_output_level1, belief, task, deterministic=False):
-        print('embedded_state: ', embedded_state)
-        print('latent: ', latent)
-        print('brim_output_level1: ', brim_output_level1)
         value, actor_features = self.forward(embedded_state=embedded_state, task_inference_latent=latent, brim_output_level1=brim_output_level1, belief=belief, task=task)
         try:
             dist = self.dist(actor_features)
