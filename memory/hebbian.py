@@ -163,6 +163,10 @@ class Hebbian(nn.Module):
         value = self.value_aggregator(value)
         k = self.read_memory_to_key(value)
         v = self.read_memory_to_value(value)
+        if torch.isnan(k).any():
+            print('############################k is Nan')
+        if torch.isnan(v).any():
+            print('############################v is Nan')
         exploration_write_flag = (1 - self.exploration_write_flag).view(-1).nonzero(as_tuple=True)[0]
         k[exploration_write_flag] = torch.zeros(size=(len(exploration_write_flag), self.rim_query_size), device=device)
         v[exploration_write_flag] = torch.zeros(size=(len(exploration_write_flag), self.value_size), device=device)
