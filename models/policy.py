@@ -264,6 +264,8 @@ class Policy(nn.Module):
             print('embedded_state: ', embedded_state)
             print('latent: ', latent)
             print('brim_output_level1: ', brim_output_level1)
+            import traceback
+            traceback.print_exc()
             exit()
         if deterministic:
             action = dist.mode()
