@@ -183,6 +183,12 @@ class Hippocampus(nn.Module):
         q = self.rim_hidden_to_query(rim_hidden_state)
         k = torch.cat((epi_k, hebb_k), dim=1)
         v = torch.cat((epi_v, hebb_v), dim=1)
+        if torch.isnan(q).any():
+            print('############################Q is Nan')
+        if torch.isnan(k).any():
+            print('############################K is Nan')
+        if torch.isnan(v).any():
+            print('############################V is Nan')
         ans = self.read_mha(query=q.unsqueeze(1), key=k, value=v)[0].squeeze(1)
         return ans
 
