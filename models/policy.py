@@ -261,8 +261,6 @@ class Policy(nn.Module):
         try:
             dist = self.dist(actor_features)
         except:
-            print('embedded_state: ', embedded_state)
-            print('latent: ', latent)
             print('brim_output_level1: ', brim_output_level1)
             import traceback
             traceback.print_exc()
