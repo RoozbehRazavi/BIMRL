@@ -37,7 +37,7 @@ class Hebbian(nn.Module):
             key_encoder.append(nn.Linear(curr_dim, key_encoder_layer[i]))
             curr_dim = key_encoder_layer[i]
         key_encoder.append(nn.Linear(curr_dim, key_size))
-        key_encoder.append(nn.ReLU())
+        #key_encoder.append(nn.ReLU())
         self.key_encoder = nn.Sequential(*key_encoder)
 
         value_encoder = nn.ModuleList([])
@@ -46,7 +46,7 @@ class Hebbian(nn.Module):
             value_encoder.append(nn.Linear(curr_dim, value_encoder_layer[i]))
             curr_dim = value_encoder_layer[i]
         value_encoder.append(nn.Linear(curr_dim, self.value_size))
-        value_encoder.append(nn.ReLU())
+        #value_encoder.append(nn.ReLU())
         self.value_encoder = nn.Sequential(*value_encoder)
 
         self.query_encoder = nn.Linear(key_size, num_head * self.key_size)
@@ -139,7 +139,7 @@ class Hebbian(nn.Module):
         if activated_branch == 'exploration':
             A = self.A.expand(batch_size, -1, -1).exp()
             B = self.B.expand(batch_size, -1, -1).exp()
-            for i in range(4):
+            for i in range(2):
                 a1 = torch.bmm(A, (self.w_max - self.exploration_w_assoc[done_process_mdp].clone()).permute(0, 2, 1))
                 a2 = torch.bmm(a1, correlation)
                 a3 = torch.bmm(B, self.exploration_w_assoc[done_process_mdp].clone().permute(0, 2, 1))
@@ -152,7 +152,7 @@ class Hebbian(nn.Module):
     def read(self, state, task_inference_latent, activated_branch):
         state = self.state_encoder(state)
         query = self.concat_query_encoder(torch.cat((state, task_inference_latent), dim=-1))  # from memory.py
-        query = F.relu(self.query_encoder(query).reshape(-1, self.num_head, self.key_size))
+        query = self.query_encoder(query).reshape(-1, self.num_head, self.key_size)
         if activated_branch == 'exploration':
             w_assoc = self.exploration_w_assoc.clone()
             batch_size = self.exploration_batch_size
