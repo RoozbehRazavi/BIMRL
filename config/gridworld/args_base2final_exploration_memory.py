@@ -164,7 +164,7 @@ def get_args(rest_args):
     parser.add_argument('--deterministic_execution', type=boolean_argument, default=False,
                         help='Make code fully deterministic. Expects 1 process and uses deterministic CUDNN')
 
-    parser.add_argument('--load_model', type=boolean_argument, default=False)
+    parser.add_argument('--load_model', type=boolean_argument, default=True)
 
     # General Base2Final
     parser.add_argument('--vae_fill_just_with_exploration_experience', type=boolean_argument, default=True,

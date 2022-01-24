@@ -2,7 +2,6 @@ from memory.episodic import DND
 from memory.hebbian import Hebbian
 import torch.nn as nn
 import torch
-from utils import helpers as utl
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -73,11 +72,6 @@ class Hippocampus(nn.Module):
             value_size,
             combination_num_head)
         self.output = nn.Linear(combination_num_head*value_size, value_size)
-
-        if self.use_hebb:
-            self.normalize_state = utl.RunningMeanStd(shape=(state_dim))
-            self.normalize_task_inf = utl.RunningMeanStd(shape=(key_size - memory_state_embedding))
-            self.normalize_value = utl.RunningMeanStd(shape=(value_size))
 
     @staticmethod
     def initialise_readout_attention(rim_hidden_state_to_query_layers,
@@ -180,12 +174,7 @@ class Hippocampus(nn.Module):
         task_inference_latent = task_inference_latent.detach()
         epi_k, epi_v = self.episodic.read(state, task_inference_latent, activated_branch)
         if self.use_hebb:
-            self.normalize_state.update(state.detach().clone())
-            self.normalize_task_inf.update(task_inference_latent.detach().clone())
-            state = (state - self.normalize_state.mean) / torch.sqrt(self.normalize_state.var + 1e-8)
-            task_inference_latent = (task_inference_latent - self.normalize_task_inf.mean) / torch.sqrt(self.normalize_task_inf.var + 1e-8)
-            
-            hebb_k, hebb_v = self.hebbian.read(state, task_inference_latent, activated_branch, self.normalize_value)
+            hebb_k, hebb_v = self.hebbian.read(state, task_inference_latent, activated_branch)
         else:
             hebb_k = hebb_v = torch.zeros(size=(0,), device=device)
 
@@ -208,19 +197,9 @@ class Hippocampus(nn.Module):
         if torch.sum(done_episode) > 0:
             if self.use_hebb:
                 done_process_info = self.episodic.get_done_process(done_episode.clone(), activated_branch)
-                # normalize
                 state = done_process_info[0]
                 task_inference_latent = done_process_info[1]
                 value = done_process_info[2]
-
-                self.normalize_state.update(state.view(-1, state.shape[-1]).detach().clone())
-                self.normalize_task_inf.update(task_inference_latent.view(-1, task_inference_latent.shape[-1]).detach().clone())
-                self.normalize_value.update(value.detach().clone())
-
-                state = (state - self.normalize_state.mean) / torch.sqrt(self.normalize_state.var + 1e-8)
-                task_inference_latent = (task_inference_latent - self.normalize_task_inf.mean) / torch.sqrt(self.normalize_task_inf.var + 1e-8)
-                value = (value - self.normalize_value.mean) / torch.sqrt(self.normalize_value.var + 1e-8)
-                
                 self.hebbian.write(state=state,
                                    task_inference_latent=task_inference_latent,
                                    value=value,

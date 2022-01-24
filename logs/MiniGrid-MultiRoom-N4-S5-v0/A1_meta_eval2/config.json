@@ -100,7 +100,7 @@
   "results_log_dir": null,
   "seed": 73,
   "deterministic_execution": false,
-  "load_model": false,
+  "load_model": true,
   "vae_fill_just_with_exploration_experience": true,
   "exploration_processes_portion": 1.0,
   "rlloss_through_encoder": true,

@@ -1,6 +1,7 @@
 import torch.nn as nn
 import torch
 import torch.nn.functional as F
+from utils import helpers as utl
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
@@ -30,6 +31,9 @@ class Hebbian(nn.Module):
         self.A = nn.Parameter(A)
         self.B = nn.Parameter(B)
         self.rim_query_size = rim_query_size
+
+        self.normalize_key = utl.RunningMeanStd(shape=(self.key_size))
+        self.normalize_value = utl.RunningMeanStd(shape=(self.value_size))
 
         key_encoder = nn.ModuleList([])
         curr_dim = key_size
@@ -134,6 +138,12 @@ class Hebbian(nn.Module):
         self.exploration_write_flag[done_process_mdp] = torch.ones(size=(len(done_process_mdp), 1), device=device, requires_grad=False, dtype=torch.long)
         batch_size = len(done_process_mdp)
         value = modulation * value
+
+        self.normalize_key.update(key.detach().clone())
+        self.normalize_value.update(value.detach().clone())
+        key = (key - self.normalize_key.mean) / torch.sqrt(self.normalize_key.var + 1e-8)
+        value = (value - self.normalize_value.mean) / torch.sqrt(self.normalize_value.var + 1e-8)
+
         correlation = torch.bmm(key.permute(0, 2, 1), value)
         regularization = torch.bmm(key.permute(0, 2, 1), key)
         if activated_branch == 'exploration':
@@ -149,7 +159,7 @@ class Hebbian(nn.Module):
         else:
             raise NotImplementedError
 
-    def read(self, state, task_inference_latent, activated_branch, normalize_value):
+    def read(self, state, task_inference_latent, activated_branch):
         state = self.state_encoder(state)
         query = self.concat_query_encoder(torch.cat((state, task_inference_latent), dim=-1))  # from memory.py
         query = F.relu(self.query_encoder(query).reshape(-1, self.num_head, self.key_size))
@@ -161,10 +171,11 @@ class Hebbian(nn.Module):
             batch_size = self.exploitation_batch_size
         else:
             raise NotImplementedError
+        query = (query - self.normalize_key.mean) / torch.sqrt(self.normalize_key.var + 1e-8)
         value = torch.bmm(query, w_assoc)
+        value = torch.mul(value, self.normalize_value.var) + self.normalize_value.mean
         value = value.reshape(batch_size, self.num_head*self.value_size)
         value = self.value_aggregator(value)
-        value = torch.mul(value, normalize_value.var) + normalize_value.mean
         k = self.read_memory_to_key(value)
         v = self.read_memory_to_value(value)
         exploration_write_flag = (1 - self.exploration_write_flag).view(-1).nonzero(as_tuple=True)[0]
