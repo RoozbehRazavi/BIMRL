@@ -127,25 +127,29 @@ class Hebbian(nn.Module):
             raise NotImplementedError
 
     def write(self, state, task_inference_latent, value, modulation, done_process_mdp, activated_branch):
+        print('hebb write $$$$$$ state shape: ', state.shape)
         state = self.state_encoder(state)
         key = self.key_encoder(torch.cat((state, task_inference_latent), dim=-1))
         value = self.value_encoder(value)
         done_process_mdp = done_process_mdp.view(-1).nonzero(as_tuple=True)[0]
         self.exploration_write_flag[done_process_mdp] = torch.ones(size=(len(done_process_mdp), 1), device=device, requires_grad=False, dtype=torch.long)
         batch_size = len(done_process_mdp)
+        print('hebb write $$$$$$ done_process_mdp: ', done_process_mdp)
         value = modulation * value
         correlation = torch.bmm(key.permute(0, 2, 1), value)
         regularization = torch.bmm(key.permute(0, 2, 1), key)
         if activated_branch == 'exploration':
             A = self.A.expand(batch_size, -1, -1).exp()
             B = self.B.expand(batch_size, -1, -1).exp()
-            for i in range(2):
+            for i in range(1):
                 a1 = torch.bmm(A, (self.w_max - self.exploration_w_assoc[done_process_mdp].clone()).permute(0, 2, 1))
                 a2 = torch.bmm(a1, correlation)
                 a3 = torch.bmm(B, self.exploration_w_assoc[done_process_mdp].clone().permute(0, 2, 1))
                 a4 = torch.bmm(a3, regularization).permute(0, 2, 1)
                 delta_w = a2 - a4
+                print('hebb write $$$$$$ before update self.exploration_w_assoc[done_process_mdp]: ', self.exploration_w_assoc[done_process_mdp])
                 self.exploration_w_assoc[done_process_mdp] = self.exploration_w_assoc[done_process_mdp].clone() + self.learning_rate * delta_w
+                print('hebb write $$$$$$ after update self.exploration_w_assoc[done_process_mdp]: ', self.exploration_w_assoc[done_process_mdp])
         else:
             raise NotImplementedError
 
