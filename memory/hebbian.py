@@ -141,18 +141,21 @@ class Hebbian(nn.Module):
         if activated_branch == 'exploration':
             A = self.A.expand(batch_size, -1, -1).exp()
             B = self.B.expand(batch_size, -1, -1).exp()
+            print('A params:', A.shape)
+            print('B params:', B.shape)
+            print('correlation:', correlation.shpae)
+            print('correlation', correlation)
+            print('regularization', regularization.shape)
+            print('regularization', regularization)
             for i in range(1):
+                print('self.exploration_w_assoc[done_process_mdp]: ', self.exploration_w_assoc[done_process_mdp])
                 a1 = torch.bmm(A, (self.w_max - self.exploration_w_assoc[done_process_mdp].clone()).permute(0, 2, 1))
                 a2 = torch.bmm(a1, correlation)
                 a3 = torch.bmm(B, self.exploration_w_assoc[done_process_mdp].clone().permute(0, 2, 1))
                 a4 = torch.bmm(a3, regularization).permute(0, 2, 1)
                 delta_w = a2 - a4
-                print('&&&&&&&&&&& a2:', a2)
-                print('&&&&&&&&&&& a4:', a4)
                 tmp_w = self.exploration_w_assoc[done_process_mdp, :, :].clone() + self.learning_rate * delta_w
-                print('hebb write $$$$$$ before update self.exploration_w_assoc[done_process_mdp]: ', self.exploration_w_assoc[done_process_mdp])
                 self.exploration_w_assoc[done_process_mdp, :, :] = tmp_w
-                print('hebb write $$$$$$ after update self.exploration_w_assoc[done_process_mdp]: ', self.exploration_w_assoc[done_process_mdp])
         else:
             raise NotImplementedError
 
