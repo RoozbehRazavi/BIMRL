@@ -73,6 +73,11 @@ class Hippocampus(nn.Module):
             combination_num_head)
         self.output = nn.Linear(combination_num_head*value_size, value_size)
 
+        if self.use_hebb:
+            self.normalize_state=utl.RunningMeanStd(shape=(state_dim))
+            self.normalize_task_inf=utl.RunningMeanStd(shape=(key_size - memory_state_embedding))
+            self.normalize_value=utl.RunningMeanStd(shape=(value_size))
+
     @staticmethod
     def initialise_readout_attention(rim_hidden_state_to_query_layers,
                                      rim_query_size,
@@ -174,23 +179,19 @@ class Hippocampus(nn.Module):
         task_inference_latent = task_inference_latent.detach()
         epi_k, epi_v = self.episodic.read(state, task_inference_latent, activated_branch)
         if self.use_hebb:
-            state = (state - state.mean(dim=0)) / (state.std(dim=0) + 1e-8)
-            task_inference_latent = (task_inference_latent - task_inference_latent.mean(dim=0)) / (task_inference_latent.std(dim=0) + 1e-8)
-            hebb_k, hebb_v = self.hebbian.read(state, task_inference_latent, activated_branch)
+
+            self.normalize_state.update(torch.cat(state[:-1]).detach().clone())
+            self.normalize_task_inf.update(torch.cat(task_inference_latent[:-1]).detach().clone())
+            state = (state - self.normalize_state.mean) / torch.sqrt(self.normalize_state.var + 1e-8)
+            task_inference_latent = (task_inference_latent - self.normalize_task_inf.mean) / torch.sqrt(self.normalize_task_inf.var + 1e-8)
+            
+            hebb_k, hebb_v = self.hebbian.read(state, task_inference_latent, activated_branch, self.normalize_value)
         else:
             hebb_k = hebb_v = torch.zeros(size=(0,), device=device)
 
         q = self.rim_hidden_to_query(rim_hidden_state)
         k = torch.cat((epi_k, hebb_k), dim=1)
         v = torch.cat((epi_v, hebb_v), dim=1)
-        # if torch.isnan(epi_k).any():
-        #     print('############################epi_k is Nan')
-        # if torch.isnan(hebb_k).any():
-        #     print('############################hebb_k is Nan')
-        # if torch.isnan(epi_v).any():
-        #     print('############################epi_v is Nan')
-        # if torch.isnan(hebb_v).any():
-        #     print('############################hebb_v is Nan')
         ans = self.read_mha(query=q.unsqueeze(1), key=k, value=v)[0].squeeze(1)
         return ans
 
@@ -208,15 +209,24 @@ class Hippocampus(nn.Module):
             if self.use_hebb:
                 done_process_info = self.episodic.get_done_process(done_episode.clone(), activated_branch)
                 # normalize
-                if torch.sum(done_episode) > 1 and False:
-                    state = (done_process_info[0] - done_process_info[0].mean(dim=0)) / (done_process_info[0].std(dim=0) + 1e-8)
-                    task_inference_latent = (done_process_info[1] - done_process_info[1].mean(dim=0)) / (done_process_info[1].std(dim=0) + 1e-8)
-                    value = (done_process_info[2] - done_process_info[2].mean(dim=0)) / (done_process_info[2].std(dim=0) + 1e-8)
-                else:
-                    state = done_process_info[0]
-                    task_inference_latent = done_process_info[1] 
-                    value = done_process_info[2] 
-                self.hebbian.write(state=state, task_inference_latent=task_inference_latent, value=value, modulation=done_process_info[3], done_process_mdp=done_episode, activated_branch=activated_branch)
+                state = done_process_info[0]
+                task_inference_latent = done_process_info[1]
+                value = done_process_info[2]
+
+                self.normalize_state.update(torch.cat(state[:-1]).detach().clone())
+                self.normalize_task_inf.update(torch.cat(task_inference_latent[:-1]).detach().clone())
+
+                state = (state - self.normalize_state.mean) / torch.sqrt(self.normalize_state.var + 1e-8)
+                task_inference_latent = (task_inference_latent - self.normalize_task_inf.mean) / torch.sqrt(self.normalize_task_inf.var + 1e-8)
+                value = (value - self.normalize_value.mean) / torch.sqrt(self.normalize_value.var + 1e-8)
+                
+                self.normalize_value = self.hebbian.write(state=state,
+                                   task_inference_latent=task_inference_latent,
+                                   value=value,
+                                   modulation=done_process_info[3],
+                                   done_process_mdp=done_episode, 
+                                   activated_branch=activated_branch,
+                                   normalize_value=self.normalize_value)
             self.episodic.reset(done_task=done_task, done_process_mdp=done_episode, activated_branch=activated_branch)
 
     def compute_intrinsic_reward(self, state, task_inf_latent):

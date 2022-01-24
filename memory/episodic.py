@@ -251,14 +251,6 @@ class DND(nn.Module):
         ret_state = ret_keys[:, :, :self.state_dim].detach()
         ret_task_inf_latent = ret_keys[:, :, self.state_dim:].detach()
 
-        print('get_done_process-tmp_keys: ', tmp_keys)
-        print('get_done_process-tmp_values: ', tmp_values)
-        print('get_done_process-tmp_RPE: ', tmp_RPE)
-
-        print('get_done_process-ret_keys: ', ret_keys)
-        print('get_done_process-ret_values: ', ret_values)
-        print('get_done_process-ret_RPE: ', ret_RPE)
-
         return ret_state, ret_task_inf_latent, ret_values.detach(), ret_RPE.detach()
 
     def compute_intrinsic_reward(self, state, task_inf_latent):

@@ -181,6 +181,11 @@ class MetaLearner:
             if self.intrinsic_reward_running_normalizer is not None:
                 self.intrinsic_reward_running_normalizer = torch.load(os.path.join(save_path, 'int_reward_rms.pkl'), map_location=device)
 
+            if self.args.use_hebb:
+                self.base2final.brim_core.brim.model.memory.normalize_state = torch.load(os.path.join(save_path, 'normalize_state.pkl'), map_location=device)
+                self.base2final.brim_core.brim.model.memory.normalize_task_inf = torch.load(os.path.join(save_path, 'normalize_task_inf.pkl'), map_location=device)
+                self.base2final.brim_core.brim.model.memory.normalize_value = torch.load(os.path.join(save_path, 'normalize_value.pkl'), map_location=device)
+
             if self.args.policy_anneal_lr is not None:
                 self.exploration_policy.lr_scheduler_policy = torch.load(os.path.join(save_path, 'lr_scheduler_policy.pkl'), map_location=device)
                 self.exploration_policy.lr_scheduler_encoder = torch.load(os.path.join(save_path, 'lr_scheduler_encoder.pkl'), map_location=device)
@@ -1058,6 +1063,17 @@ class MetaLearner:
                 if self.args.norm_rim_level1_output and self.args.use_rim_level1:
                     filename = os.path.join(save_path, f"policy_rim_level1_rms_{policy_type}{idx_label}.pkl")
                     torch.save(policy.actor_critic.rim_level1_output_rms, filename, _use_new_zipfile_serialization=False)
+
+                if self.args.use_hebb:
+                    filename = os.path.join(save_path, f"normalize_state.pkl")
+                    torch.save(self.base2final.brim_core.brim.model.memory.normalize_state, filename, _use_new_zipfile_serialization=False)
+                    
+                    filename = os.path.join(save_path, f"normalize_task_inf.pkl")
+                    torch.save(self.base2final.brim_core.brim.model.memory.normalize_task_inf, filename, _use_new_zipfile_serialization=False)
+
+                    filename = os.path.join(save_path, f"normalize_value.pkl")
+                    torch.save(self.base2final.brim_core.brim.model.memory.normalize_value, filename, _use_new_zipfile_serialization=False)
+                
                 if self.args.policy_anneal_lr:
                     filename = os.path.join(save_path, f"lr_scheduler_policy{idx_label}.pkl")
                     torch.save(policy.lr_scheduler_policy, filename,
