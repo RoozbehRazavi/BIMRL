@@ -127,32 +127,19 @@ class Hebbian(nn.Module):
             raise NotImplementedError
 
     def write(self, state, task_inference_latent, value, modulation, done_process_mdp, activated_branch):
-        print('hebb write $$$$$$ state shape: ', state.shape)
         state = self.state_encoder(state)
         key = self.key_encoder(torch.cat((state, task_inference_latent), dim=-1))
         value = self.value_encoder(value)
-        print('key: ', key)
-        print('value: ', value)
         done_process_mdp = done_process_mdp.view(-1).nonzero(as_tuple=True)[0]
         self.exploration_write_flag[done_process_mdp] = torch.ones(size=(len(done_process_mdp), 1), device=device, requires_grad=False, dtype=torch.long)
         batch_size = len(done_process_mdp)
-        print('hebb write $$$$$$ done_process_mdp: ', done_process_mdp)
         value = modulation * value
         correlation = torch.bmm(key.permute(0, 2, 1), value)
         regularization = torch.bmm(key.permute(0, 2, 1), key)
         if activated_branch == 'exploration':
             A = self.A.expand(batch_size, -1, -1).exp()
             B = self.B.expand(batch_size, -1, -1).exp()
-            print('A params:', A.shape)
-            print('B params:', B.shape)
-            print('A:', A)
-            print('B:', B)
-            print('correlation:', correlation.shape)
-            print('correlation', correlation)
-            print('regularization', regularization.shape)
-            print('regularization', regularization)
             for i in range(1):
-                print('self.exploration_w_assoc[done_process_mdp]: ', self.exploration_w_assoc[done_process_mdp])
                 a1 = torch.bmm(A, (self.w_max - self.exploration_w_assoc[done_process_mdp].clone()).permute(0, 2, 1))
                 a2 = torch.bmm(a1, correlation)
                 a3 = torch.bmm(B, self.exploration_w_assoc[done_process_mdp].clone().permute(0, 2, 1))
@@ -176,19 +163,10 @@ class Hebbian(nn.Module):
         else:
             raise NotImplementedError
         value = torch.bmm(query, w_assoc)
-        if torch.isnan(w_assoc).any():
-            print('!!!!!!!!!!!!!!!!!!!!!!!!!!')
-        if torch.isnan(value).any():
-            print('############################value is Nan')
-            print('############################w_assoc: ', torch.linalg.norm(w_assoc))
         value = value.reshape(batch_size, self.num_head*self.value_size)
         value = self.value_aggregator(value)
         k = self.read_memory_to_key(value)
         v = self.read_memory_to_value(value)
-        if torch.isnan(k).any():
-            print('############################k is Nan')
-        if torch.isnan(v).any():
-            print('############################v is Nan')
         exploration_write_flag = (1 - self.exploration_write_flag).view(-1).nonzero(as_tuple=True)[0]
         k[exploration_write_flag] = torch.zeros(size=(len(exploration_write_flag), self.rim_query_size), device=device)
         v[exploration_write_flag] = torch.zeros(size=(len(exploration_write_flag), self.value_size), device=device)
