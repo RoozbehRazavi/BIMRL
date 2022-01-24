@@ -228,7 +228,7 @@ class DND(nn.Module):
             RPE_read_modulation = self.exploration_RPE_read_modulation
         else:
             raise NotImplementedError
-        times = torch.arange(1, self.episode_len).flip(dims=[-1]).unsqueeze(-1).unsqueeze(-1).expand(size=referenced_times.size()).to(device)
+        times = torch.range(1, self.episode_len).flip(dims=[-1]).unsqueeze(-1).unsqueeze(-1).expand(size=referenced_times.size()).to(device)
         referenced_times = referenced_times / times
         done_process_mdp = done_process_mdp.view(done_process_mdp.shape[0])
         idx = []
