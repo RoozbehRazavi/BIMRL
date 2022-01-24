@@ -145,7 +145,7 @@ class Hebbian(nn.Module):
             print('B params:', B.shape)
             print('A:', A)
             print('B:', B)
-            print('correlation:', correlation.shpae)
+            print('correlation:', correlation.shape)
             print('correlation', correlation)
             print('regularization', regularization.shape)
             print('regularization', regularization)
