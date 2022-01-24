@@ -93,7 +93,7 @@
   "decode_only_past": false,
   "condition_policy_on_state": true,
   "log_interval": 5,
-  "save_interval": 2,
+  "save_interval": 1,
   "save_intermediate_models": false,
   "eval_interval": 5,
   "vis_interval": 20,
