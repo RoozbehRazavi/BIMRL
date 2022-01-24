@@ -2,6 +2,7 @@ from memory.episodic import DND
 from memory.hebbian import Hebbian
 import torch.nn as nn
 import torch
+from utils import helpers as utl
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
