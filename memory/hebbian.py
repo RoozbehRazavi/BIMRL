@@ -143,6 +143,8 @@ class Hebbian(nn.Module):
             B = self.B.expand(batch_size, -1, -1).exp()
             print('A params:', A.shape)
             print('B params:', B.shape)
+            print('A:', A)
+            print('B:', B)
             print('correlation:', correlation.shpae)
             print('correlation', correlation)
             print('regularization', regularization.shape)
