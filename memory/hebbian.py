@@ -126,21 +126,14 @@ class Hebbian(nn.Module):
         else:
             raise NotImplementedError
 
-    def write(self, state, task_inference_latent, value, modulation, done_process_mdp, activated_branch, normalize_value):
+    def write(self, state, task_inference_latent, value, modulation, done_process_mdp, activated_branch):
         state = self.state_encoder(state)
         key = self.key_encoder(torch.cat((state, task_inference_latent), dim=-1))
-        print('write in hebb state:', state)
-        print('write in hebb task_inference_latent:', task_inference_latent)
-        print('write in hebb key:', key)
         value = self.value_encoder(value)
         done_process_mdp = done_process_mdp.view(-1).nonzero(as_tuple=True)[0]
         self.exploration_write_flag[done_process_mdp] = torch.ones(size=(len(done_process_mdp), 1), device=device, requires_grad=False, dtype=torch.long)
         batch_size = len(done_process_mdp)
         value = modulation * value
-
-        normalize_value.update(torch.cat(value[:-1]).detach().clone())
-        value = (value - normalize_value.mean) / torch.sqrt(normalize_value.var + 1e-8)
-
         correlation = torch.bmm(key.permute(0, 2, 1), value)
         regularization = torch.bmm(key.permute(0, 2, 1), key)
         if activated_branch == 'exploration':
@@ -152,11 +145,9 @@ class Hebbian(nn.Module):
                 a3 = torch.bmm(B, self.exploration_w_assoc[done_process_mdp].clone().permute(0, 2, 1))
                 a4 = torch.bmm(a3, regularization).permute(0, 2, 1)
                 delta_w = a2 - a4
-                tmp_w = self.exploration_w_assoc[done_process_mdp, :, :].clone() + self.learning_rate * delta_w
-                self.exploration_w_assoc[done_process_mdp, :, :] = tmp_w
+                self.exploration_w_assoc[done_process_mdp] = self.exploration_w_assoc[done_process_mdp].clone() + self.learning_rate * delta_w
         else:
             raise NotImplementedError
-        return normalize_value
 
     def read(self, state, task_inference_latent, activated_branch, normalize_value):
         state = self.state_encoder(state)
@@ -171,11 +162,9 @@ class Hebbian(nn.Module):
         else:
             raise NotImplementedError
         value = torch.bmm(query, w_assoc)
-        
-        value = torch.mul(value, normalize_value.var) + normalize_value.mean
-
         value = value.reshape(batch_size, self.num_head*self.value_size)
         value = self.value_aggregator(value)
+        value = torch.mul(value, normalize_value.var) + normalize_value.mean
         k = self.read_memory_to_key(value)
         v = self.read_memory_to_value(value)
         exploration_write_flag = (1 - self.exploration_write_flag).view(-1).nonzero(as_tuple=True)[0]

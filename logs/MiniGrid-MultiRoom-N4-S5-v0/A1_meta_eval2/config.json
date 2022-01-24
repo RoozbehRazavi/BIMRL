@@ -1,5 +1,5 @@
 {
-  "num_frames": 2000000.0,
+  "num_frames": 5000000.0,
   "max_rollouts_per_task": 4,
   "exp_label": "A1_meta_eval2",
   "env_name": "MiniGrid-MultiRoom-N4-S5-v0",
@@ -184,7 +184,7 @@
   "combination_num_head": 2,
   "key_size": 16,
   "memory_state_embedding": 32,
-  "w_max": 1.0,
+  "w_max": 0.1,
   "general_key_encoder_layer": [
     32
   ],
@@ -220,7 +220,7 @@
     32
   ],
   "use_rpe": false,
-  "hebb_learning_rate": 0.001,
+  "hebb_learning_rate": 0.0001,
   "reconstruction_memory_loss": false,
   "reconstruction_memory_loss_coef": 0.5,
   "use_stateful_vision_core": false,
@@ -238,6 +238,6 @@
   "n_step_v_loss": "norm2_ret",
   "episodic_reward": true,
   "episodic_reward_coef": 0.1,
-  "exponential_temp_epi": 10.0,
+  "exponential_temp_epi": 25.0,
   "device": "cpu"
 }
