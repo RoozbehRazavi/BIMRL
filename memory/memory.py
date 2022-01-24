@@ -211,6 +211,7 @@ class Hippocampus(nn.Module):
                 state = (done_process_info[0] - done_process_info[0].mean(dim=0)) / (done_process_info[0].std(dim=0) + 1e-8)
                 task_inference_latent = (done_process_info[1] - done_process_info[1].mean(dim=0)) / (done_process_info[1].std(dim=0) + 1e-8)
                 value = (done_process_info[2] - done_process_info[2].mean(dim=0)) / (done_process_info[2].std(dim=0) + 1e-8)
+                print('@@@@@@@@@@@@@@@@@@ state dim: ', state.shape)
                 self.hebbian.write(state=state, task_inference_latent=task_inference_latent, value=value, modulation=done_process_info[3], done_process_mdp=done_episode, activated_branch=activated_branch)
             self.episodic.reset(done_task=done_task, done_process_mdp=done_episode, activated_branch=activated_branch)
 
