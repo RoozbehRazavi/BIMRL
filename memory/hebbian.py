@@ -129,6 +129,9 @@ class Hebbian(nn.Module):
     def write(self, state, task_inference_latent, value, modulation, done_process_mdp, activated_branch):
         state = self.state_encoder(state)
         key = self.key_encoder(torch.cat((state, task_inference_latent), dim=-1))
+        print('write in hebb state:', state)
+        print('write in hebb task_inference_latent:', task_inference_latent)
+        print('write in hebb key:', key)
         value = self.value_encoder(value)
         done_process_mdp = done_process_mdp.view(-1).nonzero(as_tuple=True)[0]
         self.exploration_write_flag[done_process_mdp] = torch.ones(size=(len(done_process_mdp), 1), device=device, requires_grad=False, dtype=torch.long)
