@@ -131,6 +131,8 @@ class Hebbian(nn.Module):
         state = self.state_encoder(state)
         key = self.key_encoder(torch.cat((state, task_inference_latent), dim=-1))
         value = self.value_encoder(value)
+        print('key: ', key)
+        print('value: ', value)
         done_process_mdp = done_process_mdp.view(-1).nonzero(as_tuple=True)[0]
         self.exploration_write_flag[done_process_mdp] = torch.ones(size=(len(done_process_mdp), 1), device=device, requires_grad=False, dtype=torch.long)
         batch_size = len(done_process_mdp)
