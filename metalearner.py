@@ -1112,13 +1112,21 @@ class MetaLearner:
             ]
             if self.args.use_memory:
                 model_params.append([self.base2final.brim_core.brim.model.memory, 'memory'])
-                # if self.args.use_hebb:
-                #     model_params.append(
-                #         [self.base2final.brim_core.brim.model.memory.hebbian.exploration_w_assoc, 'hebbian_memory'])
-                #     model_params.append([self.base2final.brim_core.brim.model.memory.hebbian.A, 'A_meta_params'])
-                #     model_params.append([self.base2final.brim_core.brim.model.memory.hebbian.B, 'B_meta_params'])
+                if self.args.use_hebb:
+                    model_params.append(
+                        [self.base2final.brim_core.brim.model.memory.hebbian.exploration_w_assoc, 'hebbian_memory'])
+                    model_params.append([self.base2final.brim_core.brim.model.memory.hebbian.hebbian.A, 'A_meta_params'])
+                    model_params.append([self.base2final.brim_core.brim.model.memory.hebbian.hebbian.B, 'B_meta_params'])
             for [model, name] in model_params:
-                if model is not None:
+                if name == 'hebbian_memory':
+                    self.logger.add('weights/{}'.format(name), model.mean(), self.iter_idx)
+                elif name == 'A_meta_params':
+                    self.logger.add('weights/{}'.format(name), model.mean(), self.iter_idx)
+                    self.logger.add('gradients/{}'.format(name), model.grad.mean(), self.iter_idx)
+                elif name == 'B_meta_params':
+                    self.logger.add('weights/{}'.format(name), model.mean(), self.iter_idx)
+                    self.logger.add('gradients/{}'.format(name), model.grad.mean(), self.iter_idx)
+                elif model is not None:
                     param_list = list(model.named_parameters())
                     param_mean = np.mean([param_list[i][1].data.cpu().numpy().mean() for i in range(len(param_list))])
                     self.logger.add('weights/{}'.format(name), param_mean, self.iter_idx)
