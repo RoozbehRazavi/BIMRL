@@ -1115,8 +1115,8 @@ class MetaLearner:
                 if self.args.use_hebb:
                     model_params.append(
                         [self.base2final.brim_core.brim.model.memory.hebbian.exploration_w_assoc, 'hebbian_memory'])
-                    model_params.append([self.base2final.brim_core.brim.model.memory.hebbian.hebbian.A, 'A_meta_params'])
-                    model_params.append([self.base2final.brim_core.brim.model.memory.hebbian.hebbian.B, 'B_meta_params'])
+                    model_params.append([self.base2final.brim_core.brim.model.memory.hebbian.A, 'A_meta_params'])
+                    model_params.append([self.base2final.brim_core.brim.model.memory.hebbian.B, 'B_meta_params'])
             for [model, name] in model_params:
                 if name == 'hebbian_memory':
                     self.logger.add('weights/{}'.format(name), model.mean(), self.iter_idx)
