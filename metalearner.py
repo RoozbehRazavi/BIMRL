@@ -461,6 +461,7 @@ class MetaLearner:
                         self.episode_state_count_dict = utl.episode_state_count_dict_management(exploration_next_state, self.episode_state_count_dict)
 
                         exploration_intrinsic_rew_raw, exploration_intrinsic_rew_normalised, self.episode_state_count_dict = utl.bebold_intrinsic_reward(
+                            rew_raw=exploration_rew_raw,
                             state=exploration_prev_state,
                             next_state=exploration_next_state,
                             random_target_network=self.base2final.random_target_network,

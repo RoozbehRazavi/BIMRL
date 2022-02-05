@@ -142,6 +142,7 @@ def episode_state_count_dict_management(exploration_next_state, episode_state_co
 
 
 def bebold_intrinsic_reward(
+        rew_raw,
         state,
         next_state,
         random_target_network,
@@ -164,8 +165,8 @@ def bebold_intrinsic_reward(
 
     intrinsic_rewards *= args.intrinsic_reward_coef
 
-    intrinsic_rew_raw = intrinsic_rewards.unsqueeze(-1)
-    intrinsic_rew_normalised = intrinsic_rewards.unsqueeze(-1)
+    intrinsic_rew_raw = intrinsic_rewards.unsqueeze(-1) + rew_raw * args.extrinsic_reward_intrinsic_reward_coef
+    intrinsic_rew_normalised = intrinsic_rewards.unsqueeze(-1) + rew_raw * args.extrinsic_reward_intrinsic_reward_coef
 
     if done_episode is not None:
         ended_episode_idx = done_episode.view(len(done_episode)).nonzero(as_tuple=True)[0]
