@@ -901,7 +901,9 @@ class MetaLearner:
             compute_vae_loss=self.base2final.compute_vae_loss,
             compute_n_step_value_prediction_loss=self.base2final.compute_n_step_value_prediction_loss,
             compute_memory_loss=self.base2final.compute_memory_loss,
-            activated_branch=activated_branch)
+            activated_branch=activated_branch,
+            predictor_network=self.base2final.predictor_network,
+            random_target_network=self.base2final.random_target_network)
 
         return policy_train_stats
 
