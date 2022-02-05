@@ -129,6 +129,52 @@ def update_encoding(brim_core, policy, next_obs, action, reward, done, task_infe
             return brim_output2, brim_output4, brim_output5, brim_hidden_state, latent_sample, latent_mean, latent_logvar, task_inference_hidden_state, exploitation_policy_embedded_state
 
 
+def episode_state_count_dict_management(exploration_next_state, episode_state_count_dict):
+
+    for i in range(len(exploration_next_state)):
+        episode_state_key = exploration_next_state[i]
+        if tuple(episode_state_key.tolist()) in episode_state_count_dict[i]:
+            episode_state_count_dict[i][tuple(episode_state_key.tolist())] += 1
+        else:
+            episode_state_count_dict[i][tuple(episode_state_key.tolist())] = 1
+
+    return episode_state_count_dict
+
+
+def bebold_intrinsic_reward(
+        state,
+        next_state,
+        random_target_network,
+        predictor_network,
+        episode_state_count_dict,
+        done_episode,
+        args):
+
+    random_embedding_next = random_target_network(next_state)
+    predicted_embedding_next = predictor_network(next_state)
+    random_embedding = random_target_network(state)
+    predicted_embedding = predictor_network(state)
+
+    intrinsic_rewards_next = torch.norm(predicted_embedding_next.detach() - random_embedding_next.detach(), dim=-1, p=2)
+    intrinsic_rewards = torch.norm(predicted_embedding.detach() - random_embedding.detach(), dim=-1, p=2)
+    intrinsic_rewards = torch.clamp(intrinsic_rewards_next - args.scale_fac * intrinsic_rewards, min=0)
+    for i in range(len(next_state)):
+        if episode_state_count_dict[i][tuple(next_state[i].tolist())] > 1:
+            intrinsic_rewards[i] *= 0.0
+
+    intrinsic_rewards *= args.intrinsic_reward_coef
+
+    intrinsic_rew_raw = intrinsic_rewards.unsqueeze(-1)
+    intrinsic_rew_normalised = intrinsic_rewards.unsqueeze(-1)
+
+    if done_episode is not None:
+        ended_episode_idx = done_episode.view(len(done_episode)).nonzero(as_tuple=True)[0]
+        if sum(done_episode) > 0:
+            for i in range(len(ended_episode_idx)):
+                episode_state_count_dict[ended_episode_idx[i]] = {}
+
+    return intrinsic_rew_raw, intrinsic_rew_normalised, episode_state_count_dict
+
 def compute_intrinsic_reward(rew_raw,
                              rew_normalised,
                              latent,
@@ -506,3 +552,43 @@ class SimpleVision(nn.Module):
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
         return x
+
+
+class MinigridMLPTargetEmbeddingNet(nn.Module):
+    def __init__(self, args):
+        super(MinigridMLPTargetEmbeddingNet, self).__init__()
+
+        self.fc = nn.Sequential(
+            nn.Linear(args.state_dim, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+        )
+
+    def forward(self, inputs):
+        state_embedding = self.fc(inputs)
+        return state_embedding
+
+
+class MinigridMLPEmbeddingNet(nn.Module):
+    def __init__(self, args):
+        super(MinigridMLPEmbeddingNet, self).__init__()
+
+        self.fc = nn.Sequential(
+            nn.Linear(args.state_dim, 1024),
+            nn.ReLU(),
+            nn.Linear(1024, 1024),
+            nn.ReLU(),
+            nn.Linear(1024, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+        )
+
+    def forward(self, inputs):
+        state_embedding = self.fc(inputs)
+        return state_embedding

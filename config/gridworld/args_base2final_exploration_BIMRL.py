@@ -164,7 +164,7 @@ def get_args(rest_args):
     parser.add_argument('--deterministic_execution', type=boolean_argument, default=False,
                         help='Make code fully deterministic. Expects 1 process and uses deterministic CUDNN')
 
-    parser.add_argument('--load_model', type=boolean_argument, default=True)
+    parser.add_argument('--load_model', type=boolean_argument, default=False)
 
     # General Base2Final
     parser.add_argument('--vae_fill_just_with_exploration_experience', type=boolean_argument, default=True,
@@ -311,9 +311,9 @@ def get_args(rest_args):
     parser.add_argument('--rim_top_down_level2_level1', type=boolean_argument, default=True,
                         help='rim level 1 get information from level 2')
     # memory
-    parser.add_argument('--use_memory', type=boolean_argument, default=True,
+    parser.add_argument('--use_memory', type=boolean_argument, default=False,
                         help='whatever or not use memory in model')
-    parser.add_argument('--use_hebb', type=boolean_argument, default=True,
+    parser.add_argument('--use_hebb', type=boolean_argument, default=False,
                         help='whatever or not use hebbian memory in memory module')
     parser.add_argument('--use_gen', type=boolean_argument, default=False,
                         help='whatever or not use generative memory in memory module')
@@ -363,4 +363,14 @@ def get_args(rest_args):
 
     parser.add_argument('--episodic_reward', type=boolean_argument, default=True)
     parser.add_argument('--episodic_reward_coef', type=float, default=0.1)
+
+    #bebold params#
+    parser.add_argument('--bebold_intrinsic_reward', type=boolean_argument, default=True)
+    parser.add_argument('--scale_fac', default=0.5, type=float,
+                        help='coefficient for scaling visitation count difference')
+    parser.add_argument('--intrinsic_reward_coef', default=0.5, type=float,
+                        help='Coefficient for the intrinsic reward. \
+                        This weighs the intrinsic reaward against the extrinsic one. \
+                        Should be larger than 0.')
+
     return parser.parse_args(rest_args)

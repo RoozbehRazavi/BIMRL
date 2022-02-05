@@ -29,13 +29,20 @@ def evaluate(args,
              num_updates,
              num_episodes=None,
              tmp=False,
-             state_encoder=None
+             state_encoder=None,
+             random_target_network=None,
+             predictor_network=None
              ):
     env_name = args.env_name
     if hasattr(args, 'test_env_name'):
         env_name = args.test_env_name
     if num_episodes is None:
         num_episodes = args.max_rollouts_per_task
+
+    if args.bebold_intrinsic_reward:
+        episode_state_count_dict = list()
+        for i in range(args.num_processes):
+            episode_state_count_dict.append({})
 
     if policy_type == 'exploration':
         num_processes = int(args.num_processes * args.exploration_processes_portion)
@@ -64,6 +71,9 @@ def evaluate(args,
 
     # reset environments
     state, belief, task = utl.reset_env(envs, args)
+
+    if args.bebold_intrinsic_reward:
+        episode_state_count_dict = utl.episode_state_count_dict_management(state, episode_state_count_dict)
 
     # this counts how often an agent has done the same task already
     task_count = torch.zeros(num_processes).long().to(device)
@@ -137,40 +147,53 @@ def evaluate(args,
                     else:
                         latent = brim_output_level3
 
-                rew_raw, rew_normalised, _, _, _, _ = utl.compute_intrinsic_reward(rew_raw=rew_raw,
-                                                                             rew_normalised=rew_normalised,
-                                                                             latent=latent,
-                                                                             prev_state=prev_state,
-                                                                             next_state=state,
-                                                                             action=action.float(),
-                                                                             state_decoder=state_decoder,
-                                                                             action_decoder=action_decoder,
-                                                                             decode_action=args.decode_action,
-                                                                             state_prediction_running_normalizer=state_prediction_running_normalizer,
-                                                                             action_prediction_running_normalizer=action_prediction_running_normalizer,
-                                                                             state_prediction_intrinsic_reward_coef=args.state_prediction_intrinsic_reward_coef,
-                                                                             action_prediction_intrinsic_reward_coef=args.action_prediction_intrinsic_reward_coef,
-                                                                             extrinsic_reward_intrinsic_reward_coef=args.extrinsic_reward_intrinsic_reward_coef,
-                                                                             reward_decoder=reward_decoder,
-                                                                             rew_pred_type=args.rew_pred_type,
-                                                                             reward_prediction_running_normalizer=reward_prediction_running_normalizer,
-                                                                             reward_prediction_intrinsic_reward_coef=args.reward_prediction_intrinsic_reward_coef,
-                                                                             decode_reward=args.decode_reward,
-                                                                             itr_idx=iter_idx,
-                                                                             num_updates=num_updates,
-                                                                             memory=brim_core.brim.model.memory,
-                                                                             episodic_reward=args.episodic_reward,
-                                                                             episodic_reward_coef=args.episodic_reward_coef,
-                                                                             task_inf_latent=memory_latent,
-                                                                                   epi_reward_running_normalizer=epi_reward_running_normalizer,
-                                                                                   exponential_temp_epi=args.exponential_temp_epi,
-                                                                                   intrinsic_reward_running_normalizer=intrinsic_reward_running_normalizer,
-                                                                                   state_encoder=state_encoder)
+                done_mdp = list()
+                for i in range(num_processes):
+                    done_mdp.append(1.0 if infos[i]['done_mdp'] else 0.0)
+                done_mdp = torch.Tensor(done_mdp).float().to(device).unsqueeze(1)
 
-            done_mdp = list()
-            for i in range(num_processes):
-                done_mdp.append(1.0 if infos[i]['done_mdp'] else 0.0)
-            done_mdp = torch.Tensor(done_mdp).float().to(device).unsqueeze(1)
+                if args.bebold_intrinsic_reward:
+                    episode_state_count_dict = utl.episode_state_count_dict_management(state, episode_state_count_dict)
+
+                    rew_raw, rew_normalised, episode_state_count_dict = utl.bebold_intrinsic_reward(
+                        state=prev_state,
+                        next_state=state,
+                        random_target_network=random_target_network,
+                        predictor_network=predictor_network,
+                        episode_state_count_dict=episode_state_count_dict,
+                        done_episode=done_mdp,
+                        args=args)
+                else:
+                    rew_raw, rew_normalised, _, _, _, _ = utl.compute_intrinsic_reward(rew_raw=rew_raw,
+                                                                                 rew_normalised=rew_normalised,
+                                                                                 latent=latent,
+                                                                                 prev_state=prev_state,
+                                                                                 next_state=state,
+                                                                                 action=action.float(),
+                                                                                 state_decoder=state_decoder,
+                                                                                 action_decoder=action_decoder,
+                                                                                 decode_action=args.decode_action,
+                                                                                 state_prediction_running_normalizer=state_prediction_running_normalizer,
+                                                                                 action_prediction_running_normalizer=action_prediction_running_normalizer,
+                                                                                 state_prediction_intrinsic_reward_coef=args.state_prediction_intrinsic_reward_coef,
+                                                                                 action_prediction_intrinsic_reward_coef=args.action_prediction_intrinsic_reward_coef,
+                                                                                 extrinsic_reward_intrinsic_reward_coef=args.extrinsic_reward_intrinsic_reward_coef,
+                                                                                 reward_decoder=reward_decoder,
+                                                                                 rew_pred_type=args.rew_pred_type,
+                                                                                 reward_prediction_running_normalizer=reward_prediction_running_normalizer,
+                                                                                 reward_prediction_intrinsic_reward_coef=args.reward_prediction_intrinsic_reward_coef,
+                                                                                 decode_reward=args.decode_reward,
+                                                                                 itr_idx=iter_idx,
+                                                                                 num_updates=num_updates,
+                                                                                 memory=brim_core.brim.model.memory,
+                                                                                 episodic_reward=args.episodic_reward,
+                                                                                 episodic_reward_coef=args.episodic_reward_coef,
+                                                                                 task_inf_latent=memory_latent,
+                                                                                       epi_reward_running_normalizer=epi_reward_running_normalizer,
+                                                                                       exponential_temp_epi=args.exponential_temp_epi,
+                                                                                       intrinsic_reward_running_normalizer=intrinsic_reward_running_normalizer,
+                                                                                       state_encoder=state_encoder)
+
 
             if brim_core is not None:
                 # update the hidden state
@@ -248,6 +271,9 @@ def evaluate_meta_policy(
     # only for last episode
     num_processes = args.num_processes
     returns_per_episode = torch.zeros((num_processes, exploration_num_episodes)).to(device)
+
+    if args.bebold_intrinsic_reward:
+        episode_state_count_dict = [dict()] * args.num_processes
     # --- initialise environments and latents ---
     for i in range(exploration_num_episodes):
         envs = make_vec_envs(env_name, seed=int(args.seed * 1e6 + iter_idx), num_processes=num_processes,
@@ -449,7 +475,10 @@ def visualize_policy(
         intrinsic_reward_running_normalizer,
         full_output_folder,
         num_updates,
-        state_encoder):
+        state_encoder,
+        random_target_network,
+        predictor_network
+):
 
     env_name = args.env_name
     envs = make_vec_envs(env_name, seed=int(args.seed * 1e6 + iter_idx), num_processes=1,
@@ -460,9 +489,18 @@ def visualize_policy(
                          normalise_rew=args.norm_rew_for_policy, ret_rms=ret_rms)
     num_steps = envs._max_episode_steps
 
+    if args.bebold_intrinsic_reward:
+        episode_state_count_dict = list()
+        for i in range(args.num_processes):
+            episode_state_count_dict.append({})
+
     state, belief, task = utl.reset_env(envs, args)
     if state.shape[-1] == 147:
         state = torch.cat((state, torch.zeros((1, 1), device=device)), dim=-1)
+
+    if args.bebold_intrinsic_reward:
+        episode_state_count_dict = utl.episode_state_count_dict_management(state, episode_state_count_dict)
+
     frames = []
 
     if brim_core is not None:
@@ -538,42 +576,55 @@ def visualize_policy(
                     else:
                         latent = brim_output_level3
 
-                rew_raw, rew_normalised, _, _, _, _ = utl.compute_intrinsic_reward(
-                    rew_raw=rew_raw,
-                    rew_normalised=rew_normalised,
-                    latent=latent,
-                    prev_state=prev_state,
-                    next_state=state,
-                    action=action.float(),
-                    state_decoder=state_decoder,
-                    action_decoder=action_decoder,
-                    decode_action=args.decode_action,
-                    state_prediction_running_normalizer=state_prediction_running_normalizer,
-                    action_prediction_running_normalizer=action_prediction_running_normalizer,
-                    state_prediction_intrinsic_reward_coef=args.state_prediction_intrinsic_reward_coef,
-                    action_prediction_intrinsic_reward_coef=args.action_prediction_intrinsic_reward_coef,
-                    extrinsic_reward_intrinsic_reward_coef=args.extrinsic_reward_intrinsic_reward_coef,
-                    reward_decoder=reward_decoder,
-                    rew_pred_type=args.rew_pred_type,
-                    reward_prediction_running_normalizer=reward_prediction_running_normalizer,
-                    reward_prediction_intrinsic_reward_coef=args.reward_prediction_intrinsic_reward_coef,
-                    decode_reward=args.decode_reward,
-                    itr_idx=iter_idx,
-                    num_updates=num_updates,
-                    memory=brim_core.brim.model.memory,
-                    episodic_reward=args.episodic_reward,
-                    episodic_reward_coef=args.episodic_reward_coef,
-                    task_inf_latent=memory_latent,
-                    epi_reward_running_normalizer=epi_reward_running_normalizer,
-                    exponential_temp_epi=args.exponential_temp_epi,
-                    intrinsic_reward_running_normalizer=intrinsic_reward_running_normalizer,
-                    state_encoder=state_encoder
-                )
+                done_mdp = list()
+                for i in range(1):
+                    done_mdp.append(1.0 if infos[i]['done_mdp'] else 0.0)
+                done_mdp = torch.Tensor(done_mdp).float().to(device).unsqueeze(1)
 
-            done_mdp = list()
-            for i in range(1):
-                done_mdp.append(1.0 if infos[i]['done_mdp'] else 0.0)
-            done_mdp = torch.Tensor(done_mdp).float().to(device).unsqueeze(1)
+                if args.bebold_intrinsic_reward:
+                    episode_state_count_dict = utl.episode_state_count_dict_management(state, episode_state_count_dict)
+
+                    rew_raw, rew_normalised = utl.bebold_intrinsic_reward(
+                        state=prev_state,
+                        next_state=state,
+                        random_target_network=random_target_network,
+                        predictor_network=predictor_network,
+                        episode_state_count_dict=episode_state_count_dict,
+                        done_episode=done_mdp,
+                        args=args)
+                else:
+
+                    rew_raw, rew_normalised, _, _, _, _ = utl.compute_intrinsic_reward(
+                        rew_raw=rew_raw,
+                        rew_normalised=rew_normalised,
+                        latent=latent,
+                        prev_state=prev_state,
+                        next_state=state,
+                        action=action.float(),
+                        state_decoder=state_decoder,
+                        action_decoder=action_decoder,
+                        decode_action=args.decode_action,
+                        state_prediction_running_normalizer=state_prediction_running_normalizer,
+                        action_prediction_running_normalizer=action_prediction_running_normalizer,
+                        state_prediction_intrinsic_reward_coef=args.state_prediction_intrinsic_reward_coef,
+                        action_prediction_intrinsic_reward_coef=args.action_prediction_intrinsic_reward_coef,
+                        extrinsic_reward_intrinsic_reward_coef=args.extrinsic_reward_intrinsic_reward_coef,
+                        reward_decoder=reward_decoder,
+                        rew_pred_type=args.rew_pred_type,
+                        reward_prediction_running_normalizer=reward_prediction_running_normalizer,
+                        reward_prediction_intrinsic_reward_coef=args.reward_prediction_intrinsic_reward_coef,
+                        decode_reward=args.decode_reward,
+                        itr_idx=iter_idx,
+                        num_updates=num_updates,
+                        memory=brim_core.brim.model.memory,
+                        episodic_reward=args.episodic_reward,
+                        episodic_reward_coef=args.episodic_reward_coef,
+                        task_inf_latent=memory_latent,
+                        epi_reward_running_normalizer=epi_reward_running_normalizer,
+                        exponential_temp_epi=args.exponential_temp_epi,
+                        intrinsic_reward_running_normalizer=intrinsic_reward_running_normalizer,
+                        state_encoder=state_encoder
+                    )
 
             if brim_core is not None:
                 # update the hidden state

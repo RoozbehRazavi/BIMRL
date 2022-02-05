@@ -47,6 +47,11 @@ class MetaLearner:
         if self.args.exploration_processes_portion == 1.0:
             train_exploitation = False
 
+        if self.args.bebold_intrinsic_reward:
+            self.episode_state_count_dict = list()
+            for i in range(self.exploration_num_processes):
+                self.episode_state_count_dict.append({})
+
         self.start_idx = 0
         if self.args.load_model and os.path.exists(os.path.join(self.logger.full_output_folder, 'models', 'general.pt')):
             save_path = os.path.join(self.logger.full_output_folder, 'models')
@@ -181,6 +186,12 @@ class MetaLearner:
             if self.intrinsic_reward_running_normalizer is not None:
                 self.intrinsic_reward_running_normalizer = torch.load(os.path.join(save_path, 'int_reward_rms.pkl'), map_location=device)
 
+            if self.args.bebold_intrinsic_reward:
+                self.base2final.random_target_network.load_state_dict(
+                    torch.load(os.path.join(save_path, f"random_target_network.pt"), map_location=device))
+                self.base2final.predictor_network.load_state_dict(
+                    torch.load(os.path.join(save_path, f"predictor_network.pt"), map_location=device))
+
             if self.args.use_hebb:
                 self.base2final.brim_core.brim.model.memory.hebbian.normalize_key = torch.load(os.path.join(save_path, 'normalize_key.pkl'), map_location=device)
                 self.base2final.brim_core.brim.model.memory.hebbian.normalize_value = torch.load(os.path.join(save_path, 'normalize_value.pkl'), map_location=device)
@@ -294,6 +305,9 @@ class MetaLearner:
         if train_exploration:
             exploration_prev_state, exploration_belief, exploration_task = utl.reset_env(self.exploration_envs,
                                                                                          self.args)
+            if self.args.bebold_intrinsic_reward:
+                self.episode_state_count_dict = utl.episode_state_count_dict_management(exploration_prev_state,
+                                                                                        self.episode_state_count_dict)
         if train_exploitation:
             exploitation_prev_state, exploitation_belief, exploitation_task = utl.reset_env(self.exploitation_envs,
                                                                                             self.args)
@@ -438,48 +452,60 @@ class MetaLearner:
                         else:
                             latent = exploration_brim_output5
 
-                    exploration_intrinsic_rew_raw, \
-                    exploration_intrinsic_rew_normalised, state_error, action_error, reward_error, epi_reward = utl.compute_intrinsic_reward(
-                        exploration_rew_raw,
-                        exploration_rew_normalised,
-                        latent=latent,
-                        prev_state=exploration_prev_state,
-                        next_state=exploration_next_state,
-                        action=exploration_action.float(),
-                        decode_action=self.args.decode_action,
-                        state_decoder=self.base2final.state_decoder,
-                        action_decoder=self.base2final.action_decoder,
-                        state_prediction_running_normalizer=self.state_prediction_running_normalizer,
-                        action_prediction_running_normalizer=self.action_prediction_running_normalizer,
-                        state_prediction_intrinsic_reward_coef=self.args.state_prediction_intrinsic_reward_coef,
-                        action_prediction_intrinsic_reward_coef=self.args.action_prediction_intrinsic_reward_coef,
-                        extrinsic_reward_intrinsic_reward_coef=self.args.extrinsic_reward_intrinsic_reward_coef,
-                        reward_decoder=self.base2final.reward_decoder,
-                        reward_prediction_intrinsic_reward_coef=self.args.reward_prediction_intrinsic_reward_coef,
-                        decode_reward=self.args.decode_reward,
-                        reward_prediction_running_normalizer=self.reward_prediction_running_normalizer,
-                        rew_pred_type=self.args.rew_pred_type,
-                        itr_idx=self.iter_idx,
-                        num_updates=self.num_updates,
-                        memory=self.base2final.brim_core.brim.model.memory,
-                        episodic_reward=self.args.episodic_reward,
-                        episodic_reward_coef=self.args.episodic_reward_coef,
-                        task_inf_latent=memory_latent,
-                        epi_reward_running_normalizer=self.epi_reward_running_normalizer,
-                        exponential_temp_epi=self.args.exponential_temp_epi,
-                        intrinsic_reward_running_normalizer=self.intrinsic_reward_running_normalizer,
-                        state_encoder=self.base2final.action_decoder.state_t_encoder if self.base2final.action_decoder is not None else None
-                        )
-                    state_errors.append(state_error)
-                    action_errors.append(action_error)
-                    reward_errors.append(reward_error)
-                    epi_rewards.append(epi_reward)
-                    intrins_rewards.append(exploration_intrinsic_rew_raw)
-
                     exploration_done_episode = list()
                     for i in range(self.exploration_num_processes):
                         exploration_done_episode.append(1.0 if exploration_infos[i]['done_mdp'] else 0.0)
                     exploration_done_episode = torch.Tensor(exploration_done_episode).float().to(device).unsqueeze(1)
+
+                    if self.args.bebold_intrinsic_reward:
+                        self.episode_state_count_dict = utl.episode_state_count_dict_management(exploration_next_state, self.episode_state_count_dict)
+
+                        exploration_intrinsic_rew_raw, exploration_intrinsic_rew_normalised, self.episode_state_count_dict = utl.bebold_intrinsic_reward(
+                            state=exploration_prev_state,
+                            next_state=exploration_next_state,
+                            random_target_network=self.base2final.random_target_network,
+                            predictor_network=self.base2final.predictor_network,
+                            episode_state_count_dict=self.episode_state_count_dict,
+                            done_episode=exploration_done_episode,
+                            args=self.args)
+                    else:
+                        exploration_intrinsic_rew_raw, \
+                        exploration_intrinsic_rew_normalised, state_error, action_error, reward_error, epi_reward = utl.compute_intrinsic_reward(
+                            exploration_rew_raw,
+                            exploration_rew_normalised,
+                            latent=latent,
+                            prev_state=exploration_prev_state,
+                            next_state=exploration_next_state,
+                            action=exploration_action.float(),
+                            decode_action=self.args.decode_action,
+                            state_decoder=self.base2final.state_decoder,
+                            action_decoder=self.base2final.action_decoder,
+                            state_prediction_running_normalizer=self.state_prediction_running_normalizer,
+                            action_prediction_running_normalizer=self.action_prediction_running_normalizer,
+                            state_prediction_intrinsic_reward_coef=self.args.state_prediction_intrinsic_reward_coef,
+                            action_prediction_intrinsic_reward_coef=self.args.action_prediction_intrinsic_reward_coef,
+                            extrinsic_reward_intrinsic_reward_coef=self.args.extrinsic_reward_intrinsic_reward_coef,
+                            reward_decoder=self.base2final.reward_decoder,
+                            reward_prediction_intrinsic_reward_coef=self.args.reward_prediction_intrinsic_reward_coef,
+                            decode_reward=self.args.decode_reward,
+                            reward_prediction_running_normalizer=self.reward_prediction_running_normalizer,
+                            rew_pred_type=self.args.rew_pred_type,
+                            itr_idx=self.iter_idx,
+                            num_updates=self.num_updates,
+                            memory=self.base2final.brim_core.brim.model.memory,
+                            episodic_reward=self.args.episodic_reward,
+                            episodic_reward_coef=self.args.episodic_reward_coef,
+                            task_inf_latent=memory_latent,
+                            epi_reward_running_normalizer=self.epi_reward_running_normalizer,
+                            exponential_temp_epi=self.args.exponential_temp_epi,
+                            intrinsic_reward_running_normalizer=self.intrinsic_reward_running_normalizer,
+                            state_encoder=self.base2final.action_decoder.state_t_encoder if self.base2final.action_decoder is not None else None
+                            )
+                        state_errors.append(state_error)
+                        action_errors.append(action_error)
+                        reward_errors.append(reward_error)
+                        epi_rewards.append(epi_reward)
+                        intrins_rewards.append(exploration_intrinsic_rew_raw)
 
                     exploration_done = torch.from_numpy(np.array(exploration_done, dtype=int)).to(device).float().view((-1, 1))
                     # create mask for episode ends
@@ -753,21 +779,22 @@ class MetaLearner:
             # clean up after update
             if train_exploration:
                 self.exploration_policy_storage.after_update()
-                if self.args.decode_state and not self.args.state_prediction_intrinsic_reward_coef == 0.0:
-                    self.state_prediction_running_normalizer.update(torch.cat(state_errors))
-                if self.args.decode_action and not self.args.action_prediction_intrinsic_reward_coef == 0.0:
-                    self.action_prediction_running_normalizer.update(torch.cat(action_errors))
-                if self.args.decode_reward and not self.args.reward_prediction_intrinsic_reward_coef == 0.0:
-                    self.reward_prediction_running_normalizer.update(torch.cat(reward_errors))
-                if self.args.use_memory and self.args.episodic_reward:
-                    self.epi_reward_running_normalizer.update(torch.cat(epi_rewards))
-                if train_exploration:
-                    self.intrinsic_reward_running_normalizer.update(torch.cat(intrins_rewards))
-                state_errors = []
-                action_errors = []
-                reward_errors = []
-                epi_rewards = []
-                intrins_rewards = []
+                if not self.args.bebold_intrinsic_reward:
+                    if self.args.decode_state and not self.args.state_prediction_intrinsic_reward_coef == 0.0:
+                        self.state_prediction_running_normalizer.update(torch.cat(state_errors))
+                    if self.args.decode_action and not self.args.action_prediction_intrinsic_reward_coef == 0.0:
+                        self.action_prediction_running_normalizer.update(torch.cat(action_errors))
+                    if self.args.decode_reward and not self.args.reward_prediction_intrinsic_reward_coef == 0.0:
+                        self.reward_prediction_running_normalizer.update(torch.cat(reward_errors))
+                    if self.args.use_memory and self.args.episodic_reward:
+                        self.epi_reward_running_normalizer.update(torch.cat(epi_rewards))
+                    if train_exploration:
+                        self.intrinsic_reward_running_normalizer.update(torch.cat(intrins_rewards))
+                    state_errors = []
+                    action_errors = []
+                    reward_errors = []
+                    epi_rewards = []
+                    intrins_rewards = []
             if train_exploitation:
                 self.exploitation_policy_storage.after_update()
 
@@ -919,7 +946,9 @@ class MetaLearner:
                 full_output_folder=self.logger.full_output_folder,
                 reward_decoder=self.base2final.reward_decoder,
                 num_updates=self.num_updates,
-                state_encoder=self.base2final.action_decoder.state_t_encoder if self.base2final.action_decoder is not None else None)
+                state_encoder=self.base2final.action_decoder.state_t_encoder if self.base2final.action_decoder is not None else None,
+                random_target_network=self.base2final.random_target_network,
+                predictor_network=self.base2final.predictor_network)
 
         # --- evaluate policy ----
 
@@ -944,8 +973,9 @@ class MetaLearner:
                 intrinsic_reward_running_normalizer=self.intrinsic_reward_running_normalizer,
                 tmp=tmp,
                 num_updates=self.num_updates,
-                state_encoder=self.base2final.action_decoder.state_t_encoder if self.base2final.action_decoder is not None else None
-                )
+                state_encoder=self.base2final.action_decoder.state_t_encoder if self.base2final.action_decoder is not None else None,
+                random_target_network=self.base2final.random_target_network,
+                predictor_network=self.base2final.predictor_network)
 
             # log the return avg/std across tasks (=processes)
             returns_avg = returns_per_episode.mean(dim=0)
@@ -1015,6 +1045,12 @@ class MetaLearner:
                                _use_new_zipfile_serialization=False)
                 if self.base2final.action_decoder is not None:
                     torch.save(self.base2final.action_decoder.state_dict(), os.path.join(save_path, f"action_decoder{idx_label}.pt"),
+                               _use_new_zipfile_serialization=False)
+                if self.args.bebold_intrinsic_reward:
+                    torch.save(self.base2final.predictor_network.state_dict(), os.path.join(save_path, f"predictor_network{idx_label}.pt"),
+                               _use_new_zipfile_serialization=False)
+                    torch.save(self.base2final.random_target_network.state_dict(),
+                               os.path.join(save_path, f"random_target_network{idx_label}.pt"),
                                _use_new_zipfile_serialization=False)
                 tmp_dict = {
                     'iter_idx': self.iter_idx,

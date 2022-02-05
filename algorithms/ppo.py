@@ -99,6 +99,8 @@ class PPO:
                compute_n_step_value_prediction_loss=None,  # function that can compute the n step value prediction loss
                compute_memory_loss=None,
                activated_branch='exploration',
+               random_target_network=None,
+               predictor_network=None
                ):
 
         # -- get action values --
@@ -187,10 +189,12 @@ class PPO:
                         value_prediction_loss = compute_n_step_value_prediction_loss(self.actor_critic, activated_branch)
                         loss += self.args.n_step_value_prediction_coeff * value_prediction_loss
                     if self.args.use_memory:
-                        loss += 0.00001 * torch.linalg.norm(encoder.brim.model.memory.hebbian.A)
-                        loss += 0.00001 * torch.linalg.norm(encoder.brim.model.memory.hebbian.B)
+                        loss += 0.001 * torch.linalg.norm(encoder.brim.model.memory.hebbian.A)
+                        loss += 0.001 * torch.linalg.norm(encoder.brim.model.memory.hebbian.B)
                         if self.args.reconstruction_memory_loss:
                             loss += self.args.reconstruction_memory_loss_coef * compute_memory_loss(self.actor_critic, activated_branch)
+                if self.args.bebold_intrinsic_reward:
+                    loss += self.compute_rnd_loss(random_target_network(state_batch).detach(), predictor_network(state_batch))
 
                 # compute gradients (will attach to all networks involved in this computation)
                 loss.backward()
@@ -235,3 +239,7 @@ class PPO:
 
     def act(self, embedded_state, latent, brim_output_level1, belief, task, deterministic=False):
         return self.actor_critic.act(embedded_state=embedded_state, latent=latent, brim_output_level1=brim_output_level1, belief=belief, task=task, deterministic=deterministic)
+
+    def compute_rnd_loss(self, pred_next_emb, next_emb):
+        forward_dynamics_loss = torch.norm(pred_next_emb - next_emb, dim=-1, p=2)
+        return torch.mean(forward_dynamics_loss)

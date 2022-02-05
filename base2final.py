@@ -8,6 +8,8 @@ from models.decoder import StateTransitionDecoder, RewardDecoder, TaskDecoder, V
 from brim_core.brim_core import BRIMCore
 from utils.storage_vae import RolloutStorageVAE
 from utils.helpers import get_task_dim, get_num_tasks, get_latent_for_policy
+from utils.helpers import MinigridMLPTargetEmbeddingNet
+from utils.helpers import MinigridMLPEmbeddingNet
 
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -161,6 +163,13 @@ class Base2Final:
 
         # initialise the decoders (returns None for unused decoders)
         self.state_decoder, self.reward_decoder, self.task_decoder, self.exploration_value_decoder, self.exploitation_value_decoder, self.action_decoder = self.initialise_decoder()
+
+        if self.args.bebold_intrinsic_reward:
+            self.random_target_network = MinigridMLPTargetEmbeddingNet(args).to(device=device)
+            self.predictor_network = MinigridMLPEmbeddingNet(args).to(device=device)
+        else:
+            self.random_target_network = None
+            self.predictor_network = None
 
         # initialise rollout storage for the VAE update
         # (this differs from the data that the on-policy RL algorithm uses)
