@@ -584,7 +584,7 @@ def visualize_policy(
                 if args.bebold_intrinsic_reward:
                     episode_state_count_dict = utl.episode_state_count_dict_management(state, episode_state_count_dict)
 
-                    rew_raw, rew_normalised = utl.bebold_intrinsic_reward(
+                    rew_raw, rew_normalised, episode_state_count_dict = utl.bebold_intrinsic_reward(
                         state=prev_state,
                         next_state=state,
                         random_target_network=random_target_network,
