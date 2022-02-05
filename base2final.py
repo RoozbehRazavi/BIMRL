@@ -208,7 +208,7 @@ class Base2Final:
                 decoder_params.extend(self.exploitation_value_decoder.parameters())
 
         if self.args.bebold_intrinsic_reward:
-            self.optimiser_vae = torch.optim.Adam([*self.brim_core.parameters(), *decoder_params, *self.predictor_network], lr=self.args.lr_vae)
+            self.optimiser_vae = torch.optim.Adam([*self.brim_core.parameters(), *decoder_params, *self.predictor_network.parameters()], lr=self.args.lr_vae)
         else:
             self.optimiser_vae = torch.optim.Adam([*self.brim_core.parameters(), *decoder_params], lr=self.args.lr_vae)
 
