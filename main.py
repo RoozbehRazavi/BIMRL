@@ -33,9 +33,9 @@ def main():
         args = args_grid_rl2.get_args(rest_args)
     elif env == 'gridworld_b2f_exploration_rl_block':
         args = args_base2final_exploration_rl_block.get_args(rest_args)
-    elif env == 'gridworld_b2f_exploration_full_model':
+    elif env == 'gridworld_b2f_exgridworld_b2f_exploration_BIMRLploration_full_model':
         args = args_base2final_exploration_full_model.get_args(rest_args)
-    elif env == 'gridworld_b2f_exploration_BIMRL':
+    elif env == '':
         args = args_base2final_exploration_BIMRL.get_args(rest_args)
     elif env == 'gridworld_b2f_exploration_memory_exploration':
         args = args_base2final_exploration_memory_exploration.get_args(rest_args)
