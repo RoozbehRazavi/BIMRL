@@ -196,8 +196,8 @@ class PPO:
                         value_prediction_loss = compute_n_step_value_prediction_loss(self.actor_critic, activated_branch)
                         loss += self.args.n_step_value_prediction_coeff * value_prediction_loss
                     if self.args.use_memory:
-                        loss += 0.1 * torch.linalg.norm(encoder.brim.model.memory.hebbian.A)
-                        loss += 0.1 * torch.linalg.norm(encoder.brim.model.memory.hebbian.B)
+                        loss += 0.1 * torch.linalg.norm(encoder.brim.A)
+                        loss += 0.1 * torch.linalg.norm(encoder.brim.B)
                         if self.args.reconstruction_memory_loss:
                             loss += self.args.reconstruction_memory_loss_coef * compute_memory_loss(self.actor_critic, activated_branch)
                 if self.args.bebold_intrinsic_reward:
