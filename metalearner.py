@@ -1061,9 +1061,10 @@ class MetaLearner:
                                _use_new_zipfile_serialization=False)
                 tmp_dict = {
                     'iter_idx': self.iter_idx,
-                    'vae_optimiser': self.base2final.optimiser_vae.state_dict(),
-                    'hebb_meta_params': self.base2final.hebb_meta_params.state_dict()
+                    'vae_optimiser': self.base2final.optimiser_vae.state_dict()
                 }
+                if self.args.use_memory and self.args.use_hebb:
+                    tmp_dict['hebb_meta_params'] = self.base2final.hebb_meta_params.state_dict()
 
                 if self.exploration_policy is not None:
                     tmp_dict['exploration_policy_optimiser'] = self.exploration_policy.optimiser.state_dict()
