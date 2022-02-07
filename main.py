@@ -22,7 +22,7 @@ from metalearner import MetaLearner
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--env-type', default='args_base2final_exploration_BIMRL')
+    parser.add_argument('--env-type', default='gridworld_b2f_exploration_full_model')
     args, rest_args = parser.parse_known_args()
     env = args.env_type
 

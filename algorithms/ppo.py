@@ -88,6 +88,7 @@ class PPO:
 
         self.lr_scheduler_policy = None
         self.lr_scheduler_encoder = None
+        self.lr_scheduler_hebb_meta = None
         if policy_anneal_lr:
             self.lr_scheduler_policy = optim.lr_scheduler.LambdaLR(self.optimiser, lr_lambda=LRPolicy(train_steps=train_steps))
             if hasattr(self.args, 'rlloss_through_encoder') and self.args.rlloss_through_encoder:
