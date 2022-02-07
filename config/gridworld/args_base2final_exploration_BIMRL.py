@@ -102,7 +102,7 @@ def get_args(rest_args):
     # - encoder
     parser.add_argument('--state_embedding_size', type=int, default=32)
     parser.add_argument('--vae_encoder_layers_before_gru', nargs='+', type=int, default=[])
-    parser.add_argument('--vae_encoder_gru_hidden_size', type=int, default=64, help='dimensionality of RNN hidden state')
+    parser.add_argument('--vae_encoder_gru_hidden_size', type=int, default=128, help='dimensionality of RNN hidden state')
     parser.add_argument('--vae_encoder_layers_after_gru', nargs='+', type=int, default=[])
     parser.add_argument('--task_inference_latent_dim', type=int, default=8, help='dimensionality of latent space')
 
@@ -262,11 +262,11 @@ def get_args(rest_args):
     parser.add_argument('--use_rim_level3', type=boolean_argument, default=True,
                         help='whatever create rim level3 (use for decode VAE terms) or not')
 
-    parser.add_argument('--rim_level1_hidden_size', type=int, default=32,
+    parser.add_argument('--rim_level1_hidden_size', type=int, default=128,
                         help='hidden size of level 1 rim (output of this level use for policy head)')
-    parser.add_argument('--rim_level2_hidden_size', type=int, default=32,
+    parser.add_argument('--rim_level2_hidden_size', type=int, default=128,
                         help='hidden size of level 1 rim (output of this level use for n step value prediction head)')
-    parser.add_argument('--rim_level3_hidden_size', type=int, default=32,
+    parser.add_argument('--rim_level3_hidden_size', type=int, default=128,
                         help='hidden size of level 3 rim (output of this level use decode VAE term)')
 
     parser.add_argument('--rim_level1_num_modules', type=int, default=4,
