@@ -31,6 +31,7 @@ class PPO:
                  eps=None,
                  use_huber_loss=True,
                  use_clipped_value_loss=True,
+                 hebb_meta_params_optim=None
                  ):
         self.args = args
 
@@ -83,6 +84,7 @@ class PPO:
             raise NotImplementedError
             self.optimiser = optim.RMSprop(actor_critic.parameters(), lr=lr, eps=eps, alpha=0.99)
         self.optimiser_vae = optimiser_vae
+        self.hebb_meta_params_optim = hebb_meta_params_optim
 
         self.lr_scheduler_policy = None
         self.lr_scheduler_encoder = None
@@ -90,6 +92,8 @@ class PPO:
             self.lr_scheduler_policy = optim.lr_scheduler.LambdaLR(self.optimiser, lr_lambda=LRPolicy(train_steps=train_steps))
             if hasattr(self.args, 'rlloss_through_encoder') and self.args.rlloss_through_encoder:
                 self.lr_scheduler_encoder = optim.lr_scheduler.LambdaLR(self.optimiser_vae, lr_lambda=LRPolicy(train_steps=train_steps))
+        if self.args.use_memory and self.args.use_hebb:
+            self.lr_scheduler_hebb_meta = optim.lr_scheduler.StepLR(self.hebb_meta_params_optim, step_size=20, gamma=0.1)
 
     def update(self,
                policy_storage,
@@ -156,6 +160,8 @@ class PPO:
                 self.optimiser.zero_grad()
                 if rlloss_through_encoder:
                     self.optimiser_vae.zero_grad()
+                if self.args.use_memory and self.args.use_hebb:
+                    self.hebb_meta_params_optim.zero_grad()
 
                 ratio = torch.exp(action_log_probs -
                                   old_action_log_probs_batch)
@@ -189,8 +195,8 @@ class PPO:
                         value_prediction_loss = compute_n_step_value_prediction_loss(self.actor_critic, activated_branch)
                         loss += self.args.n_step_value_prediction_coeff * value_prediction_loss
                     if self.args.use_memory:
-                        loss += 0.001 * torch.linalg.norm(encoder.brim.model.memory.hebbian.A)
-                        loss += 0.001 * torch.linalg.norm(encoder.brim.model.memory.hebbian.B)
+                        loss += 0.1 * torch.linalg.norm(encoder.brim.model.memory.hebbian.A)
+                        loss += 0.1 * torch.linalg.norm(encoder.brim.model.memory.hebbian.B)
                         if self.args.reconstruction_memory_loss:
                             loss += self.args.reconstruction_memory_loss_coef * compute_memory_loss(self.actor_critic, activated_branch)
                 if self.args.bebold_intrinsic_reward:
@@ -206,7 +212,9 @@ class PPO:
                 self.optimiser.step()
                 if rlloss_through_encoder:
                     self.optimiser_vae.step()
-                    pass
+                if self.args.use_memory and self.args.use_hebb:
+                    self.hebb_meta_params_optim.step()
+
 
                 value_loss_epoch += value_loss.item()
                 action_loss_epoch += action_loss.item()
@@ -227,6 +235,8 @@ class PPO:
             self.lr_scheduler_policy.step()
         if self.lr_scheduler_encoder is not None:
             self.lr_scheduler_encoder.step()
+        if self.lr_scheduler_hebb_meta is not None:
+            self.lr_scheduler_hebb_meta.step()
 
         num_updates = self.ppo_epoch * self.num_mini_batch
 

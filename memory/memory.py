@@ -166,8 +166,8 @@ class Hippocampus(nn.Module):
         if self.use_hebb:
             self.hebbian.prior(batch_size, activated_branch)
 
-    def reset(self, done_task, done_episode, activated_branch):
-        self.memory_consolidation(done_task=done_task, done_episode=done_episode, activated_branch=activated_branch)
+    def reset(self, done_task, done_episode, activated_branch, A, B):
+        self.memory_consolidation(done_task=done_task, done_episode=done_episode, activated_branch=activated_branch, A=A, B=B)
 
     def read(self, query, rim_hidden_state, activated_branch):
         state, task_inference_latent = query
@@ -191,7 +191,7 @@ class Hippocampus(nn.Module):
         value = value.squeeze(0)
         self.episodic.write(state=state, task_inference_latent=task_inf_latent, value=value, rpe=rpe, activated_branch=activated_branch)
 
-    def memory_consolidation(self, done_task, done_episode, activated_branch):
+    def memory_consolidation(self, done_task, done_episode, activated_branch, A, B):
         if torch.sum(done_task) > 0 and self.use_hebb:
             self.hebbian.reset(done_task, activated_branch)
         if torch.sum(done_episode) > 0:
@@ -205,7 +205,9 @@ class Hippocampus(nn.Module):
                                    value=value,
                                    modulation=done_process_info[3],
                                    done_process_mdp=done_episode, 
-                                   activated_branch=activated_branch)
+                                   activated_branch=activated_branch,
+                                   A=A,
+                                   B=B)
             self.episodic.reset(done_task=done_task, done_process_mdp=done_episode, activated_branch=activated_branch)
 
     def compute_intrinsic_reward(self, state, task_inf_latent):

@@ -152,6 +152,8 @@ class MetaLearner:
             self.iter_idx = self.start_idx
             self.total_frames = self.start_idx * args.policy_num_steps * args.num_processes
             self.base2final.optimiser_vae.load_state_dict(general_info['vae_optimiser'])
+            if self.args.use_hebb:
+                self.base2final.hebb_meta_params.load_state_dict(general_info['hebb_meta_params'])
             if self.exploration_policy is not None:
                 self.exploration_policy.optimiser.load_state_dict(general_info['exploration_policy_optimiser'])
             if self.exploitation_policy is not None:
@@ -195,7 +197,8 @@ class MetaLearner:
             if self.args.use_hebb:
                 self.base2final.brim_core.brim.model.memory.hebbian.normalize_key = torch.load(os.path.join(save_path, 'normalize_key.pkl'), map_location=device)
                 self.base2final.brim_core.brim.model.memory.hebbian.normalize_value = torch.load(os.path.join(save_path, 'normalize_value.pkl'), map_location=device)
-
+                self.exploration_policy.lr_scheduler_hebb_meta = torch.load(
+                    os.path.join(save_path, 'lr_scheduler_hebb_meta.pkl'), map_location=device)
             if self.args.policy_anneal_lr is not None:
                 self.exploration_policy.lr_scheduler_policy = torch.load(os.path.join(save_path, 'lr_scheduler_policy.pkl'), map_location=device)
                 self.exploration_policy.lr_scheduler_encoder = torch.load(os.path.join(save_path, 'lr_scheduler_encoder.pkl'), map_location=device)
@@ -271,7 +274,8 @@ class MetaLearner:
                 use_huber_loss=self.args.ppo_use_huberloss,
                 use_clipped_value_loss=self.args.ppo_use_clipped_value_loss,
                 clip_param=self.args.ppo_clip_param,
-                optimiser_vae=self.base2final.optimiser_vae)
+                optimiser_vae=self.base2final.optimiser_vae,
+                hebb_meta_params_optim=self.base2final.hebb_meta_params)
         elif self.args.policy == 'a2c':
             policy = A2C(
                 self.args,
@@ -1058,6 +1062,7 @@ class MetaLearner:
                 tmp_dict = {
                     'iter_idx': self.iter_idx,
                     'vae_optimiser': self.base2final.optimiser_vae.state_dict(),
+                    'hebb_meta_params': self.base2final.hebb_meta_params.state_dict()
                 }
 
                 if self.exploration_policy is not None:
@@ -1108,6 +1113,10 @@ class MetaLearner:
 
                     filename = os.path.join(save_path, f"normalize_value.pkl")
                     torch.save(self.base2final.brim_core.brim.model.memory.hebbian.normalize_value, filename, _use_new_zipfile_serialization=False)
+
+                    filename = os.path.join(save_path, f"lr_scheduler_hebb_meta{idx_label}.pkl")
+                    torch.save(policy.lr_scheduler_hebb_meta, filename,
+                               _use_new_zipfile_serialization=False)
                 
                 if self.args.policy_anneal_lr:
                     filename = os.path.join(save_path, f"lr_scheduler_policy{idx_label}.pkl")

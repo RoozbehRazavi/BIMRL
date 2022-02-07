@@ -21,15 +21,6 @@ class Hebbian(nn.Module):
         self.num_head = num_head
         self.value_size = value_size
         self.w_max = w_max
-        # self.hebb_input = 512
-        # self.hebb_output = 512
-        # hebbian parameters
-        A = torch.zeros(size=(1, self.key_size, self.value_size), device=device)
-        torch.nn.init.normal_(A, mean=0, std=0.01)
-        B = torch.zeros(size=(1, self.value_size, self.value_size), device=device)
-        torch.nn.init.normal_(B, mean=0, std=0.01)
-        self.A = nn.Parameter(A)
-        self.B = nn.Parameter(B)
         self.rim_query_size = rim_query_size
 
         self.normalize_key = utl.RunningMeanStd(shape=(self.key_size))
@@ -130,7 +121,7 @@ class Hebbian(nn.Module):
         else:
             raise NotImplementedError
 
-    def write(self, state, task_inference_latent, value, modulation, done_process_mdp, activated_branch):
+    def write(self, state, task_inference_latent, value, modulation, done_process_mdp, activated_branch, A, B):
         state = self.state_encoder(state)
         key = self.key_encoder(torch.cat((state, task_inference_latent), dim=-1))
         value = self.value_encoder(value)
@@ -147,8 +138,8 @@ class Hebbian(nn.Module):
         correlation = torch.bmm(key.permute(0, 2, 1), value)
         regularization = torch.bmm(key.permute(0, 2, 1), key)
         if activated_branch == 'exploration':
-            A = self.A.expand(batch_size, -1, -1)
-            B = self.B.expand(batch_size, -1, -1)
+            A = A.expand(batch_size, -1, -1)
+            B = B.expand(batch_size, -1, -1)
             for i in range(4):
                 a1 = torch.bmm(A, (self.w_max - self.exploration_w_assoc[done_process_mdp].clone()).permute(0, 2, 1))
                 a2 = torch.bmm(a1, correlation)

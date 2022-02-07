@@ -244,7 +244,7 @@ class BRIMCore(nn.Module):
         if self.use_stateful_vision_core:
             policy_state_encoder.state_encoder.reset(done_task)
         if self.use_memory:
-            self.brim.model.memory.reset(done_task=done_task, done_episode=done_episode, activated_branch=activated_branch)
+            self.brim.model.memory.reset(done_task=done_task, done_episode=done_episode, activated_branch=activated_branch, A=self.brim.A, B=self.brim.B)
         return self.brim.reset(task_inference_hidden_state, brim_hidden_state, done_task, done_episode)
 
     def prior(self,

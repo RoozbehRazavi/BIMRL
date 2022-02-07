@@ -116,6 +116,40 @@ class BRIM(nn.Module):
                                                        reward_size=reward_size,
                                                        reward_embed_size=reward_embed_size,
                                                        )
+        use_hebb, \
+        use_gen, \
+        read_num_head, \
+        combination_num_head, \
+        key_size, \
+        value_size, \
+        policy_num_steps, \
+        max_rollouts_per_task, \
+        w_max, \
+        memory_state_embedding, \
+        general_key_encoder_layer, \
+        general_value_encoder_layer, \
+        general_query_encoder_layer, \
+        episodic_key_encoder_layer, \
+        episodic_value_encoder_layer, \
+        hebbian_key_encoder_layer, \
+        hebbian_value_encoder_layer, \
+        state_dim, \
+        rim_query_size, \
+        rim_hidden_state_to_query_layers, \
+        read_memory_to_value_layer, \
+        read_memory_to_key_layer, \
+        hebb_learning_rate = memory_params
+
+        if use_hebb:
+            A = torch.zeros(size=(1, key_size, value_size), device=device, requires_grad=True)
+            torch.nn.init.normal_(A, mean=0, std=0.01)
+            B = torch.zeros(size=(1, value_size, value_size), device=device, requires_grad=True)
+            torch.nn.init.normal_(B, mean=0, std=0.01)
+            self.A = nn.Parameter(A)
+            self.B = nn.Parameter(B)
+        else:
+            self.A = None
+            self.B = None
 
     @staticmethod
     def initialise_blocks(use_rim_level1,
