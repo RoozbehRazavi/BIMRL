@@ -207,8 +207,10 @@ class Base2Final:
                 decoder_params.extend(self.exploration_value_decoder.parameters())
                 decoder_params.extend(self.exploitation_value_decoder.parameters())
 
+        self.hebb_meta_params = None
         if self.args.use_memory and self.args.use_hebb:
             self.hebb_meta_params = torch.optim.Adam([self.brim_core.brim.A, self.brim_core.brim.B], lr=self.args.lr_vae)
+
 
         if self.args.bebold_intrinsic_reward:
             self.optimiser_vae = torch.optim.Adam([*self.brim_core.parameters(),
