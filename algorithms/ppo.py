@@ -94,7 +94,7 @@ class PPO:
             if hasattr(self.args, 'rlloss_through_encoder') and self.args.rlloss_through_encoder:
                 self.lr_scheduler_encoder = optim.lr_scheduler.LambdaLR(self.optimiser_vae, lr_lambda=LRPolicy(train_steps=train_steps))
         if self.args.use_memory and self.args.use_hebb:
-            self.lr_scheduler_hebb_meta = optim.lr_scheduler.StepLR(self.hebb_meta_params_optim, step_size=20, gamma=0.1)
+            self.lr_scheduler_hebb_meta = optim.lr_scheduler.StepLR(self.hebb_meta_params_optim, step_size=30, gamma=0.1)
 
     def update(self,
                policy_storage,
