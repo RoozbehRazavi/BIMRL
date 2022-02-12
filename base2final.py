@@ -207,17 +207,20 @@ class Base2Final:
                 decoder_params.extend(self.exploration_value_decoder.parameters())
                 decoder_params.extend(self.exploitation_value_decoder.parameters())
 
+        brim_core_params = []
+        brim_core_params.extend(self.brim_core.brim.model.parameters())
+        brim_core_params.extend(self.brim_core.brim.vae_encoder.parameters())
+
         self.hebb_meta_params = None
         if self.args.use_memory and self.args.use_hebb:
             self.hebb_meta_params = torch.optim.Adam([self.brim_core.brim.A, self.brim_core.brim.B], lr=self.args.lr_vae)
 
-
         if self.args.bebold_intrinsic_reward:
-            self.optimiser_vae = torch.optim.Adam([*self.brim_core.parameters(),
+            self.optimiser_vae = torch.optim.Adam([*brim_core_params,
                                                    *decoder_params,
                                                    *self.predictor_network.parameters()], lr=self.args.lr_vae)
         else:
-            self.optimiser_vae = torch.optim.Adam([*self.brim_core.parameters(), *decoder_params], lr=self.args.lr_vae)
+            self.optimiser_vae = torch.optim.Adam([*brim_core_params, *decoder_params], lr=self.args.lr_vae)
 
     def initialise_brim_core(self, memory_params):
         """ Initialises and returns an Brim Core """
