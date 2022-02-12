@@ -196,7 +196,7 @@ class DND(nn.Module):
         query = self.query_encoder(query).reshape(-1, self.num_head, self.key_size)
         results = []
         for i in range(batch_size):
-            key_ = keys[:step[i], i, :].clone() * RPE_read_modulation[:step[i], i, :]
+            key_ = keys[:step[i], i, :] * RPE_read_modulation[:step[i], i, :]
             query_ = query[i]
             # 1 = b, n = 7 , m = 48 . b = 1, m = 48, p = 4 - > b * n * p
             query_ = query_.permute(1, 0).unsqueeze(0)
@@ -207,7 +207,7 @@ class DND(nn.Module):
             referenced_times[:step[i], i, :] += tmp
             # b=1, n=4, m=7 . b=1 m=7 p=48 -> b*n*p
             prob = prob.permute(0, 2, 1)
-            vals_ = vals[:step[i], i, :].clone().unsqueeze(0)
+            vals_ = vals[:step[i], i, :].unsqueeze(0)
             result = torch.bmm(prob, vals_)
             result = self.value_aggregator(result.reshape(-1, self.num_head * self.value_size))
             results.append(result)
@@ -264,7 +264,7 @@ class DND(nn.Module):
         batch_size = self.exploration_batch_size
         results = []
         for i in range(batch_size):
-            key_ = keys[:step[i], i, :].clone()
+            key_ = keys[:step[i], i, :]
             intrinsic_reward = torch.min(torch.sqrt(torch.sum((query[i] - key_)**2, dim=-1)))
             results.append(intrinsic_reward)
         results = torch.stack(results).unsqueeze(-1)
