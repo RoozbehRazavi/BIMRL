@@ -35,7 +35,7 @@ def get_args(rest_args):
     parser.add_argument('--norm_actions_of_policy', type=boolean_argument, default=True, help='normalise policy output')
 
     # network
-    parser.add_argument('--policy_layers', nargs='+', default=[128, 64, 32])
+    parser.add_argument('--policy_layers', nargs='+', default=[32])
     parser.add_argument('--policy_activation_function', type=str, default='tanh', help='tanh/relu/leaky-relu')
     parser.add_argument('--policy_initialisation', type=str, default='normc', help='normc/orthogonal')
     parser.add_argument('--policy_anneal_lr', type=boolean_argument, default=True)
@@ -71,7 +71,7 @@ def get_args(rest_args):
 
     # general
     parser.add_argument('--lr_vae', type=float, default=0.001)
-    parser.add_argument('--size_vae_buffer', type=int, default=500,
+    parser.add_argument('--size_vae_buffer', type=int, default=1000,
                         help='how many trajectories (!) to keep in VAE buffer')
     parser.add_argument('--precollect_len', type=int, default=5000,
                         help='how many frames to pre-collect before training begins (useful to fill VAE buffer)')
@@ -81,9 +81,9 @@ def get_args(rest_args):
                         help='how many trajectories to use for VAE update')
     parser.add_argument('--tbptt_stepsize', type=int, default=None,
                         help='stepsize for truncated backpropagation through time; None uses max (horizon of BAMDP)')
-    parser.add_argument('--vae_subsample_elbos', type=int, default=100,
+    parser.add_argument('--vae_subsample_elbos', type=int, default=150,
                         help='for how many timesteps to compute the ELBO; None uses all')
-    parser.add_argument('--vae_subsample_decodes', type=int, default=100,
+    parser.add_argument('--vae_subsample_decodes', type=int, default=150,
                         help='number of reconstruction terms to subsample; None uses all')
     parser.add_argument('--vae_avg_elbo_terms', type=boolean_argument, default=False,
                         help='Average ELBO terms (instead of sum)')
@@ -227,16 +227,16 @@ def get_args(rest_args):
 
     parser.add_argument('--reward_embedding_size', type=int, default=16)
 
-    parser.add_argument('--action_simulator_hidden_size', type=int, default=32,
+    parser.add_argument('--action_simulator_hidden_size', type=int, default=16,
                         help='hidden size of GRU used in n step state prediction')
 
-    parser.add_argument('--reward_simulator_hidden_size', type=int, default=32,
+    parser.add_argument('--reward_simulator_hidden_size', type=int, default=16,
                         help='hidden size of GRU used in n step reward prediction')
 
-    parser.add_argument('--value_simulator_hidden_size', type=int, default=32,
+    parser.add_argument('--value_simulator_hidden_size', type=int, default=16,
                         help='hidden size of GRU used in n step value prediction')
 
-    parser.add_argument('--state_simulator_hidden_size', type=int, default=32,
+    parser.add_argument('--state_simulator_hidden_size', type=int, default=16,
                         help='hidden size of GRU used in n step action prediction')
 
     parser.add_argument('--value_decoder_layers', nargs='+', type=int, default=[32, 32])
@@ -262,11 +262,11 @@ def get_args(rest_args):
     parser.add_argument('--use_rim_level3', type=boolean_argument, default=True,
                         help='whatever create rim level3 (use for decode VAE terms) or not')
 
-    parser.add_argument('--rim_level1_hidden_size', type=int, default=64,
+    parser.add_argument('--rim_level1_hidden_size', type=int, default=32,
                         help='hidden size of level 1 rim (output of this level use for policy head)')
-    parser.add_argument('--rim_level2_hidden_size', type=int, default=64,
+    parser.add_argument('--rim_level2_hidden_size', type=int, default=32,
                         help='hidden size of level 1 rim (output of this level use for n step value prediction head)')
-    parser.add_argument('--rim_level3_hidden_size', type=int, default=64,
+    parser.add_argument('--rim_level3_hidden_size', type=int, default=32,
                         help='hidden size of level 3 rim (output of this level use decode VAE term)')
 
     parser.add_argument('--rim_level1_num_modules', type=int, default=4,
@@ -283,19 +283,19 @@ def get_args(rest_args):
     parser.add_argument('--rim_level3_topk', type=int, default=3,
                         help='number of module in rim level 3 that can active in each time step')
 
-    parser.add_argument('--brim_layers_before_rim_level1', nargs='+', type=int, default=[32])
-    parser.add_argument('--brim_layers_before_rim_level2', nargs='+', type=int, default=[32])
-    parser.add_argument('--brim_layers_before_rim_level3', nargs='+', type=int, default=[32])
+    parser.add_argument('--brim_layers_before_rim_level1', nargs='+', type=int, default=[16])
+    parser.add_argument('--brim_layers_before_rim_level2', nargs='+', type=int, default=[16])
+    parser.add_argument('--brim_layers_before_rim_level3', nargs='+', type=int, default=[16])
 
-    parser.add_argument('--brim_layers_after_rim_level1', nargs='+', type=int, default=[16])
-    parser.add_argument('--brim_layers_after_rim_level2', nargs='+', type=int, default=[16])
-    parser.add_argument('--brim_layers_after_rim_level3', nargs='+', type=int, default=[16])
+    parser.add_argument('--brim_layers_after_rim_level1', nargs='+', type=int, default=[8])
+    parser.add_argument('--brim_layers_after_rim_level2', nargs='+', type=int, default=[8])
+    parser.add_argument('--brim_layers_after_rim_level3', nargs='+', type=int, default=[8])
     # rim_levels_output_dim shouldn't huge (set some thing like 5)
     parser.add_argument('--rim_level1_output_dim', type=int, default=16,
                         help='output size of rim level1')
     parser.add_argument('--rim_level2_output_dim', type=int, default=16,
                         help='output size of rim level2')
-    parser.add_argument('--rim_level3_output_dim', type=int, default=16,
+    parser.add_argument('--rim_level3_output_dim', type=int, default=8,
                         help='output size of rim level3')
 
     parser.add_argument('--norm_rim_level1_output', type=boolean_argument, default=True, help='normalise rim level 1 output')
@@ -321,17 +321,17 @@ def get_args(rest_args):
     parser.add_argument('--read_num_head', type=int, default=4)
     parser.add_argument('--combination_num_head', type=int, default=2)
     parser.add_argument('--key_size', type=int, default=16)
-    parser.add_argument('--memory_state_embedding', type=int, default=32) #TODO 64
-    parser.add_argument('--w_max', type=float, default=0.1) #TODO 0.5
+    parser.add_argument('--memory_state_embedding', type=int, default=32)
+    parser.add_argument('--w_max', type=float, default=0.1)
     parser.add_argument('--general_key_encoder_layer', type=int, nargs='+', default=[32], help='just for episodic')
     parser.add_argument('--general_value_encoder_layer', type=int, nargs='+', default=[32], help='just for episodic')
-    parser.add_argument('--general_query_encoder_layer', type=int, nargs='+', default=[64, 32], help='for both episodic')
+    parser.add_argument('--general_query_encoder_layer', type=int, nargs='+', default=[32, 32], help='for both episodic')
 
     parser.add_argument('--episodic_key_encoder_layer', type=int, nargs='+', default=[32])
     parser.add_argument('--episodic_value_encoder_layer', type=int, nargs='+', default=[32])
 
-    parser.add_argument('--hebbian_key_encoder_layer', type=int, nargs='+', default=[64, 32])
-    parser.add_argument('--hebbian_value_encoder_layer', type=int, nargs='+', default=[64, 32])
+    parser.add_argument('--hebbian_key_encoder_layer', type=int, nargs='+', default=[32, 32])
+    parser.add_argument('--hebbian_value_encoder_layer', type=int, nargs='+', default=[32, 32])
 
     parser.add_argument('--rim_query_size', type=int, default=16)
     parser.add_argument('--rim_hidden_state_to_query_layers', type=int, nargs='+', default=[32])
