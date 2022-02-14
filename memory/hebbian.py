@@ -140,7 +140,7 @@ class Hebbian(nn.Module):
         if activated_branch == 'exploration':
             A = A.expand(batch_size, -1, -1)
             B = B.expand(batch_size, -1, -1)
-            for i in range(4):
+            for i in range(10):
                 a1 = torch.bmm(A, (self.w_max - self.exploration_w_assoc[done_process_mdp].clone()).permute(0, 2, 1))
                 a2 = torch.bmm(a1, correlation)
                 a3 = torch.bmm(B, self.exploration_w_assoc[done_process_mdp].clone().permute(0, 2, 1))
