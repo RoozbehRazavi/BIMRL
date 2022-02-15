@@ -104,7 +104,7 @@ class Hebbian(nn.Module):
         if activated_branch == 'exploration':
             self.exploration_batch_size = batch_size
             self.exploration_w_assoc = torch.zeros((self.exploration_batch_size, self.key_size, self.value_size), requires_grad=False, device=device)
-            #torch.nn.init.normal_(self.exploration_w_assoc, mean=0, std=0.1)
+            torch.nn.init.normal_(self.exploration_w_assoc, mean=0, std=0.1)
             self.exploration_write_flag = torch.zeros(size=(batch_size, 1), dtype=torch.long, requires_grad=False, device=device)
         else:
             raise NotImplementedError
@@ -114,7 +114,7 @@ class Hebbian(nn.Module):
         tmp = torch.zeros(
             size=(len(done_task_idx), self.key_size, self.value_size),
             requires_grad=False, device=device)
-        #torch.nn.init.normal_(tmp, mean=0, std=0.1)
+        torch.nn.init.normal_(tmp, mean=0, std=0.1)
         if activated_branch == 'exploration':
             self.exploration_w_assoc[done_task_idx] = tmp
             self.exploration_write_flag[done_task_idx] = torch.zeros(size=(len(done_task_idx), 1), device=device, requires_grad=False, dtype=torch.long)
@@ -122,6 +122,7 @@ class Hebbian(nn.Module):
             raise NotImplementedError
 
     def write(self, state, task_inference_latent, value, modulation, done_process_mdp, activated_branch, A, B):
+        return 
         state = self.state_encoder(state)
         key = self.key_encoder(torch.cat((state, task_inference_latent), dim=-1))
         value = self.value_encoder(value)
