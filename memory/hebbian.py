@@ -104,7 +104,9 @@ class Hebbian(nn.Module):
         if activated_branch == 'exploration':
             self.exploration_batch_size = batch_size
             self.exploration_w_assoc = torch.zeros((self.exploration_batch_size, self.key_size, self.value_size), requires_grad=False, device=device)
-            torch.nn.init.normal_(self.exploration_w_assoc, mean=0, std=0.1)
+            #torch.nn.init.normal_(self.exploration_w_assoc, mean=0, std=0.1)
+            
+            #self.main_init = self.exploration_w_assoc.clone()
             self.exploration_write_flag = torch.zeros(size=(batch_size, 1), dtype=torch.long, requires_grad=False, device=device)
         else:
             raise NotImplementedError
@@ -114,15 +116,16 @@ class Hebbian(nn.Module):
         tmp = torch.zeros(
             size=(len(done_task_idx), self.key_size, self.value_size),
             requires_grad=False, device=device)
-        torch.nn.init.normal_(tmp, mean=0, std=0.1)
+        #torch.nn.init.normal_(tmp, mean=0, std=0.1)
+        
+        #tmp = self.main_init[done_task_idx]
         if activated_branch == 'exploration':
             self.exploration_w_assoc[done_task_idx] = tmp
             self.exploration_write_flag[done_task_idx] = torch.zeros(size=(len(done_task_idx), 1), device=device, requires_grad=False, dtype=torch.long)
         else:
             raise NotImplementedError
 
-    def write(self, state, task_inference_latent, value, modulation, done_process_mdp, activated_branch, A, B):
-        return 
+    def write(self, state, task_inference_latent, value, modulation, done_process_mdp, activated_branch, A, B): 
         state = self.state_encoder(state)
         key = self.key_encoder(torch.cat((state, task_inference_latent), dim=-1))
         value = self.value_encoder(value)
@@ -141,7 +144,7 @@ class Hebbian(nn.Module):
         if activated_branch == 'exploration':
             A = A.expand(batch_size, -1, -1)
             B = B.expand(batch_size, -1, -1)
-            for i in range(10):
+            for i in range(4):
                 a1 = torch.bmm(A, (self.w_max - self.exploration_w_assoc[done_process_mdp].clone()).permute(0, 2, 1))
                 a2 = torch.bmm(a1, correlation)
                 a3 = torch.bmm(B, self.exploration_w_assoc[done_process_mdp].clone().permute(0, 2, 1))
