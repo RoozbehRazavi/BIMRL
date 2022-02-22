@@ -335,6 +335,7 @@ class BRIMCore(nn.Module):
                     curr_rewards,
                     brim_hidden_state,
                     task_inference_hidden_state,
+                    activated_branch,
                     sample,
                     state_process=state_process)
                 brim_output1.append(curr_output1)
