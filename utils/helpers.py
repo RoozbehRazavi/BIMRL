@@ -497,8 +497,7 @@ def get_task_dim(args):
     env = make_vec_envs(env_name=args.env_name, seed=args.seed, num_processes=args.num_processes,
                         gamma=args.policy_gamma, device=device,
                         episodes_per_task=args.max_rollouts_per_task,
-                        normalise_rew=args.norm_rew_for_policy, ret_rms=None,
-                        )
+                        normalise_rew=args.norm_rew_for_policy, ret_rms=None)
     return env.task_dim
 
 

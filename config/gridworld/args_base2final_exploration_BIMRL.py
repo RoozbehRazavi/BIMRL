@@ -7,7 +7,7 @@ def get_args(rest_args):
 
     # --- GENERAL ---
 
-    parser.add_argument('--num_frames', type=int, default=5e6, help='number of frames to train')
+    parser.add_argument('--num_frames', type=int, default=10000000, help='number of frames to train')
     parser.add_argument('--max_rollouts_per_task', type=int, default=4, help='number of MDP episodes for adaptation')
     parser.add_argument('--exp_label', default='A1_meta_eval2', help='label (typically name of method)')
     parser.add_argument('--env_name', default='MiniGrid-MultiRoom-N4-S5-v0', help='environment to train on')
@@ -79,11 +79,11 @@ def get_args(rest_args):
                         help='probability of adding a new trajectory to buffer')
     parser.add_argument('--vae_batch_num_trajs', type=int, default=25,
                         help='how many trajectories to use for VAE update')
-    parser.add_argument('--tbptt_stepsize', type=int, default=None,
+    parser.add_argument('--tbptt_stepsize', type=int, default=100,
                         help='stepsize for truncated backpropagation through time; None uses max (horizon of BAMDP)')
-    parser.add_argument('--vae_subsample_elbos', type=int, default=150,
+    parser.add_argument('--vae_subsample_elbos', type=int, default=100,
                         help='for how many timesteps to compute the ELBO; None uses all')
-    parser.add_argument('--vae_subsample_decodes', type=int, default=150,
+    parser.add_argument('--vae_subsample_decodes', type=int, default=100,
                         help='number of reconstruction terms to subsample; None uses all')
     parser.add_argument('--vae_avg_elbo_terms', type=boolean_argument, default=False,
                         help='Average ELBO terms (instead of sum)')
@@ -102,7 +102,7 @@ def get_args(rest_args):
     # - encoder
     parser.add_argument('--state_embedding_size', type=int, default=32)
     parser.add_argument('--vae_encoder_layers_before_gru', nargs='+', type=int, default=[])
-    parser.add_argument('--vae_encoder_gru_hidden_size', type=int, default=120, help='dimensionality of RNN hidden state')
+    parser.add_argument('--vae_encoder_gru_hidden_size', type=int, default=180, help='dimensionality of RNN hidden state')
     parser.add_argument('--vae_encoder_layers_after_gru', nargs='+', type=int, default=[])
     parser.add_argument('--task_inference_latent_dim', type=int, default=8, help='dimensionality of latent space')
 
@@ -208,12 +208,12 @@ def get_args(rest_args):
 
     parser.add_argument('--reward_prediction_intrinsic_reward_coef', type=float, default=0.0)
 
-    parser.add_argument('--extrinsic_reward_intrinsic_reward_coef', type=float, default=50.0,
+    parser.add_argument('--extrinsic_reward_intrinsic_reward_coef', type=float, default=100.0,
                         help='coefficient for action pred error in intrinsic reward')
 
     parser.add_argument('--residual_task_inference_latent', type=boolean_argument, default=None)
 
-    parser.add_argument('--policy_num_steps', type=int, default=None,
+    parser.add_argument('--policy_num_steps', type=int, default=400,
                         help='number of env steps to do (per process) before updating')
 
     # Coefficient in Base2Final
