@@ -177,11 +177,11 @@ def get_args(rest_args):
 
     parser.add_argument('--rlloss_through_encoder', type=boolean_argument, default=True,
                         help='backprop rl loss through encoder')
-    parser.add_argument('--n_step_state_prediction', type=boolean_argument, default=False,
+    parser.add_argument('--n_step_state_prediction', type=boolean_argument, default=True,
                         help='state prediction for n step forward not just next state')
-    parser.add_argument('--n_step_reward_prediction', type=boolean_argument, default=False,
+    parser.add_argument('--n_step_reward_prediction', type=boolean_argument, default=True,
                         help='reward prediction for n step forward not just next reward')
-    parser.add_argument('--n_step_action_prediction', type=boolean_argument, default=False,
+    parser.add_argument('--n_step_action_prediction', type=boolean_argument, default=True,
                         help='action prediction for n step forward not just next reward')
 
     parser.add_argument('--n_prediction', type=int, default=2,
@@ -253,13 +253,13 @@ def get_args(rest_args):
     parser.add_argument('--use_gru_or_rim', type=str, default='RIM',
                         help='as a RNN model use RIM or GRU')
 
-    parser.add_argument('--use_rim_level1', type=boolean_argument, default=False,
+    parser.add_argument('--use_rim_level1', type=boolean_argument, default=True,
                         help='whatever create rim level1 (use for policy) or not')
 
-    parser.add_argument('--use_rim_level2', type=boolean_argument, default=False,
+    parser.add_argument('--use_rim_level2', type=boolean_argument, default=True,
                         help='whatever create rim level2 (use for n step value prediction) or not')
 
-    parser.add_argument('--use_rim_level3', type=boolean_argument, default=False,
+    parser.add_argument('--use_rim_level3', type=boolean_argument, default=True,
                         help='whatever create rim level3 (use for decode VAE terms) or not')
 
     parser.add_argument('--rim_level1_hidden_size', type=int, default=64,
@@ -313,6 +313,7 @@ def get_args(rest_args):
     # memory
     parser.add_argument('--use_memory', type=boolean_argument, default=False,
                         help='whatever or not use memory in model')
+    #TODO True
     parser.add_argument('--use_hebb', type=boolean_argument, default=False,
                         help='whatever or not use hebbian memory in memory module')
     parser.add_argument('--use_gen', type=boolean_argument, default=False,
