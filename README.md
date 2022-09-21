@@ -1,7 +1,8 @@
 # BIMRL
 
-Code for the paper BIMRL: Brain Inspired Meta Reinforcement Learning
-Seyed Roozbeh Razavi Rohani, Saeed Hedayatian, Mahdiyeh Soleymani 
+Code for the paper BIMRL: Brain Inspired Meta Reinforcement Learning -
+
+Seyed Roozbeh Razavi Rohani, Saeed Hedayatian, Mahdiyeh Soleymani -
 published at IROS 2022.
 
 ```
