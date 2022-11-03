@@ -1,6 +1,6 @@
 # BIMRL
 
-Code for the paper BIMRL: Brain Inspired Meta Reinforcement Learning 
+Code for the paper "[BIMRL: Brain Inspired Meta Reinforcement Learning](https://arxiv.org/abs/2210.16530)" - 
 
 Seyed Roozbeh Razavi Rohani, Saeed Hedayatian, Mahdiyeh Soleymani 
 
