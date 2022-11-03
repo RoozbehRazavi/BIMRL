@@ -9,7 +9,7 @@ published at IROS 2022.
 ```
 @inproceedings{roozbeh2020BIMRL,
   title={BIMRL: Brain Inspired Meta Reinforcement Learning},
-  author={Seyed Roozbeh Razavi Rohani, Saeed Hedayatian, Mahdiyeh Soleymani },
+  author={Seyed Roozbeh Razavi Rohani, Saeed Hedayatian, Mahdiyeh Soleymani Baghshah},
   booktitle={International Conference on Intelligent Robots and Systems (IROS)},
   year={2022}}
 ```
