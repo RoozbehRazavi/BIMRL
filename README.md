@@ -54,7 +54,7 @@ Also it is possible to only use first or second layer of BRIM module by running:
 ```
 !python main.py --use_rim_level3 False
 ```
-There is a lot to explore and maybe you can achieve even better performance, so let's do it and start our repo :)
+There is a lot to explore and maybe you can achieve even better performance, so let's do it - star our repo by the way :)
 
 There are also a number of TODO list, say vision core and lifelong generative module and test sets on MuJoCo benchmark which is not completed yet.
 
