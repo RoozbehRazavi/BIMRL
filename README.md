@@ -17,13 +17,10 @@ published at IROS 2022.
 
 The following packages are required:
 
-- opencv-python==4.5.1
 - torch==1.7.1+cu101
 - tensorboard==2.4.1
-- pynvml==8.0.4
 - matplotlib==3.3.2
 - tqdm==4.55.1
-- scipy==1.6.0
 - torchvision==0.8.2+cu101
 - gym==0.17.2
 - minigrid
