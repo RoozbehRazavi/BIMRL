@@ -61,7 +61,7 @@ The results will by default be saved at `./logs`,
 but you can also pass a flag with an alternative directory using `--results_log_dir /path/to/dir`.
 
 The default configs are in the `config/` folder. 
-You can overwrite any default hyperparameters using command line arguments as it mentioned eraier.
+You can overwrite any default hyperparameters using command line arguments as it was mentioned eraier.
 
 Results will be written to tensorboard event files, 
 and some visualisations will be printed every now and then.
