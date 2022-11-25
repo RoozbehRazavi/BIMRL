@@ -38,18 +38,18 @@ You can also run other variants of our method due to the flexible implementation
 
 For instance, for disabling episodic and hebbian memory you can run the commend below:
 ```
-!python main.py --use_memory False
+!python main.py --env_name MiniGrid-KeyCorridorS3R2-v0 --env-type args_base2final_exploration_BIMRL --num_processes 16 --use_memory False
 ```
 Or for disabling only hebbian memory you can run:
 ```
-!python main.py --use_hebb False
+!python main.py --env_name MiniGrid-KeyCorridorS3R2-v0 --env-type args_base2final_exploration_BIMRL --num_processes 16
 ```
 Also it is possible to only use first or second layer of BRIM module by running:
 ```
-!python main.py --use_rim_level2 False
+!python main.py --env_name MiniGrid-KeyCorridorS3R2-v0 --env-type args_base2final_exploration_BIMRL --num_processes 16
 ```
 ```
-!python main.py --use_rim_level3 False
+!python main.py --env_name MiniGrid-KeyCorridorS3R2-v0 --env-type args_base2final_exploration_BIMRL --num_processes 16
 ```
 There is a lot to explore and maybe you can achieve even better performance, so let's do it - star our repo by the way :)
 
