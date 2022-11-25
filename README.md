@@ -39,33 +39,32 @@ To run BIMRL on the Mini-Grid experiments use:
 
 You can also run other variants of our method due to the flexible implementation. To do so, take a look at config files. 
 
-For instance, for disabling episodic and hebbian memory you can:
+For instance, for disabling episodic and hebbian memory you can run the commend below:
 ```
 !python main.py --use_memory False
 ```
-Or for disabling only hebbian memory you can:
+Or for disabling only hebbian memory you can run:
 ```
 !python main.py --use_hebb False
 ```
-Also it is possible to only use first or second layer of BRIM module by:
+Also it is possible to only use first or second layer of BRIM module by running:
 ```
 !python main.py --use_rim_level2 False
 ```
-
 ```
 !python main.py --use_rim_level3 False
 ```
-There is a lot to explore and maybe you can improve the performance even more, so let's do it and start our repo :)
+There is a lot to explore and maybe you can achieve even better performance, so let's do it and start our repo :)
 
-There are also a number of TODO list, say vision core and lifelong generative module and test on MuJoCo benchmark which is not completed yet.
+There are also a number of TODO list, say vision core and lifelong generative module and test sets on MuJoCo benchmark which is not completed yet.
 
-Due to the huge scale of the implementation and since some parts of the code have not been cleaned yet , it might seems baffling so feel free to contact us through email or the issues part of the repo in case there is a problem ^_^
+Due to the huge scale of the implementation and since some parts of the code have not been cleaned yet, a handful of files might seems baffling so feel free to contact us through email or the issues part of the repo in case there is a problem ^_^
 
 The results will by default be saved at `./logs`, 
 but you can also pass a flag with an alternative directory using `--results_log_dir /path/to/dir`.
 
 The default configs are in the `config/` folder. 
-You can overwrite any default hyperparameters using command line arguments.
+You can overwrite any default hyperparameters using command line arguments as it mentioned eraier.
 
 Results will be written to tensorboard event files, 
 and some visualisations will be printed every now and then.
