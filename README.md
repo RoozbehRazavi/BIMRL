@@ -29,9 +29,9 @@ The following packages are required:
 # Running an experiment
 
 
-To run BIMRL on the Mini-Grid experiments use:
+To run BIMRL on the Mini-Grid experiments use: (MiniGrid-KeyCorridorS3R2-v0 will be tested on the (probably) best config)
 ```
-!python main.py 
+!python main.py --env_name MiniGrid-KeyCorridorS3R2-v0 --env-type args_base2final_exploration_BIMRL --num_processes 16
 ```
 
 You can also run other variants of our method due to the flexible implementation. To do so, take a look at config files. 
