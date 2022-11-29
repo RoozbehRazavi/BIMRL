@@ -24,7 +24,7 @@ The following packages are required:
 - torchvision==0.8.2+cu101
 - gym==0.17.2
 
-For Minigrid installetion we slightly changed the original repo in order to make it faster, so you can install the version peresented here by run:
+So for Minigrid installation, we slightly changed the original repo in order to make it faster, so you can install the version peresented here by running:
 ```
 cd ./gym-minigrid-master
 !pip install -e .
