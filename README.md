@@ -23,9 +23,13 @@ The following packages are required:
 - tqdm==4.55.1
 - torchvision==0.8.2+cu101
 - gym==0.17.2
-- minigrid
 
-
+For Minigrid installetion we slightly changed the original repo in order to make it faster, so you can install the version peresented here by run:
+```
+cd ./gym-minigrid-master
+!pip install -e .
+cd ..
+```
 # Running an experiment
 
 
