@@ -74,3 +74,4 @@ and some visualisations will be printed every now and then.
 
 * [VariBAD](https://github.com/lmzintgraf/varibad)
 * [Minigrid](https://github.com/Farama-Foundation/Minigrid)
+* [BRIM](https://github.com/sarthmit/BRIMs)
